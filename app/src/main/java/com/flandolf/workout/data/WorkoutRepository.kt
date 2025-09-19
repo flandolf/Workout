@@ -46,6 +46,8 @@ class WorkoutRepository(private val context: Context) {
 
     suspend fun getLatestWorkout(): WorkoutWithExercises? = dao.getLatestWorkoutWithExercises()
 
+    suspend fun getDistinctExerciseNames(): List<String> = dao.getDistinctExerciseNames()
+
     suspend fun exportCsv(file: File): File {
         val workouts = getAllWorkouts()
         FileWriter(file).use { writer ->

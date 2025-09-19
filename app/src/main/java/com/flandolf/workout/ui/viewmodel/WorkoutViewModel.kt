@@ -22,6 +22,9 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private val _currentWorkout = MutableStateFlow<WorkoutWithExercises?>(null)
     val currentWorkout: StateFlow<WorkoutWithExercises?> = _currentWorkout
 
+    private val _exerciseNameSuggestions = MutableStateFlow<List<String>>(emptyList())
+    val exerciseNameSuggestions: StateFlow<List<String>> = _exerciseNameSuggestions
+
     private val _isTimerRunning = MutableStateFlow(false)
     val isTimerRunning: StateFlow<Boolean> = _isTimerRunning
 
@@ -104,6 +107,12 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             val id = _currentWorkoutId.value
             if (id != null) _currentWorkout.value = repo.getWorkout(id)
+        }
+    }
+
+    fun loadExerciseNameSuggestions() {
+        viewModelScope.launch {
+            _exerciseNameSuggestions.value = repo.getDistinctExerciseNames()
         }
     }
 

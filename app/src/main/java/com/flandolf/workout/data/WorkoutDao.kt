@@ -34,4 +34,7 @@ interface WorkoutDao {
     @Transaction
     @Query("SELECT * FROM workouts ORDER BY date DESC LIMIT 1")
     suspend fun getLatestWorkoutWithExercises(): WorkoutWithExercises?
+
+    @Query("SELECT DISTINCT name FROM exercises ORDER BY name")
+    suspend fun getDistinctExerciseNames(): List<String>
 }

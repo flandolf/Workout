@@ -57,7 +57,9 @@ class MainActivity : ComponentActivity() {
                                     workoutVm.startWorkout()
                                 }
                             }
-                            WorkoutScreen(
+                                // load suggestions and pass into screen
+                                LaunchedEffect(Unit) { workoutVm.loadExerciseNameSuggestions() }
+                                WorkoutScreen(
                                 elapsedSeconds = elapsed.value,
                                 currentExercises = currentWorkout.value?.exercises ?: emptyList(),
                                 onStartTick = { workoutVm.resumeTimer() },
@@ -68,7 +70,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onAddExercise = { workoutVm.addExercise(it) },
                                 onAddSet = { exerciseId, reps, weight -> workoutVm.addSet(exerciseId, reps, weight) },
-                                onDeleteExercise = { workoutVm.deleteExercise(it) },
+                                    onDeleteExercise = { workoutVm.deleteExercise(it) },
+                                    exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
                                 isTimerRunning = isTimerRunning.value
                             )
                         }
