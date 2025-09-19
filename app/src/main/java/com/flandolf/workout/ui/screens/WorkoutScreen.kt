@@ -41,6 +41,7 @@ fun WorkoutScreen(
     onEndWorkout: () -> Unit,
     onAddExercise: (String) -> Unit,
     exerciseNameSuggestions: List<String> = emptyList(),
+    minWordsForSuggestions: Int = 2,
     onAddSet: (exerciseId: Long, reps: Int, weight: Float) -> Unit,
     onUpdateSet: (exerciseId: Long, setIndex: Int, reps: Int, weight: Float) -> Unit = { _, _, _, _ -> },
     onDeleteSet: (exerciseId: Long, setIndex: Int) -> Unit = { _, _ -> },
@@ -133,7 +134,11 @@ fun WorkoutScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         OutlinedTextField(
                             value = newExerciseName,
-                            onValueChange = { newExerciseName = it; showSuggestions = it.isNotBlank() },
+                            onValueChange = {
+                                val wc = it.trim().split("\\s+".toRegex()).count { w -> w.isNotBlank() }
+                                newExerciseName = it
+                                showSuggestions = wc >= minWordsForSuggestions
+                            },
                             label = { Text("Exercise name", style = MaterialTheme.typography.bodySmall) },
                             placeholder = { Text("e.g. Bench Press", style = MaterialTheme.typography.bodySmall) },
                             modifier = Modifier
@@ -144,8 +149,9 @@ fun WorkoutScreen(
                             textStyle = MaterialTheme.typography.bodySmall,
                         )
 
+                        val wordCount = newExerciseName.trim().split("\\s+".toRegex()).count { w -> w.isNotBlank() }
                         DropdownMenu(
-                            expanded = showSuggestions && combinedSuggestions.any {
+                            expanded = showSuggestions && wordCount >= minWordsForSuggestions && combinedSuggestions.any {
                                 it.contains(
                                     newExerciseName,
                                     ignoreCase = true
