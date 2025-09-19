@@ -18,10 +18,17 @@ class WorkoutRepository(private val context: Context) {
     }
 
     suspend fun endWorkout(id: Long, durationSeconds: Long) {
-        val existing = dao.getWorkoutWithExercises(id)?.workout
+        val existingWith = dao.getWorkoutWithExercises(id)
+        val existing = existingWith?.workout
         if (existing != null) {
-            val updated = existing.copy(durationSeconds = durationSeconds)
-            dao.updateWorkout(updated)
+            val hasSets = existingWith.exercises.any { ex -> ex.sets.isNotEmpty() }
+            if (!hasSets) {
+                // No sets logged, delete the workout entirely
+                dao.deleteWorkout(existing)
+            } else {
+                val updated = existing.copy(durationSeconds = durationSeconds)
+                dao.updateWorkout(updated)
+            }
         }
     }
 

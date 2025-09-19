@@ -61,7 +61,7 @@ fun HomeScreen(
                     text = "Workout",
                     style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
                 ElevatedButton(
                     onClick = onStartWorkout,

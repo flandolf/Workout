@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -38,11 +39,14 @@ fun WorkoutScreen(
     onEndWorkout: () -> Unit,
     onAddExercise: (String) -> Unit,
     onAddSet: (exerciseId: Long, reps: Int, weight: Float) -> Unit,
+    onUpdateSet: (exerciseId: Long, setIndex: Int, reps: Int, weight: Float) -> Unit = { _, _, _, _ -> },
+    onDeleteSet: (exerciseId: Long, setIndex: Int) -> Unit = { _, _ -> },
     onDeleteExercise: (exerciseId: Long) -> Unit,
     isTimerRunning: Boolean
 ) {
     // Toggle add set input for each exercise
     val addSetVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
+    val editSetMap = remember { mutableStateMapOf<Pair<Long, Int>, Boolean>() }
     var addExerciseVisible by remember { mutableStateOf(false) }
     var newExerciseName by remember { mutableStateOf("") }
 
@@ -52,42 +56,41 @@ fun WorkoutScreen(
     // No add set dialog
 
     Scaffold(
-        topBar = { CenterAlignedTopAppBar(title = { Text("Workout", fontWeight = FontWeight.SemiBold) }) },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onEndWorkout,
-                icon = { Icon(Icons.Default.Delete, contentDescription = "End Workout") },
-                text = { Text("End Workout") },
-                containerColor = MaterialTheme.colorScheme.error
-            )
-        }
+        topBar = { CenterAlignedTopAppBar(title = { Text("Workout", fontWeight = FontWeight.SemiBold) }) }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                shape = MaterialTheme.shapes.large,
+        Column(modifier = Modifier.padding(innerPadding).padding(12.dp)) {
+            Row(modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Elapsed",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    // Toggle Button for Start/Pause
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Elapsed",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                // Start/Pause and End Workout actions grouped at the right
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Button(
                         onClick = { if (isTimerRunning) onPauseTick() else onStartTick() },
-                        modifier = Modifier
+                        modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Text(if (isTimerRunning) "Pause" else "Start")
+                    }
+                    Button(
+                        onClick = onEndWorkout,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "End Workout", modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("End")
                     }
                 }
             }
@@ -136,6 +139,9 @@ fun WorkoutScreen(
                                 onAddExercise(newExerciseName.trim())
                                 newExerciseName = ""
                                 addExerciseVisible = false
+                            } else {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
                             }
                         },
                         shape = MaterialTheme.shapes.small,
@@ -162,66 +168,154 @@ fun WorkoutScreen(
                             shape = MaterialTheme.shapes.medium,
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        ex.exercise.name,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    IconButton(
-                                        onClick = { onDeleteExercise(ex.exercise.id) },
-                                        modifier = Modifier.size(32.dp)
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete Exercise",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                ex.exercise.name,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.Bold,
+                                            )
+                                            Text(
+                                                text = "${ex.sets.size} sets",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            val isVisible = addSetVisibleMap[ex.exercise.id] == true
+                                            val rotation by animateFloatAsState(if (isVisible) 45f else 0f)
+                                            IconButton(
+                                                onClick = {
+                                                    addSetVisibleMap[ex.exercise.id] = !isVisible
+                                                },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Add,
+                                                    contentDescription = if (isVisible) "Hide Add Set" else "Show Add Set",
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.rotate(rotation)
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { onDeleteExercise(ex.exercise.id) },
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Delete Exercise",
+                                                    tint = MaterialTheme.colorScheme.error
+                                                )
+                                            }
+                                        }
                                     }
-                                    val isVisible = addSetVisibleMap[ex.exercise.id] == true
-                                    val rotation by animateFloatAsState(if (isVisible) 45f else 0f)
-                                    IconButton(
-                                        onClick = {
-                                            addSetVisibleMap[ex.exercise.id] = !isVisible
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = if (isVisible) "Hide Add Set" else "Show Add Set",
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.rotate(rotation)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Column(modifier = Modifier.fillMaxWidth()) {
                                     if (ex.sets.isEmpty()) {
                                         Text("No sets yet.", style = MaterialTheme.typography.bodySmall)
                                     } else {
                                         ex.sets.forEachIndexed { i, s ->
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(vertical = 2.dp),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Text("Set ${i + 1}", style = MaterialTheme.typography.bodyMedium)
-                                                Text("${s.reps} reps", style = MaterialTheme.typography.bodyMedium)
-                                                Text("${s.weight} kg", style = MaterialTheme.typography.bodyMedium)
+                                            val editing = editSetMap[ex.exercise.id to i] == true
+                                            if (!editing) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 6.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Surface(
+                                                            shape = MaterialTheme.shapes.small,
+                                                            tonalElevation = 1.dp,
+                                                            color = MaterialTheme.colorScheme.surfaceVariant,
+                                                            modifier = Modifier.padding(end = 8.dp)
+                                                        ) {
+                                                            Text(
+                                                                text = "Set ${i + 1}",
+                                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                                                style = MaterialTheme.typography.bodyMedium
+                                                            )
+                                                        }
+                                                        Text("${s.reps} reps", style = MaterialTheme.typography.bodyMedium)
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text("${s.weight} kg", style = MaterialTheme.typography.bodyMedium)
+                                                    }
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        TextButton(onClick = { editSetMap[ex.exercise.id to i] = true }) {
+                                                            Text("Edit")
+                                                        }
+                                                        IconButton(onClick = { onDeleteSet(ex.exercise.id, i) }, modifier = Modifier.size(28.dp)) {
+                                                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete set", tint = MaterialTheme.colorScheme.error)
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                var editReps by remember("edit_reps_${ex.exercise.id}_$i") { mutableStateOf(s.reps.toString()) }
+                                                var editWeight by remember("edit_weight_${ex.exercise.id}_$i") { mutableStateOf(s.weight.toString()) }
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    OutlinedTextField(
+                                                        value = editReps,
+                                                        onValueChange = { editReps = it },
+                                                        label = { Text("Reps") },
+                                                        modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 4.dp),
+                                                        singleLine = true,
+                                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    OutlinedTextField(
+                                                        value = editWeight,
+                                                        onValueChange = { editWeight = it },
+                                                        label = { Text("Weight (kg)") },
+                                                        modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 4.dp),
+                                                        singleLine = true,
+                                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    TextButton(onClick = {
+                                                        val reps = editReps.toIntOrNull() ?: 0
+                                                        val weight = editWeight.toFloatOrNull() ?: 0f
+                                                        if (reps > 0) {
+                                                            onUpdateSet(ex.exercise.id, i, reps, weight)
+                                                            editSetMap.remove(ex.exercise.id to i)
+                                                        }
+                                                    }) {
+                                                        Text("Save")
+                                                    }
+                                                    TextButton(onClick = { editSetMap.remove(ex.exercise.id to i) }) {
+                                                        Text("Cancel")
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                     AnimatedVisibility(visible = addSetVisibleMap[ex.exercise.id] == true) {
+                                        // Prefill with last set values when opening add-set row
+                                        val lastSet = ex.sets.lastOrNull()
+                                        val prefillReps = lastSet?.reps?.toString() ?: ""
+                                        val prefillWeight = lastSet?.weight?.toString() ?: ""
+
                                         var repsText by remember("reps_${ex.exercise.id}") { mutableStateOf("") }
                                         var weightText by remember("weight_${ex.exercise.id}") { mutableStateOf("") }
+
+                                        LaunchedEffect(addSetVisibleMap[ex.exercise.id]) {
+                                            if (addSetVisibleMap[ex.exercise.id] == true) {
+                                                repsText = prefillReps
+                                                weightText = prefillWeight
+                                            }
+                                        }
+
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -233,46 +327,35 @@ fun WorkoutScreen(
                                                 value = repsText,
                                                 onValueChange = { repsText = it },
                                                 label = { Text("Reps", style = MaterialTheme.typography.bodySmall) },
-                                                placeholder = {
-                                                    Text(
-                                                        "10",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                },
+                                                placeholder = { Text("10", style = MaterialTheme.typography.bodySmall) },
                                                 singleLine = true,
-                                                modifier = Modifier.weight(1f).heightIn(min = 56.dp)
-                                                    .padding(vertical = 4.dp),
+                                                modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 4.dp)
+                                                    .onFocusChanged { state ->
+                                                        if (state.isFocused && repsText == prefillReps && prefillReps.isNotEmpty()) {
+                                                            repsText = ""
+                                                        }
+                                                    },
                                                 shape = MaterialTheme.shapes.small,
                                                 textStyle = MaterialTheme.typography.bodySmall,
                                                 keyboardOptions = KeyboardOptions(
                                                     keyboardType = KeyboardType.Number,
                                                     imeAction = ImeAction.Next
                                                 ),
-                                                keyboardActions = KeyboardActions(onNext = {
-                                                    focusManager.moveFocus(
-                                                        FocusDirection.Next
-                                                    )
-                                                }),
+                                                keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Next) }),
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             OutlinedTextField(
                                                 value = weightText,
                                                 onValueChange = { weightText = it },
-                                                label = {
-                                                    Text(
-                                                        "Weight (kg)",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                },
-                                                placeholder = {
-                                                    Text(
-                                                        "60.0",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                },
+                                                label = { Text("Weight (kg)", style = MaterialTheme.typography.bodySmall) },
+                                                placeholder = { Text("60.0", style = MaterialTheme.typography.bodySmall) },
                                                 singleLine = true,
-                                                modifier = Modifier.weight(1f).heightIn(min = 56.dp)
-                                                    .padding(vertical = 4.dp),
+                                                modifier = Modifier.weight(1f).heightIn(min = 56.dp).padding(vertical = 4.dp)
+                                                    .onFocusChanged { state ->
+                                                        if (state.isFocused && weightText == prefillWeight && prefillWeight.isNotEmpty()) {
+                                                            weightText = ""
+                                                        }
+                                                    },
                                                 shape = MaterialTheme.shapes.small,
                                                 textStyle = MaterialTheme.typography.bodySmall,
                                                 keyboardOptions = KeyboardOptions(
