@@ -23,7 +23,7 @@ fun SettingsScreen(
     onExportCsv: () -> Unit,
     onResetAll: (() -> Unit)? = null
 ) {
-    var showResetDialog = remember { mutableStateOf(false) }
+    val showResetDialog = remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {

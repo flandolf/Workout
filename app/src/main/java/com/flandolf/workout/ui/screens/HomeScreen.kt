@@ -5,9 +5,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Create
-import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PlusOne
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -68,7 +68,7 @@ fun HomeScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Default.Face, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                    Icon(Icons.Default.PlusOne, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                     Text("Start Workout", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 }
                 ElevatedButton(
@@ -79,7 +79,7 @@ fun HomeScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                    Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                     Text("View Workouts", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 }
                 ElevatedButton(
@@ -90,7 +90,7 @@ fun HomeScreen(
                         .height(54.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Icon(Icons.Default.Create, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                    Icon(Icons.Default.BarChart, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                     Text("Progress", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 }
                 OutlinedButton(
