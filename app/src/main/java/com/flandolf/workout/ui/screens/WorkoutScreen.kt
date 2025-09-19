@@ -41,7 +41,7 @@ fun WorkoutScreen(
     onEndWorkout: () -> Unit,
     onAddExercise: (String) -> Unit,
     exerciseNameSuggestions: List<String> = emptyList(),
-    minWordsForSuggestions: Int = 1,
+    minLettersForSuggestions: Int = 4,
     onAddSet: (exerciseId: Long, reps: Int, weight: Float) -> Unit,
     onUpdateSet: (exerciseId: Long, setIndex: Int, reps: Int, weight: Float) -> Unit = { _, _, _, _ -> },
     onDeleteSet: (exerciseId: Long, setIndex: Int) -> Unit = { _, _ -> },
@@ -135,9 +135,9 @@ fun WorkoutScreen(
                         OutlinedTextField(
                             value = newExerciseName,
                             onValueChange = {
-                                val wc = it.trim().split("\\s+".toRegex()).count { w -> w.isNotBlank() }
+                                val charCount = it.count { ch -> !ch.isWhitespace() }
                                 newExerciseName = it
-                                showSuggestions = wc >= minWordsForSuggestions
+                                showSuggestions = charCount >= minLettersForSuggestions
                             },
                             label = { Text("Exercise name", style = MaterialTheme.typography.bodySmall) },
                             placeholder = { Text("e.g. Bench Press", style = MaterialTheme.typography.bodySmall) },
@@ -149,13 +149,10 @@ fun WorkoutScreen(
                             textStyle = MaterialTheme.typography.bodySmall,
                         )
 
-                        val wordCount = newExerciseName.trim().split("\\s+".toRegex()).count { w -> w.isNotBlank() }
+                        val charCount = newExerciseName.count { ch -> !ch.isWhitespace() }
                         DropdownMenu(
-                            expanded = showSuggestions && wordCount >= minWordsForSuggestions && combinedSuggestions.any {
-                                it.contains(
-                                    newExerciseName,
-                                    ignoreCase = true
-                                )
+                            expanded = showSuggestions && charCount >= minLettersForSuggestions && combinedSuggestions.any {
+                                it.contains(newExerciseName, ignoreCase = true)
                             },
                             onDismissRequest = { showSuggestions = false },
                             modifier = Modifier.fillMaxWidth(),
