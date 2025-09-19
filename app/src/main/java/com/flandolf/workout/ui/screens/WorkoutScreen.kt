@@ -41,7 +41,7 @@ fun WorkoutScreen(
     onEndWorkout: () -> Unit,
     onAddExercise: (String) -> Unit,
     exerciseNameSuggestions: List<String> = emptyList(),
-    minWordsForSuggestions: Int = 2,
+    minWordsForSuggestions: Int = 1,
     onAddSet: (exerciseId: Long, reps: Int, weight: Float) -> Unit,
     onUpdateSet: (exerciseId: Long, setIndex: Int, reps: Int, weight: Float) -> Unit = { _, _, _, _ -> },
     onDeleteSet: (exerciseId: Long, setIndex: Int) -> Unit = { _, _ -> },
