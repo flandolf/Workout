@@ -48,6 +48,9 @@ class WorkoutRepository(private val context: Context) {
 
     suspend fun getDistinctExerciseNames(): List<String> = dao.getDistinctExerciseNames()
 
+    suspend fun getBestSetFromLastWorkout(exerciseName: String, currentWorkoutId: Long): SetEntity? = 
+        dao.getBestSetFromLastWorkout(exerciseName, currentWorkoutId)
+
     /**
      * Exports all workout data to a CSV file with comprehensive information including:
      * - Date and time of workout

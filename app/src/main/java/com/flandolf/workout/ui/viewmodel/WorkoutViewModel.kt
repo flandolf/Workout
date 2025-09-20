@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.flandolf.workout.data.Workout
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.WorkoutWithExercises
+import com.flandolf.workout.data.SetEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -59,6 +60,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             // Load the current workout data
             viewModelScope.launch {
                 _currentWorkout.value = repo.getWorkout(savedWorkoutId)
+                loadPreviousBestSets()
             }
         }
     }
@@ -79,6 +81,9 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private val _isTimerRunning = MutableStateFlow(false)
     val isTimerRunning: StateFlow<Boolean> = _isTimerRunning
 
+    private val _previousBestSets = MutableStateFlow<Map<String, SetEntity>>(emptyMap())
+    val previousBestSets: StateFlow<Map<String, SetEntity>> = _previousBestSets
+
     init {
         restoreWorkoutState()
     }
@@ -91,6 +96,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 _currentWorkoutId.value = id
                 _elapsedSeconds.value = 0L
                 _currentWorkout.value = repo.getWorkout(id)
+                loadPreviousBestSets()
                 _isTimerRunning.value = true
                 startTimerJob()
                 saveWorkoutState()
@@ -151,6 +157,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             val id = _currentWorkoutId.value
             if (id != null) repo.addExercise(id, name)
             _currentWorkout.value = _currentWorkoutId.value?.let { repo.getWorkout(it) }
+            loadPreviousBestSets()
         }
     }
 
@@ -165,13 +172,33 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     fun refreshCurrentWorkout() {
         viewModelScope.launch {
             val id = _currentWorkoutId.value
-            if (id != null) _currentWorkout.value = repo.getWorkout(id)
+            if (id != null) {
+                _currentWorkout.value = repo.getWorkout(id)
+                loadPreviousBestSets()
+            }
         }
     }
 
     fun loadExerciseNameSuggestions() {
         viewModelScope.launch {
             _exerciseNameSuggestions.value = repo.getDistinctExerciseNames()
+        }
+    }
+
+    fun loadPreviousBestSets() {
+        viewModelScope.launch {
+            val currentWorkout = _currentWorkout.value
+            val currentWorkoutId = _currentWorkoutId.value
+            if (currentWorkout != null && currentWorkoutId != null) {
+                val previousSets = mutableMapOf<String, SetEntity>()
+                for (exercise in currentWorkout.exercises) {
+                    val previousBestSet = repo.getBestSetFromLastWorkout(exercise.exercise.name, currentWorkoutId)
+                    if (previousBestSet != null) {
+                        previousSets[exercise.exercise.name] = previousBestSet
+                    }
+                }
+                _previousBestSets.value = previousSets
+            }
         }
     }
 

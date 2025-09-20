@@ -37,4 +37,15 @@ interface WorkoutDao {
 
     @Query("SELECT DISTINCT name FROM exercises ORDER BY name")
     suspend fun getDistinctExerciseNames(): List<String>
+
+    @Query("""
+        SELECT s.* FROM sets s 
+        INNER JOIN exercises e ON s.exerciseId = e.id 
+        INNER JOIN workouts w ON e.workoutId = w.id 
+        WHERE e.name = :exerciseName 
+        AND w.id != :currentWorkoutId
+        ORDER BY w.date DESC, (s.weight * s.reps) DESC 
+        LIMIT 1
+    """)
+    suspend fun getBestSetFromLastWorkout(exerciseName: String, currentWorkoutId: Long): SetEntity?
 }

@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
                             val elapsed = workoutVm.elapsedSeconds.collectAsState()
                             val currentWorkout = workoutVm.currentWorkout.collectAsState()
                             val isTimerRunning = workoutVm.isTimerRunning.collectAsState()
+                            val previousBestSets = workoutVm.previousBestSets.collectAsState()
                             LaunchedEffect(Unit) {
                                 historyVm.loadWorkouts()
                             }
@@ -77,6 +78,7 @@ class MainActivity : ComponentActivity() {
                                 exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
                                 isTimerRunning = isTimerRunning.value,
                                 vm = workoutVm,
+                                previousBestSets = previousBestSets.value
                             )
                         }
                         composable("history") {
