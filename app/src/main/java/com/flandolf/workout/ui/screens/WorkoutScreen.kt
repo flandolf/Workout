@@ -288,9 +288,7 @@ fun WorkoutScreen(
                 }
             }
 
-            if (currentExercises.isEmpty()) {
-                Text("No exercises yet.", style = MaterialTheme.typography.bodyMedium)
-            } else {
+            if (currentExercises.isNotEmpty()) {
                 val listState = rememberLazyListState()
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyColumn(
