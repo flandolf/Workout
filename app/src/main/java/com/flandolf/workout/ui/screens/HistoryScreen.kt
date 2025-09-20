@@ -77,7 +77,7 @@ fun HistoryScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            "Your workout history will appear here",
+                            "Your workout history will appear here.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center

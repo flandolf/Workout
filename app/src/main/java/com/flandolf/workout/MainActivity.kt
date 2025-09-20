@@ -78,7 +78,22 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("progress") {
                             val workouts = historyVm.workouts.collectAsState()
-                            ProgressScreen(workouts = workouts.value, viewModel = historyVm)
+                            ProgressScreen(
+                                workouts = workouts.value,
+                                viewModel = historyVm,
+                                onExerciseClick = { exerciseName ->
+                                    navController.navigate("exercise_detail/$exerciseName")
+                                }
+                            )
+                        }
+                        composable("exercise_detail/{exerciseName}") { backStackEntry ->
+                            val exerciseName = backStackEntry.arguments?.getString("exerciseName") ?: ""
+                            val workouts = historyVm.workouts.collectAsState()
+                            ExerciseDetailScreen(
+                                exerciseName = exerciseName,
+                                workouts = workouts.value,
+                                onBackClick = { navController.popBackStack() }
+                            )
                         }
                         composable("settings") {
                             SettingsScreen(onExportCsv = { exportCsv() }, onResetAll = {
