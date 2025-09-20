@@ -70,7 +70,7 @@ fun HistoryScreen(
                                 Column {
                                     Text(
                                         df.format(Date(w.workout.date)),
-                                        style = MaterialTheme.typography.titleLarge
+                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
                                     )
                                 }
                                 IconButton(onClick = { expanded = !expanded }) {

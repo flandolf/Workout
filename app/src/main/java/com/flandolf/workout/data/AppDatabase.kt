@@ -16,11 +16,10 @@ abstract class AppDatabase : RoomDatabase() {
         fun getInstance(context: Context, allowMainThread: Boolean = false): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val builder = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "workout_db"
+                    context.applicationContext, AppDatabase::class.java, "workout_db"
                 )
-                val instance = if (allowMainThread) builder.allowMainThreadQueries().build() else builder.build()
+                val instance = if (allowMainThread) builder.allowMainThreadQueries()
+                    .build() else builder.build()
                 INSTANCE = instance
                 instance
             }

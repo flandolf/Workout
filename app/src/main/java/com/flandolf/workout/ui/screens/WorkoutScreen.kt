@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -64,101 +65,127 @@ fun WorkoutScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // No add set dialog
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Workout", fontWeight = FontWeight.SemiBold) }) }
-    ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding).padding(12.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Elapsed",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                // Start/Pause and End Workout actions grouped at the right
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(
-                        onClick = { if (isTimerRunning) {onPauseTick()} else {
+    Scaffold { innerPadding ->
+        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isTimerRunning)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        if (isTimerRunning) {
+                            onPauseTick()
+                        } else {
                             if (vm.currentWorkoutId.value == null) {
                                 vm.startWorkout()
                             } else {
                                 onStartTick()
                             }
-                        } },
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        if (isTimerRunning) {
-                            Icon(
-                                imageVector = Icons.Default.Pause,
-                                contentDescription = "Pause Timer",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Start Timer",
-                                modifier = Modifier.size(18.dp)
-                            )
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isTimerRunning) "Pause" else "Start")
-                    }
-                    Button(
-                        onClick = onEndWorkout,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "End Workout",
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("End")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("Exercises", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                val addVisible = addExerciseVisible
-                val rot by animateFloatAsState(if (addVisible) 45f else 0f)
-                IconButton(onClick = { addExerciseVisible = !addExerciseVisible }) {
+                    },
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
                     Icon(
-                        Icons.Default.Add,
-                        contentDescription = if (addVisible) "Hide" else "Add Exercise",
-                        modifier = Modifier.rotate(rot)
+                        imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        if (isTimerRunning) "Pause" else "Start",
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
-            }
 
-            AnimatedVisibility(visible = addExerciseVisible) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                        .animateContentSize(),
-                    verticalAlignment = Alignment.CenterVertically
+                Button(
+                    onClick = onEndWorkout,
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
                 ) {
-                    val commonExercises = CommonExercises().exercises
-                    val combinedSuggestions = (commonExercises + exerciseNameSuggestions).distinct()
-                    var showSuggestions by remember { mutableStateOf(false) }
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "End Workout",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("End", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
 
-                    Column(modifier = Modifier.weight(1f)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
+        ) {
+            Text(
+                "Exercises",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            val addVisible = addExerciseVisible
+            val rot by animateFloatAsState(if (addVisible) 45f else 0f)
+            FilledTonalButton(
+                onClick = { addExerciseVisible = !addExerciseVisible },
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = if (addVisible) "Hide" else "Add Exercise",
+                    modifier = Modifier.rotate(rot)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (addVisible) "Cancel" else "Add Exercise")
+            }
+        }
+
+        AnimatedVisibility(visible = addExerciseVisible) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+                    .animateContentSize(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Add New Exercise",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val commonExercises = CommonExercises().exercises
+                        val combinedSuggestions = (commonExercises + exerciseNameSuggestions).distinct()
+                        var showSuggestions by remember { mutableStateOf(false) }
+
                         OutlinedTextField(
                             value = newExerciseName,
                             onValueChange = {
@@ -166,14 +193,11 @@ fun WorkoutScreen(
                                 newExerciseName = it
                                 showSuggestions = charCount >= minLettersForSuggestions
                             },
-                            label = { Text("Exercise name", style = MaterialTheme.typography.bodySmall) },
-                            placeholder = { Text("e.g. Bench Press", style = MaterialTheme.typography.bodySmall) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                            label = { Text("Exercise name") },
+                            placeholder = { Text("e.g. Bench Press") },
+                            modifier = Modifier.weight(1f),
                             singleLine = true,
-                            shape = MaterialTheme.shapes.small,
-                            textStyle = MaterialTheme.typography.bodySmall,
+                            shape = MaterialTheme.shapes.medium
                         )
 
                         val charCount = newExerciseName.count { ch -> !ch.isWhitespace() }
@@ -193,51 +217,59 @@ fun WorkoutScreen(
                                     })
                                 }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
-                    Button(
-                        onClick = {
-                            if (newExerciseName.isNotBlank()) {
-                                onAddExercise(newExerciseName.trim())
-                                newExerciseName = ""
-                                addExerciseVisible = false
-                            } else {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                            }
-                        },
-                        shape = MaterialTheme.shapes.small,
-                        contentPadding = PaddingValues(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add exercise",
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Button(
+                            onClick = {
+                                if (newExerciseName.isNotBlank()) {
+                                    onAddExercise(newExerciseName.trim())
+                                    newExerciseName = ""
+                                    addExerciseVisible = false
+                                } else {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                }
+                            },
+                            shape = MaterialTheme.shapes.medium,
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add exercise",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Add")
+                        }
                     }
                 }
             }
+        }
 
             if (currentExercises.isEmpty()) {
                 Text("No exercises yet.", style = MaterialTheme.typography.bodyMedium)
             } else {
                 val listState = rememberLazyListState()
-                LazyColumn(state = listState, modifier = Modifier.fillMaxWidth()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(bottom = 16.dp),
+                    contentPadding = PaddingValues(bottom = 88.dp)
+                ) {
                     itemsIndexed(currentExercises) { idx, ex ->
                         Card(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                                .fillMaxWidth(),
                             shape = MaterialTheme.shapes.medium,
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Row(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 4.dp),
+                                        .fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
@@ -246,15 +278,9 @@ fun WorkoutScreen(
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.Bold,
                                         )
-                                        Text(
-                                            text = "${ex.sets.size} sets",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         val isVisible = addSetVisibleMap[ex.exercise.id] == true
-                                        // Auto-scroll to this exercise when the add-set row becomes visible
                                         LaunchedEffect(isVisible) {
                                             if (isVisible) {
                                                 listState.animateScrollToItem(idx)
@@ -265,7 +291,7 @@ fun WorkoutScreen(
                                             onClick = {
                                                 addSetVisibleMap[ex.exercise.id] = !isVisible
                                             },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(24.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Add,
@@ -276,7 +302,7 @@ fun WorkoutScreen(
                                         }
                                         IconButton(
                                             onClick = { onDeleteExercise(ex.exercise.id) },
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(24.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
@@ -296,8 +322,7 @@ fun WorkoutScreen(
                                             if (!editing) {
                                                 Row(
                                                     modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 6.dp),
+                                                        .fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
@@ -406,7 +431,6 @@ fun WorkoutScreen(
                                         }
                                     }
                                     AnimatedVisibility(visible = addSetVisibleMap[ex.exercise.id] == true) {
-                                        // Prefill with last set values when opening add-set row and request focus on reps
                                         val lastSet = ex.sets.lastOrNull()
                                         val prefillReps = lastSet?.reps?.toString() ?: ""
                                         val prefillWeight = lastSet?.weight?.toString() ?: ""
@@ -420,8 +444,6 @@ fun WorkoutScreen(
                                             if (addSetVisibleMap[ex.exercise.id] == true) {
                                                 repsText = prefillReps
                                                 weightText = prefillWeight
-                                                // small delay to allow the item to expand/scroll
-                                                // then request focus and show keyboard
                                                 delay(150)
                                                 repsFocusRequester.requestFocus()
                                                 keyboardController?.show()
@@ -513,6 +535,7 @@ fun WorkoutScreen(
                                 }
                             }
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
             }

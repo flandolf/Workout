@@ -20,8 +20,7 @@ import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgressScreen(
-    workouts: List<WorkoutWithExercises>,
-    viewModel: HistoryViewModel? = null
+    workouts: List<WorkoutWithExercises>, viewModel: HistoryViewModel? = null
 ) {
     // Pull fresh info on load
     LaunchedEffect(Unit) {
@@ -56,8 +55,7 @@ fun ProgressScreen(
             ) {
                 items(totals.entries.sortedByDescending { it.value.first }) { entry ->
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier

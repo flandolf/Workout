@@ -10,20 +10,24 @@ data class Workout(
 )
 
 @Entity(
-    tableName = "exercises",
-    foreignKeys = [ForeignKey(entity = Workout::class, parentColumns = ["id"], childColumns = ["workoutId"], onDelete = ForeignKey.CASCADE)],
-    indices = [Index("workoutId")]
+    tableName = "exercises", foreignKeys = [ForeignKey(
+        entity = Workout::class,
+        parentColumns = ["id"],
+        childColumns = ["workoutId"],
+        onDelete = ForeignKey.CASCADE
+    )], indices = [Index("workoutId")]
 )
 data class ExerciseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val workoutId: Long,
-    val name: String
+    @PrimaryKey(autoGenerate = true) val id: Long = 0, val workoutId: Long, val name: String
 )
 
 @Entity(
-    tableName = "sets",
-    foreignKeys = [ForeignKey(entity = ExerciseEntity::class, parentColumns = ["id"], childColumns = ["exerciseId"], onDelete = ForeignKey.CASCADE)],
-    indices = [Index("exerciseId")]
+    tableName = "sets", foreignKeys = [ForeignKey(
+        entity = ExerciseEntity::class,
+        parentColumns = ["id"],
+        childColumns = ["exerciseId"],
+        onDelete = ForeignKey.CASCADE
+    )], indices = [Index("exerciseId")]
 )
 data class SetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -34,12 +38,14 @@ data class SetEntity(
 
 data class ExerciseWithSets(
     @Embedded val exercise: ExerciseEntity,
-    @Relation(parentColumn = "id", entityColumn = "exerciseId")
-    val sets: List<SetEntity>
+    @Relation(parentColumn = "id", entityColumn = "exerciseId") val sets: List<SetEntity>
 )
 
 data class WorkoutWithExercises(
     @Embedded val workout: Workout,
-    @Relation(entity = ExerciseEntity::class, parentColumn = "id", entityColumn = "workoutId")
-    val exercises: List<ExerciseWithSets>
+    @Relation(
+        entity = ExerciseEntity::class,
+        parentColumn = "id",
+        entityColumn = "workoutId"
+    ) val exercises: List<ExerciseWithSets>
 )

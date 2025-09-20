@@ -60,18 +60,10 @@ class WorkoutRepository(private val context: Context) {
                 for (ex in w.exercises) {
                     setIndex = 1
                     for (s in ex.sets) {
-                        writer.append(date)
-                            .append(',')
-                            .append(durationText)
-                            .append(',')
-                            .append(escapeCsv(ex.exercise.name))
-                            .append(',')
-                            .append(setIndex.toString())
-                            .append(',')
-                            .append(s.reps.toString())
-                            .append(',')
-                            .append(s.weight.toString())
-                            .append('\n')
+                        writer.append(date).append(',').append(durationText).append(',')
+                            .append(escapeCsv(ex.exercise.name)).append(',')
+                            .append(setIndex.toString()).append(',').append(s.reps.toString())
+                            .append(',').append(s.weight.toString()).append('\n')
                         setIndex++
                     }
                 }

@@ -20,16 +20,14 @@ import androidx.compose.ui.unit.sp
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun SettingsScreen(
-    onExportCsv: () -> Unit,
-    onResetAll: (() -> Unit)? = null
+    onExportCsv: () -> Unit, onResetAll: (() -> Unit)? = null
 ) {
     val showResetDialog = remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Settings", fontWeight = FontWeight.Bold) })
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -60,8 +58,7 @@ fun SettingsScreen(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     },
-                    modifier = Modifier.clickable { onExportCsv() }
-                )
+                    modifier = Modifier.clickable { onExportCsv() })
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -78,18 +75,24 @@ fun SettingsScreen(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
             ) {
-                ListItem(
-                    headlineContent = { Text("Reset All Data", fontSize = 18.sp, color = MaterialTheme.colorScheme.error) },
-                    supportingContent = { Text("This will permanently delete all your workouts and exercises.", color = MaterialTheme.colorScheme.onErrorContainer) },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    },
-                    modifier = Modifier.clickable { showResetDialog.value = true }
-                )
+                ListItem(headlineContent = {
+                    Text(
+                        "Reset All Data",
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }, supportingContent = {
+                    Text(
+                        "This will permanently delete all your workouts and exercises.",
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }, leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }, modifier = Modifier.clickable { showResetDialog.value = true })
             }
         }
 
@@ -109,8 +112,7 @@ fun SettingsScreen(
                 },
                 dismissButton = {
                     OutlinedButton(onClick = { showResetDialog.value = false }) { Text("Cancel") }
-                }
-            )
+                })
         }
     }
 }

@@ -12,9 +12,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 
 data class NavigationItem(
-    val route: String,
-    val icon: ImageVector,
-    val label: String
+    val route: String, val icon: ImageVector, val label: String
 )
 
 val navigationItems = listOf(
@@ -50,8 +48,7 @@ fun BottomNavigationBar(navController: NavController) {
                         // Restore state when reselecting a previously selected item
                         restoreState = true
                     }
-                }
-            )
+                })
         }
     }
 }
