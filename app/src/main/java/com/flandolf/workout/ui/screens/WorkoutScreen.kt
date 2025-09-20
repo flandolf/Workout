@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.CommonExercises
 import com.flandolf.workout.data.ExerciseWithSets
+import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.delay
 
 @SuppressLint("DefaultLocale")
@@ -50,7 +51,8 @@ fun WorkoutScreen(
     onUpdateSet: (exerciseId: Long, setIndex: Int, reps: Int, weight: Float) -> Unit = { _, _, _, _ -> },
     onDeleteSet: (exerciseId: Long, setIndex: Int) -> Unit = { _, _ -> },
     onDeleteExercise: (exerciseId: Long) -> Unit,
-    isTimerRunning: Boolean
+    isTimerRunning: Boolean,
+    vm: WorkoutViewModel
 ) {
     // Toggle add set input for each exercise
     val addSetVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
@@ -88,7 +90,13 @@ fun WorkoutScreen(
                 // Start/Pause and End Workout actions grouped at the right
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Button(
-                        onClick = { if (isTimerRunning) onPauseTick() else onStartTick() },
+                        onClick = { if (isTimerRunning) {onPauseTick()} else {
+                            if (vm.currentWorkoutId.value == null) {
+                                vm.startWorkout()
+                            } else {
+                                onStartTick()
+                            }
+                        } },
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
                         Icon(Icons.Default.Pause, contentDescription = "Pause", modifier = Modifier.size(18.dp))

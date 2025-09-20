@@ -52,9 +52,6 @@ class MainActivity : ComponentActivity() {
                             val isTimerRunning = workoutVm.isTimerRunning.collectAsState()
                             LaunchedEffect(Unit) {
                                 historyVm.loadWorkouts()
-                                if (currentWorkoutId.value == null) {
-                                    workoutVm.startWorkout()
-                                }
                             }
                             // load suggestions and pass into screen
                             LaunchedEffect(Unit) { workoutVm.loadExerciseNameSuggestions() }
@@ -71,7 +68,8 @@ class MainActivity : ComponentActivity() {
                                 onAddSet = { exerciseId, reps, weight -> workoutVm.addSet(exerciseId, reps, weight) },
                                 onDeleteExercise = { workoutVm.deleteExercise(it) },
                                 exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
-                                isTimerRunning = isTimerRunning.value
+                                isTimerRunning = isTimerRunning.value,
+                                vm = workoutVm,
                             )
                         }
                         composable("history") {
