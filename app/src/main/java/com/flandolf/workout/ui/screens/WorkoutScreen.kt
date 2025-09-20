@@ -6,13 +6,16 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardActions
@@ -29,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.CommonExercises
 import com.flandolf.workout.data.ExerciseWithSets
+import kotlinx.coroutines.delay
 
 @SuppressLint("DefaultLocale")
 @Composable
@@ -198,16 +202,17 @@ fun WorkoutScreen(
             if (currentExercises.isEmpty()) {
                 Text("No exercises yet.", style = MaterialTheme.typography.bodyMedium)
             } else {
-                LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(currentExercises) { ex ->
+                val listState = rememberLazyListState()
+                LazyColumn(state = listState, modifier = Modifier.fillMaxWidth()) {
+                    itemsIndexed(currentExercises) { idx, ex ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 6.dp),
+                                .padding(vertical = 4.dp),
                             shape = MaterialTheme.shapes.medium,
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(8.dp)) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -228,6 +233,12 @@ fun WorkoutScreen(
                                     }
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         val isVisible = addSetVisibleMap[ex.exercise.id] == true
+                                        // Auto-scroll to this exercise when the add-set row becomes visible
+                                        LaunchedEffect(isVisible) {
+                                            if (isVisible) {
+                                                listState.animateScrollToItem(idx)
+                                            }
+                                        }
                                         val rotation by animateFloatAsState(if (isVisible) 45f else 0f)
                                         IconButton(
                                             onClick = {
@@ -374,7 +385,7 @@ fun WorkoutScreen(
                                         }
                                     }
                                     AnimatedVisibility(visible = addSetVisibleMap[ex.exercise.id] == true) {
-                                        // Prefill with last set values when opening add-set row
+                                        // Prefill with last set values when opening add-set row and request focus on reps
                                         val lastSet = ex.sets.lastOrNull()
                                         val prefillReps = lastSet?.reps?.toString() ?: ""
                                         val prefillWeight = lastSet?.weight?.toString() ?: ""
@@ -382,10 +393,17 @@ fun WorkoutScreen(
                                         var repsText by remember("reps_${ex.exercise.id}") { mutableStateOf("") }
                                         var weightText by remember("weight_${ex.exercise.id}") { mutableStateOf("") }
 
+                                        val repsFocusRequester = remember { FocusRequester() }
+
                                         LaunchedEffect(addSetVisibleMap[ex.exercise.id]) {
                                             if (addSetVisibleMap[ex.exercise.id] == true) {
                                                 repsText = prefillReps
                                                 weightText = prefillWeight
+                                                // small delay to allow the item to expand/scroll
+                                                // then request focus and show keyboard
+                                                delay(150)
+                                                repsFocusRequester.requestFocus()
+                                                keyboardController?.show()
                                             }
                                         }
 
@@ -409,11 +427,7 @@ fun WorkoutScreen(
                                                 singleLine = true,
                                                 modifier = Modifier.weight(1f).heightIn(min = 56.dp)
                                                     .padding(vertical = 4.dp)
-                                                    .onFocusChanged { state ->
-                                                        if (state.isFocused && repsText == prefillReps && prefillReps.isNotEmpty()) {
-                                                            repsText = ""
-                                                        }
-                                                    },
+                                                    .focusRequester(repsFocusRequester),
                                                 shape = MaterialTheme.shapes.small,
                                                 textStyle = MaterialTheme.typography.bodySmall,
                                                 keyboardOptions = KeyboardOptions(
@@ -444,12 +458,7 @@ fun WorkoutScreen(
                                                 },
                                                 singleLine = true,
                                                 modifier = Modifier.weight(1f).heightIn(min = 56.dp)
-                                                    .padding(vertical = 4.dp)
-                                                    .onFocusChanged { state ->
-                                                        if (state.isFocused && weightText == prefillWeight && prefillWeight.isNotEmpty()) {
-                                                            weightText = ""
-                                                        }
-                                                    },
+                                                    .padding(vertical = 4.dp),
                                                 shape = MaterialTheme.shapes.small,
                                                 textStyle = MaterialTheme.typography.bodySmall,
                                                 keyboardOptions = KeyboardOptions(
