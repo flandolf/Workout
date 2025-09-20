@@ -67,158 +67,156 @@ fun WorkoutScreen(
 
 
     Scaffold { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
-
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
         ) {
-            Text(
-                text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = if (isTimerRunning)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant
-            )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        if (isTimerRunning) {
-                            onPauseTick()
-                        } else {
-                            if (vm.currentWorkoutId.value == null) {
-                                vm.startWorkout()
-                            } else {
-                                onStartTick()
-                            }
-                        }
-                    },
-                    modifier = Modifier.height(40.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        if (isTimerRunning) "Pause" else "Start",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                Button(
-                    onClick = onEndWorkout,
-                    modifier = Modifier.height(40.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "End Workout",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("End", style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-        ) {
-            Text(
-                "Exercises",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            val addVisible = addExerciseVisible
-            val rot by animateFloatAsState(if (addVisible) 45f else 0f)
-            FilledTonalButton(
-                onClick = { addExerciseVisible = !addExerciseVisible },
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = if (addVisible) "Hide" else "Add Exercise",
-                    modifier = Modifier.rotate(rot)
+                Text(
+                    text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isTimerRunning) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(if (addVisible) "Cancel" else "Add Exercise")
-            }
-        }
 
-        AnimatedVisibility(visible = addExerciseVisible) {
-            Card(
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            if (isTimerRunning) {
+                                onPauseTick()
+                            } else {
+                                if (vm.currentWorkoutId.value == null) {
+                                    vm.startWorkout()
+                                } else {
+                                    onStartTick()
+                                }
+                            }
+                        },
+                        modifier = Modifier.height(40.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            if (isTimerRunning) "Pause" else "Start",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+
+                    Button(
+                        onClick = onEndWorkout,
+                        modifier = Modifier.height(40.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "End Workout",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("End", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp)
-                    .animateContentSize(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        "Add New Exercise",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                Text(
+                    "Exercises",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                val addVisible = addExerciseVisible
+                val rot by animateFloatAsState(if (addVisible) 45f else 0f)
+                FilledTonalButton(
+                    onClick = { addExerciseVisible = !addExerciseVisible },
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = if (addVisible) "Hide" else "Add Exercise",
+                        modifier = Modifier.rotate(rot)
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (addVisible) "Cancel" else "Add Exercise")
+                }
+            }
 
+            AnimatedVisibility(visible = addExerciseVisible) {
+                Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val commonExercises = CommonExercises().exercises
-                        val combinedSuggestions = (commonExercises + exerciseNameSuggestions).distinct()
+                        val combinedSuggestions =
+                            (commonExercises + exerciseNameSuggestions).distinct()
                         var showSuggestions by remember { mutableStateOf(false) }
 
-                        OutlinedTextField(
-                            value = newExerciseName,
-                            onValueChange = {
-                                val charCount = it.count { ch -> !ch.isWhitespace() }
-                                newExerciseName = it
-                                showSuggestions = charCount >= minLettersForSuggestions
-                            },
-                            label = { Text("Exercise name") },
-                            placeholder = { Text("e.g. Bench Press") },
-                            modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            shape = MaterialTheme.shapes.medium
-                        )
+                        Box(modifier = Modifier.weight(1f)) {
+                            OutlinedTextField(
+                                value = newExerciseName,
+                                onValueChange = {
+                                    val charCount = it.count { ch -> !ch.isWhitespace() }
+                                    newExerciseName = it
+                                    showSuggestions = charCount >= minLettersForSuggestions
+                                },
+                                label = { Text("Exercise name") },
+                                placeholder = { Text("e.g. Bench Press") },
+                                singleLine = true,
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
-                        val charCount = newExerciseName.count { ch -> !ch.isWhitespace() }
-                        DropdownMenu(
-                            expanded = showSuggestions && charCount >= minLettersForSuggestions && combinedSuggestions.any {
-                                it.contains(newExerciseName, ignoreCase = true)
+                            val charCount = newExerciseName.count { ch -> !ch.isWhitespace() }
+                            DropdownMenu(
+                                expanded = showSuggestions && charCount >= minLettersForSuggestions && combinedSuggestions.any {
+                                it.contains(
+                                    newExerciseName, ignoreCase = true
+                                )
                             },
-                            onDismissRequest = { showSuggestions = false },
-                            modifier = Modifier.fillMaxWidth(),
-                            properties = PopupProperties(focusable = false)
-                        ) {
-                            combinedSuggestions.filter { it.contains(newExerciseName, ignoreCase = true) }
-                                .forEach { suggestion ->
-                                    DropdownMenuItem(text = { Text(suggestion) }, onClick = {
-                                        newExerciseName = suggestion
-                                        showSuggestions = false
-                                    })
-                                }
+                                onDismissRequest = { showSuggestions = false },
+                                modifier = Modifier.fillMaxWidth(),
+                                properties = PopupProperties(focusable = false)
+                            ) {
+                                combinedSuggestions.filter {
+                                        it.contains(
+                                            newExerciseName,
+                                            ignoreCase = true
+                                        )
+                                    }.forEach { suggestion ->
+                                        DropdownMenuItem(text = { Text(suggestion) }, onClick = {
+                                            newExerciseName = suggestion
+                                            showSuggestions = false
+                                        })
+                                    }
+                            }
                         }
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         Button(
                             onClick = {
@@ -230,27 +228,24 @@ fun WorkoutScreen(
                                     focusManager.clearFocus()
                                     keyboardController?.hide()
                                 }
-                            },
-                            shape = MaterialTheme.shapes.medium,
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                            }, modifier = Modifier.size(48.dp), // keeps it square
+                            contentPadding = PaddingValues(0.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "Add exercise",
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Add")
                         }
                     }
                 }
             }
-        }
 
             if (currentExercises.isEmpty()) {
                 Text("No exercises yet.", style = MaterialTheme.typography.bodyMedium)
             } else {
                 val listState = rememberLazyListState()
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
@@ -261,15 +256,13 @@ fun WorkoutScreen(
                 ) {
                     itemsIndexed(currentExercises) { idx, ex ->
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.medium,
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
@@ -290,8 +283,7 @@ fun WorkoutScreen(
                                         IconButton(
                                             onClick = {
                                                 addSetVisibleMap[ex.exercise.id] = !isVisible
-                                            },
-                                            modifier = Modifier.size(24.dp)
+                                            }, modifier = Modifier.size(24.dp)
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Add,
@@ -315,14 +307,16 @@ fun WorkoutScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     if (ex.sets.isEmpty()) {
-                                        Text("No sets yet.", style = MaterialTheme.typography.bodySmall)
+                                        Text(
+                                            "No sets yet.",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
                                     } else {
                                         ex.sets.forEachIndexed { i, s ->
                                             val editing = editSetMap[ex.exercise.id to i] == true
                                             if (!editing) {
                                                 Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth(),
+                                                    modifier = Modifier.fillMaxWidth(),
                                                     horizontalArrangement = Arrangement.SpaceBetween,
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
@@ -359,8 +353,11 @@ fun WorkoutScreen(
                                                             Text("Edit")
                                                         }
                                                         IconButton(
-                                                            onClick = { onDeleteSet(ex.exercise.id, i) },
-                                                            modifier = Modifier.size(28.dp)
+                                                            onClick = {
+                                                                onDeleteSet(
+                                                                    ex.exercise.id, i
+                                                                )
+                                                            }, modifier = Modifier.size(28.dp)
                                                         ) {
                                                             Icon(
                                                                 imageVector = Icons.Default.Delete,
@@ -391,7 +388,9 @@ fun WorkoutScreen(
                                                         value = editReps,
                                                         onValueChange = { editReps = it },
                                                         label = { Text("Reps") },
-                                                        modifier = Modifier.weight(1f).heightIn(min = 56.dp)
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .heightIn(min = 56.dp)
                                                             .padding(vertical = 4.dp),
                                                         singleLine = true,
                                                         keyboardOptions = KeyboardOptions(
@@ -404,7 +403,9 @@ fun WorkoutScreen(
                                                         value = editWeight,
                                                         onValueChange = { editWeight = it },
                                                         label = { Text("Weight (kg)") },
-                                                        modifier = Modifier.weight(1f).heightIn(min = 56.dp)
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .heightIn(min = 56.dp)
                                                             .padding(vertical = 4.dp),
                                                         singleLine = true,
                                                         keyboardOptions = KeyboardOptions(
@@ -415,9 +416,12 @@ fun WorkoutScreen(
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     TextButton(onClick = {
                                                         val reps = editReps.toIntOrNull() ?: 0
-                                                        val weight = editWeight.toFloatOrNull() ?: 0f
+                                                        val weight =
+                                                            editWeight.toFloatOrNull() ?: 0f
                                                         if (reps > 0) {
-                                                            onUpdateSet(ex.exercise.id, i, reps, weight)
+                                                            onUpdateSet(
+                                                                ex.exercise.id, i, reps, weight
+                                                            )
                                                             editSetMap.remove(ex.exercise.id to i)
                                                         }
                                                     }) {
@@ -435,8 +439,16 @@ fun WorkoutScreen(
                                         val prefillReps = lastSet?.reps?.toString() ?: ""
                                         val prefillWeight = lastSet?.weight?.toString() ?: ""
 
-                                        var repsText by remember("reps_${ex.exercise.id}") { mutableStateOf("") }
-                                        var weightText by remember("weight_${ex.exercise.id}") { mutableStateOf("") }
+                                        var repsText by remember("reps_${ex.exercise.id}") {
+                                            mutableStateOf(
+                                                ""
+                                            )
+                                        }
+                                        var weightText by remember("weight_${ex.exercise.id}") {
+                                            mutableStateOf(
+                                                ""
+                                            )
+                                        }
 
                                         val repsFocusRequester = remember { FocusRequester() }
 
@@ -460,7 +472,12 @@ fun WorkoutScreen(
                                             OutlinedTextField(
                                                 value = repsText,
                                                 onValueChange = { repsText = it },
-                                                label = { Text("Reps", style = MaterialTheme.typography.bodySmall) },
+                                                label = {
+                                                    Text(
+                                                        "Reps",
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                },
                                                 placeholder = {
                                                     Text(
                                                         "10",
@@ -468,7 +485,9 @@ fun WorkoutScreen(
                                                     )
                                                 },
                                                 singleLine = true,
-                                                modifier = Modifier.weight(1f).heightIn(min = 56.dp)
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .heightIn(min = 56.dp)
                                                     .padding(vertical = 4.dp)
                                                     .focusRequester(repsFocusRequester),
                                                 shape = MaterialTheme.shapes.small,
@@ -500,7 +519,9 @@ fun WorkoutScreen(
                                                     )
                                                 },
                                                 singleLine = true,
-                                                modifier = Modifier.weight(1f).heightIn(min = 56.dp)
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .heightIn(min = 56.dp)
                                                     .padding(vertical = 4.dp),
                                                 shape = MaterialTheme.shapes.small,
                                                 textStyle = MaterialTheme.typography.bodySmall,
@@ -521,8 +542,7 @@ fun WorkoutScreen(
                                                         weightText = ""
                                                         addSetVisibleMap[ex.exercise.id] = false
                                                     }
-                                                },
-                                                modifier = Modifier.size(40.dp)
+                                                }, modifier = Modifier.size(40.dp)
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Add,
