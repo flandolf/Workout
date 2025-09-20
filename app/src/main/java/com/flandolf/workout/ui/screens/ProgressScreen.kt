@@ -27,62 +27,205 @@ fun ProgressScreen(
         viewModel?.loadWorkouts()
     }
 
-    // Aggregate total reps and sets per exercise name
+    // Aggregate total reps, sets, and weight lifted per exercise name
     val totals = remember(workouts) {
-        val map = mutableMapOf<String, Pair<Int, Int>>() // name -> (reps, sets)
+        val map = mutableMapOf<String, Triple<Int, Int, Float>>() // name -> (reps, sets, kg)
+        var totalKgLifted = 0f
+        var totalReps = 0
+
         for (w in workouts) {
             for (ex in w.exercises) {
-                val (oldReps, oldSets) = map.getOrDefault(ex.exercise.name, 0 to 0)
-                var reps = 0
-                for (s in ex.sets) reps += s.reps
-                map[ex.exercise.name] = (oldReps + reps) to (oldSets + ex.sets.size)
+                val (oldReps, oldSets, oldKg) = map.getOrDefault(ex.exercise.name, Triple(0, 0, 0f))
+                var exerciseReps = 0
+                var exerciseKg = 0f
+
+                for (s in ex.sets) {
+                    exerciseReps += s.reps
+                    exerciseKg += s.reps * s.weight
+                }
+
+                map[ex.exercise.name] = Triple(oldReps + exerciseReps, oldSets + ex.sets.size, oldKg + exerciseKg)
+                totalReps += exerciseReps
+                totalKgLifted += exerciseKg
             }
         }
-        map
+        map to Pair(totalKgLifted, totalReps)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(title = { Text("Progress", fontWeight = FontWeight.Bold) })
-        if (totals.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No progress yet. Start logging workouts!", color = Color.Gray)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                items(totals.entries.sortedByDescending { it.value.first }) { entry ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth()
+    val (exerciseTotals, lifetimeStats) = totals
+    val (totalKgLifted, totalReps) = lifetimeStats
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Progress", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            if (exerciseTotals.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        Icon(
+                            Icons.Default.BarChart,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "No progress yet",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Start logging workouts to see your progress!",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                // Progress Summary Header
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            "Your Progress",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        // Lifetime Stats Row
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.BarChart,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    entry.key,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    "Lifetime Stats",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(bottom = 8.dp)
                                 )
                                 Text(
-                                    "Total reps: ${entry.value.first}",
-                                    style = MaterialTheme.typography.bodyMedium
+                                    "${String.format("%.1f", totalKgLifted)} kg",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    "Total sets: ${entry.value.second}",
+                                    "Total lifted",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Spacer(modifier = Modifier.height(28.dp)) // Align with title
+                                Text(
+                                    "$totalReps",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Text(
+                                    "Total reps",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Divider()
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Workout Summary
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                "${workouts.size} workouts",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "${exerciseTotals.size} exercises",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // Exercise Progress List
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(exerciseTotals.entries.sortedByDescending { it.value.first }) { entry ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        entry.key,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Text(
+                                            "${entry.value.first} reps",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            "${entry.value.second} sets",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.secondary
+                                        )
+                                        Text(
+                                            "${String.format("%.1f", entry.value.third)} kg",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    Icons.Default.BarChart,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
