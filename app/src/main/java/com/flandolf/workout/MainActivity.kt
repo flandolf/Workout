@@ -99,6 +99,16 @@ class MainActivity : ComponentActivity() {
                             ExerciseDetailScreen(
                                 exerciseName = exerciseName,
                                 workouts = workouts.value,
+                                onBackClick = { navController.popBackStack() },
+                                onGraphClick = { navController.navigate("graph_detail/$exerciseName") })
+                        }
+                        composable("graph_detail/{exerciseName}") { backStackEntry ->
+                            val exerciseName =
+                                backStackEntry.arguments?.getString("exerciseName") ?: ""
+                            val workouts = historyVm.workouts.collectAsState()
+                            GraphDetailScreen(
+                                exerciseName = exerciseName,
+                                workouts = workouts.value,
                                 onBackClick = { navController.popBackStack() })
                         }
                         composable("settings") {

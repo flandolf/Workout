@@ -198,7 +198,7 @@ fun HistoryScreen(
                                     ex.sets.sumOf { it.reps * it.weight.toDouble() }.toInt()
                                 }
 
-                                Divider(
+                                HorizontalDivider(
                                     modifier = Modifier.padding(bottom = 12.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant
                                 )

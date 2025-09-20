@@ -2,6 +2,7 @@ package com.flandolf.workout.ui.screens
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,14 +41,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
 import com.flandolf.workout.data.formatWeight
-import com.flandolf.workout.ui.components.ProgressGraph
 import kotlin.math.max
 
 @SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseDetailScreen(
-    exerciseName: String, workouts: List<WorkoutWithExercises>, onBackClick: () -> Unit
+    exerciseName: String, workouts: List<WorkoutWithExercises>, onBackClick: () -> Unit, onGraphClick: () -> Unit
 ) {
     // Calculate exercise-specific data
     val exerciseData = remember(exerciseName, workouts) {
@@ -168,7 +168,44 @@ fun ExerciseDetailScreen(
 
             // Progress Graph
             if (exerciseData.dataPoints.size >= 2) {
-                
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onGraphClick() },
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "View Detailed Graph",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "See your progress over time",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                Icons.Default.BarChart,
+                                contentDescription = "Graph",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             }
 
             item {
