@@ -19,9 +19,8 @@ import androidx.navigation.compose.rememberNavController
 import com.flandolf.workout.ui.screens.*
 import com.flandolf.workout.ui.theme.WorkoutTheme
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
-import java.io.File
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
+import com.flandolf.workout.ui.components.BottomNavigationBar
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.launch
 

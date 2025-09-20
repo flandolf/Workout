@@ -1,7 +1,6 @@
 package com.flandolf.workout.ui.screens
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,12 +18,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,13 +35,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
+import com.flandolf.workout.data.formatWeight
+import com.flandolf.workout.ui.components.ProgressGraph
 import kotlin.math.max
 
 @SuppressLint("DefaultLocale")
@@ -156,13 +152,13 @@ fun ExerciseDetailScreen(
                 ) {
                     StatCard(
                         title = "Best Weight",
-                        value = "${String.format("%.1f", exerciseData.bestWeight)} kg",
+                        value = "${formatWeight(exerciseData.bestWeight)} kg",
                         icon = Icons.Default.Star,
                         modifier = Modifier.weight(1f)
                     )
                     StatCard(
                         title = "Total Volume",
-                        value = "${String.format("%.1f", exerciseData.totalVolume)} kg",
+                        value = "${formatWeight(exerciseData.totalVolume)} kg",
                         icon = Icons.Default.BarChart,
                         modifier = Modifier.weight(1f)
                     )
@@ -171,42 +167,8 @@ fun ExerciseDetailScreen(
 
 
             // Progress Graph
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "Progress Over Time",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-
-                        if (exerciseData.dataPoints.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "No data points available",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
-                            ProgressGraph(
-                                dataPoints = exerciseData.dataPoints,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                            )
-                        }
-                    }
-                }
+            if (exerciseData.dataPoints.size >= 2) {
+                
             }
 
             item {
@@ -379,62 +341,7 @@ fun StatCard(
     }
 }
 
-@Composable
-private fun ProgressGraph(
-    dataPoints: List<Triple<Long, Float, Int>>, modifier: Modifier = Modifier
-) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
 
-    Canvas(modifier = modifier) {
-        if (dataPoints.size < 2) return@Canvas
-
-        val padding = 40f
-        val graphWidth = size.width - padding * 2
-        val graphHeight = size.height - padding * 2
-
-        // Find min/max values
-        val minWeight = dataPoints.minOf { it.second }
-        val maxWeight = dataPoints.maxOf { it.second }
-        val weightRange = max(maxWeight - minWeight, 1f)
-
-        // Draw grid lines
-        val gridLines = 5
-        for (i in 0..gridLines) {
-            val y = padding + (graphHeight / gridLines) * i
-            drawLine(
-                color = onSurfaceVariant.copy(alpha = 0.2f),
-                start = Offset(padding, y),
-                end = Offset(size.width - padding, y),
-                strokeWidth = 1f
-            )
-        }
-
-        // Draw data points and line
-        val path = Path()
-        dataPoints.forEachIndexed { index, (date, weight, reps) ->
-            val x = padding + (graphWidth / max(dataPoints.size - 1, 1)) * index
-            val y = padding + graphHeight - ((weight - minWeight) / weightRange) * graphHeight
-
-            // Draw point
-            drawCircle(
-                color = primaryColor, radius = 4f, center = Offset(x, y)
-            )
-
-            // Draw line to next point
-            if (index == 0) {
-                path.moveTo(x, y)
-            } else {
-                path.lineTo(x, y)
-            }
-        }
-
-        // Draw the progress line
-        drawPath(
-            path = path, color = primaryColor, style = Stroke(width = 2f)
-        )
-    }
-}
 
 private data class ExerciseStats(
     val totalReps: Int,
@@ -445,3 +352,4 @@ private data class ExerciseStats(
     val averageWeight: Float,
     val dataPoints: List<Triple<Long, Float, Int>>
 )
+

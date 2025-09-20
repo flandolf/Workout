@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
+import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -149,7 +150,11 @@ fun HistoryScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
-                                                if (best != null) "${best.reps} × ${best.weight}kg" else "No sets",
+                                                if (best != null) "${best.reps} × ${
+                                                    formatWeight(
+                                                        best.weight
+                                                    )
+                                                } kg" else "No sets",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.weight(0.4f),
@@ -172,13 +177,13 @@ fun HistoryScreen(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                     Text(
-                                                        "${s.reps} reps × ${s.weight} kg",
+                                                        "${s.reps} reps × ${formatWeight(s.weight)} kg",
                                                         style = MaterialTheme.typography.bodyMedium
                                                     )
                                                 }
                                             }
                                             if (ex != w.exercises.last()) {
-                                                Divider(
+                                                HorizontalDivider(
                                                     modifier = Modifier.padding(vertical = 8.dp),
                                                     color = MaterialTheme.colorScheme.outlineVariant
                                                 )
@@ -231,9 +236,7 @@ fun HistoryScreen(
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
                                                 "${
-                                                    String.format(
-                                                        "%.1f", totalWeight.toFloat()
-                                                    )
+                                                    formatWeight(totalWeight.toFloat())
                                                 } kg",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.Medium

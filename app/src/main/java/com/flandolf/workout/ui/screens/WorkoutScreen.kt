@@ -4,36 +4,68 @@ import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupProperties
 import com.flandolf.workout.data.CommonExercises
 import com.flandolf.workout.data.ExerciseWithSets
+import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.delay
 
@@ -152,8 +184,18 @@ fun WorkoutScreen(
                 val addVisible = addExerciseVisible
                 val rot by animateFloatAsState(if (addVisible) 45f else 0f)
                 FilledTonalButton(
-                    onClick = { addExerciseVisible = !addExerciseVisible },
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    onClick = {
+                        if (vm.currentWorkoutId.value == null) {
+                            vm.startWorkout()
+                        }
+                        addExerciseVisible = !addExerciseVisible
+                        if (!addExerciseVisible) {
+                            newExerciseName = ""
+                        }
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+
+                    }, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Icon(
                         Icons.Default.Add,
@@ -210,6 +252,12 @@ fun WorkoutScreen(
                                     DropdownMenuItem(text = { Text(suggestion) }, onClick = {
                                         newExerciseName = suggestion
                                         showSuggestions = false
+                                        // Automatically add the exercise when selected from dropdown
+                                        if (suggestion.isNotBlank()) {
+                                            onAddExercise(suggestion.trim())
+                                            newExerciseName = ""
+                                            addExerciseVisible = false
+                                        }
                                     })
                                 }
                             }
@@ -256,10 +304,8 @@ fun WorkoutScreen(
                     itemsIndexed(currentExercises) { idx, ex ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Column(modifier = Modifier.padding(8.dp)) {
+                            Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
@@ -335,15 +381,17 @@ fun WorkoutScreen(
                                                                 style = MaterialTheme.typography.bodyMedium
                                                             )
                                                         }
+
                                                         Text(
-                                                            "${s.reps} reps",
+                                                            "${formatWeight(s.weight)} kg",
                                                             style = MaterialTheme.typography.bodyMedium
                                                         )
                                                         Spacer(modifier = Modifier.width(8.dp))
                                                         Text(
-                                                            "${s.weight} kg",
+                                                            "${s.reps} reps",
                                                             style = MaterialTheme.typography.bodyMedium
                                                         )
+
                                                     }
                                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                                         TextButton(onClick = {
@@ -384,21 +432,6 @@ fun WorkoutScreen(
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
                                                     OutlinedTextField(
-                                                        value = editReps,
-                                                        onValueChange = { editReps = it },
-                                                        label = { Text("Reps") },
-                                                        modifier = Modifier
-                                                            .weight(1f)
-                                                            .heightIn(min = 56.dp)
-                                                            .padding(vertical = 4.dp),
-                                                        singleLine = true,
-                                                        keyboardOptions = KeyboardOptions(
-                                                            keyboardType = KeyboardType.Number,
-                                                            imeAction = ImeAction.Next
-                                                        ),
-                                                    )
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    OutlinedTextField(
                                                         value = editWeight,
                                                         onValueChange = { editWeight = it },
                                                         label = { Text("Weight (kg)") },
@@ -412,6 +445,24 @@ fun WorkoutScreen(
                                                             imeAction = ImeAction.Done
                                                         ),
                                                     )
+
+                                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                                    OutlinedTextField(
+                                                        value = editReps,
+                                                        onValueChange = { editReps = it },
+                                                        label = { Text("Reps") },
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .heightIn(min = 56.dp)
+                                                            .padding(vertical = 4.dp),
+                                                        singleLine = true,
+                                                        keyboardOptions = KeyboardOptions(
+                                                            keyboardType = KeyboardType.Number,
+                                                            imeAction = ImeAction.Next
+                                                        ),
+                                                    )
+
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     TextButton(onClick = {
                                                         val reps = editReps.toIntOrNull() ?: 0
@@ -449,14 +500,14 @@ fun WorkoutScreen(
                                             )
                                         }
 
-                                        val repsFocusRequester = remember { FocusRequester() }
+                                        val focusRequester = remember { FocusRequester() }
 
                                         LaunchedEffect(addSetVisibleMap[ex.exercise.id]) {
                                             if (addSetVisibleMap[ex.exercise.id] == true) {
                                                 repsText = prefillReps
                                                 weightText = prefillWeight
                                                 delay(150)
-                                                repsFocusRequester.requestFocus()
+                                                focusRequester.requestFocus()
                                                 keyboardController?.show()
                                             }
                                         }
@@ -468,40 +519,8 @@ fun WorkoutScreen(
                                                 .animateContentSize(),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            OutlinedTextField(
-                                                value = repsText,
-                                                onValueChange = { repsText = it },
-                                                label = {
-                                                    Text(
-                                                        "Reps",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                },
-                                                placeholder = {
-                                                    Text(
-                                                        "10",
-                                                        style = MaterialTheme.typography.bodySmall
-                                                    )
-                                                },
-                                                singleLine = true,
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .heightIn(min = 56.dp)
-                                                    .padding(vertical = 4.dp)
-                                                    .focusRequester(repsFocusRequester),
-                                                shape = MaterialTheme.shapes.small,
-                                                textStyle = MaterialTheme.typography.bodySmall,
-                                                keyboardOptions = KeyboardOptions(
-                                                    keyboardType = KeyboardType.Number,
-                                                    imeAction = ImeAction.Next
-                                                ),
-                                                keyboardActions = KeyboardActions(onNext = {
-                                                    focusManager.moveFocus(
-                                                        FocusDirection.Next
-                                                    )
-                                                }),
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
+
+
                                             OutlinedTextField(
                                                 value = weightText,
                                                 onValueChange = { weightText = it },
@@ -521,7 +540,8 @@ fun WorkoutScreen(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .heightIn(min = 56.dp)
-                                                    .padding(vertical = 4.dp),
+                                                    .padding(vertical = 4.dp)
+                                                    .focusRequester(focusRequester),
                                                 shape = MaterialTheme.shapes.small,
                                                 textStyle = MaterialTheme.typography.bodySmall,
                                                 keyboardOptions = KeyboardOptions(
@@ -529,6 +549,39 @@ fun WorkoutScreen(
                                                     imeAction = ImeAction.Done
                                                 ),
                                                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(); keyboardController?.hide() }),
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            OutlinedTextField(
+                                                value = repsText,
+                                                onValueChange = { repsText = it },
+                                                label = {
+                                                    Text(
+                                                        "Reps",
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                },
+                                                placeholder = {
+                                                    Text(
+                                                        "10",
+                                                        style = MaterialTheme.typography.bodySmall
+                                                    )
+                                                },
+                                                singleLine = true,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .heightIn(min = 56.dp)
+                                                    .padding(vertical = 4.dp),
+                                                shape = MaterialTheme.shapes.small,
+                                                textStyle = MaterialTheme.typography.bodySmall,
+                                                keyboardOptions = KeyboardOptions(
+                                                    keyboardType = KeyboardType.Number,
+                                                    imeAction = ImeAction.Next
+                                                ),
+                                                keyboardActions = KeyboardActions(onNext = {
+                                                    focusManager.moveFocus(
+                                                        FocusDirection.Next
+                                                    )
+                                                }),
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
                                             IconButton(
@@ -561,3 +614,4 @@ fun WorkoutScreen(
         }
     }
 }
+

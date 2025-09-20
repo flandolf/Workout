@@ -1,4 +1,4 @@
-package com.flandolf.workout.ui.screens
+package com.flandolf.workout.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart

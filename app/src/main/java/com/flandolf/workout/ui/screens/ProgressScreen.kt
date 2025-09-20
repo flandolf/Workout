@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flandolf.workout.data.WorkoutWithExercises
+import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import kotlin.math.max
 
@@ -139,7 +140,7 @@ fun ProgressScreen(
                                     modifier = Modifier.padding(bottom = 8.dp)
                                 )
                                 Text(
-                                    "${String.format("%.1f", totalKgLifted)} kg",
+                                    "${formatWeight(totalKgLifted)} kg",
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -227,7 +228,7 @@ fun ProgressScreen(
                                             color = MaterialTheme.colorScheme.secondary
                                         )
                                         Text(
-                                            "${String.format("%.1f", entry.value.third)} kg",
+                                            "${formatWeight(entry.value.third)} kg",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.tertiary
                                         )
