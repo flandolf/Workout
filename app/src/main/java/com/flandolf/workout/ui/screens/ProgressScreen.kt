@@ -77,7 +77,8 @@ fun ProgressScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
-                .verticalScroll(scrollState)
+                .verticalScroll(scrollState),
+            verticalArrangement = if (exerciseTotals.isEmpty()) Arrangement.Center else Arrangement.Top
         ) {
             if (exerciseTotals.isEmpty()) {
                 Box(
@@ -308,4 +309,3 @@ fun ProgressScreen(
         }
     }
 }
-
