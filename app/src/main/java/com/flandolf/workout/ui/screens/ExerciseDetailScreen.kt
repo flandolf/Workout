@@ -47,7 +47,10 @@ import kotlin.math.max
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseDetailScreen(
-    exerciseName: String, workouts: List<WorkoutWithExercises>, onBackClick: () -> Unit, onGraphClick: () -> Unit
+    exerciseName: String,
+    workouts: List<WorkoutWithExercises>,
+    onBackClick: () -> Unit,
+    onGraphClick: () -> Unit
 ) {
     // Calculate exercise-specific data
     val exerciseData = remember(exerciseName, workouts) {
@@ -377,7 +380,6 @@ fun StatCard(
         }
     }
 }
-
 
 
 private data class ExerciseStats(

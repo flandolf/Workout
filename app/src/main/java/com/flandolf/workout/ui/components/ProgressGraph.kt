@@ -39,8 +39,7 @@ fun ProgressGraph(
                 emptyText, style = TextStyle(color = onSurfaceVariant, fontSize = 12.sp)
             )
             drawText(
-                textLayout,
-                topLeft = Offset(
+                textLayout, topLeft = Offset(
                     (size.width - textLayout.size.width) / 2,
                     (size.height - textLayout.size.height) / 2
                 )
@@ -107,7 +106,11 @@ fun ProgressGraph(
                 else -> formatWeight(value, round = true)
             }
             val textLayout = textMeasurer.measure(
-                label, style = TextStyle(color = onSurface, fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+                label, style = TextStyle(
+                    color = onSurface,
+                    fontSize = 11.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                )
             )
             drawText(
                 textLayout, topLeft = Offset(
@@ -125,7 +128,11 @@ fun ProgressGraph(
                 val x = padding + (graphWidth / max(dataPoints.size - 1, 1)) * index
                 val label = dateFormatter.format(Date(date))
                 val textLayout = textMeasurer.measure(
-                    label, style = TextStyle(color = onSurface, fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+                    label, style = TextStyle(
+                        color = onSurface,
+                        fontSize = 11.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                    )
                 )
                 drawText(
                     textLayout, topLeft = Offset(x - textLayout.size.width / 2, xAxisY + 8f)
@@ -142,23 +149,24 @@ fun ProgressGraph(
 
             // Draw data point with shadow effect
             drawCircle(
-                color = primaryColor.copy(alpha = 0.3f),
-                radius = 7f,
-                center = Offset(x + 1, y + 1)
+                color = primaryColor.copy(alpha = 0.3f), radius = 7f, center = Offset(x + 1, y + 1)
             )
             drawCircle(color = primaryColor, radius = 5f, center = Offset(x, y))
 
             // Point labels with better positioning
             val label = when (dataType) {
-                "weight", -> formatWeight(value)
+                "weight" -> formatWeight(value)
                 "1rm" -> formatWeight(value, round = true)
                 "volume" -> "${formatWeight(value)} kg"
                 "reps" -> value.toInt().toString()
                 else -> formatWeight(value)
             }
             val textLayout = textMeasurer.measure(
-                label,
-                style = TextStyle(color = onSurface, fontSize = 10.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                label, style = TextStyle(
+                    color = onSurface,
+                    fontSize = 10.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                )
             )
 
             // Smart label placement
@@ -173,15 +181,14 @@ fun ProgressGraph(
             drawRoundRect(
                 color = surface.copy(alpha = 0.8f),
                 topLeft = Offset(x - textLayout.size.width / 2 - 4, textY - 2),
-                size = androidx.compose.ui.geometry.Size((textLayout.size.width + 8).toFloat(),
-                    (textLayout.size.height + 4).toFloat()
+                size = androidx.compose.ui.geometry.Size(
+                    (textLayout.size.width + 8).toFloat(), (textLayout.size.height + 4).toFloat()
                 ),
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
             )
 
             drawText(
-                textLayout,
-                topLeft = Offset(x - textLayout.size.width / 2, textY)
+                textLayout, topLeft = Offset(x - textLayout.size.width / 2, textY)
             )
 
             if (index == 0) {
@@ -202,11 +209,8 @@ fun ProgressGraph(
         // Draw gradient fill under the line
         val gradientBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
             colors = listOf(
-                primaryColor.copy(alpha = 0.2f),
-                primaryColor.copy(alpha = 0.05f)
-            ),
-            startY = padding,
-            endY = xAxisY
+                primaryColor.copy(alpha = 0.2f), primaryColor.copy(alpha = 0.05f)
+            ), startY = padding, endY = xAxisY
         )
         drawPath(fillPath, gradientBrush)
 

@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.sp
 import com.flandolf.workout.data.WorkoutWithExercises
 import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
+import com.flandolf.workout.ui.components.BarChart
+import java.util.*
+import com.flandolf.workout.ui.components.BarChart
 import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,6 +189,65 @@ fun ProgressScreen(
                                 "${exerciseTotals.size} exercises",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // Workouts per Week Chart
+                val workoutsPerWeek = remember(workouts) {
+                    val calendar = Calendar.getInstance()
+                    val weekMap = mutableMapOf<String, Int>()
+
+                    workouts.forEach { workout ->
+                        calendar.timeInMillis = workout.workout.date
+                        val weekOfYear = calendar.get(Calendar.WEEK_OF_YEAR)
+                        val year = calendar.get(Calendar.YEAR)
+                        val weekKey = "$year-W${weekOfYear.toString().padStart(2, '0')}"
+
+                        weekMap[weekKey] = weekMap.getOrDefault(weekKey, 0) + 1
+                    }
+
+                    // Get last 8 weeks
+                    val sortedWeeks = weekMap.entries
+                        .sortedByDescending { it.key }
+                        .take(8)
+                        .sortedBy { it.key }
+                        .map { it.key.takeLast(3) to it.value.toFloat() } // Just show W01, W02, etc.
+
+                    sortedWeeks
+                }
+
+                if (workoutsPerWeek.isNotEmpty()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "Workouts Per Week",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+
+                            BarChart(
+                                dataPoints = workoutsPerWeek,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                barColor = MaterialTheme.colorScheme.secondary,
+                                valueFormatter = { it.toInt().toString() }
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Last 8 weeks of activity",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
                             )
                         }
                     }

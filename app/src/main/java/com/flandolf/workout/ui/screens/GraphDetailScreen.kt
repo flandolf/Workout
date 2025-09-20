@@ -17,15 +17,11 @@ import com.flandolf.workout.data.WorkoutWithExercises
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GraphDetailScreen(
-    exerciseName: String,
-    workouts: List<WorkoutWithExercises>,
-    onBackClick: () -> Unit
+    exerciseName: String, workouts: List<WorkoutWithExercises>, onBackClick: () -> Unit
 ) {
     // Calculate data points for different progressions
     val workoutData = remember(workouts, exerciseName) {
-        workouts
-            .sortedBy { it.workout.date }
-            .mapNotNull { workout ->
+        workouts.sortedBy { it.workout.date }.mapNotNull { workout ->
                 val exercise = workout.exercises.find { it.exercise.name == exerciseName }
                 exercise?.let { ex ->
                     val totalVolume = ex.sets.sumOf { (it.reps * it.weight).toInt() }.toFloat()
@@ -51,22 +47,18 @@ fun GraphDetailScreen(
     val tabs = listOf("Weight", "Volume", "Reps", "1RM")
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = "$exerciseName Progress",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
+        TopAppBar(title = {
+            Text(
+                text = "$exerciseName Progress",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+        }, navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-        )
+        })
 
         if (workoutData.isNotEmpty()) {
             TabRow(selectedTabIndex = selectedTab) {
@@ -74,8 +66,7 @@ fun GraphDetailScreen(
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        text = { Text(title) }
-                    )
+                        text = { Text(title) })
                 }
             }
 
@@ -155,6 +146,7 @@ fun GraphDetailScreen(
                                 StatRow("Personal Best", "${String.format("%.1f", best)} kg")
                                 StatRow("Improvement", "$improvement%")
                             }
+
                             1 -> { // Volume
                                 val current = workoutData.last().totalVolume
                                 val best = workoutData.maxOf { it.totalVolume }
@@ -164,6 +156,7 @@ fun GraphDetailScreen(
                                 StatRow("Best Volume", "${String.format("%.1f", best)} kg")
                                 StatRow("Average Volume", "${String.format("%.1f", avg)} kg")
                             }
+
                             2 -> { // Reps
                                 val current = workoutData.last().totalReps
                                 val best = workoutData.maxOf { it.totalReps }
@@ -173,6 +166,7 @@ fun GraphDetailScreen(
                                 StatRow("Best Session", "$best")
                                 StatRow("Total Reps", "$total")
                             }
+
                             3 -> { // 1RM
                                 val current = workoutData.last().estimated1RM
                                 val best = workoutData.maxOf { it.estimated1RM }
