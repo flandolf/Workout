@@ -27,7 +27,7 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(title = { Text("Settings", fontWeight = FontWeight.Bold) })
+            TopAppBar(title = { Text("Settings", fontWeight = FontWeight.Bold) })
         }
     ) { innerPadding ->
         Column(

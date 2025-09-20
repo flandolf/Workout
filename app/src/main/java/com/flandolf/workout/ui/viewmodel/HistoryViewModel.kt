@@ -3,6 +3,7 @@ package com.flandolf.workout.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.flandolf.workout.data.Workout
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.WorkoutWithExercises
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,14 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun loadWorkouts() {
         viewModelScope.launch {
             _workouts.value = repo.getAllWorkouts()
+        }
+    }
+
+    fun deleteWorkout(workout: Workout) {
+        viewModelScope.launch {
+            repo.deleteWorkout(workout)
+            // Reload workouts after deletion
+            loadWorkouts()
         }
     }
 }

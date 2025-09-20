@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -36,16 +37,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             WorkoutTheme {
                 val navController = rememberNavController()
-                Scaffold(modifier = Modifier.fillMaxSize()) {
-                    NavHost(navController = navController, startDestination = "home") {
-                        composable("home") {
-                            HomeScreen(
-                                onStartWorkout = { navController.navigate("workout") },
-                                onViewHistory = { navController.navigate("history") },
-                                onSettings = { navController.navigate("settings") },
-                                onViewProgress = { navController.navigate("progress") }
-                            )
-                        }
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    bottomBar = { BottomNavigationBar(navController) }
+                ) { innerPadding ->
+                    NavHost(
+                        navController = navController,
+                        startDestination = "workout",
+                    ) {
                         composable("workout") {
                             val elapsed = workoutVm.elapsedSeconds.collectAsState()
                             val currentWorkout = workoutVm.currentWorkout.collectAsState()
@@ -57,27 +56,27 @@ class MainActivity : ComponentActivity() {
                                     workoutVm.startWorkout()
                                 }
                             }
-                                // load suggestions and pass into screen
-                                LaunchedEffect(Unit) { workoutVm.loadExerciseNameSuggestions() }
-                                WorkoutScreen(
+                            // load suggestions and pass into screen
+                            LaunchedEffect(Unit) { workoutVm.loadExerciseNameSuggestions() }
+                            WorkoutScreen(
                                 elapsedSeconds = elapsed.value,
                                 currentExercises = currentWorkout.value?.exercises ?: emptyList(),
                                 onStartTick = { workoutVm.resumeTimer() },
                                 onPauseTick = { workoutVm.pauseTimer() },
                                 onEndWorkout = {
                                     workoutVm.endWorkout()
-                                    navController.navigateUp()
+                                    // Stay on workout screen instead of navigating up
                                 },
                                 onAddExercise = { workoutVm.addExercise(it) },
                                 onAddSet = { exerciseId, reps, weight -> workoutVm.addSet(exerciseId, reps, weight) },
-                                    onDeleteExercise = { workoutVm.deleteExercise(it) },
-                                    exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
+                                onDeleteExercise = { workoutVm.deleteExercise(it) },
+                                exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
                                 isTimerRunning = isTimerRunning.value
                             )
                         }
                         composable("history") {
                             val workouts = historyVm.workouts.collectAsState()
-                            HistoryScreen(workouts = workouts.value, onSelect = { /* TODO: show details */ }, viewModel = historyVm)
+                            HistoryScreen(workouts = workouts.value, viewModel = historyVm)
                         }
                         composable("progress") {
                             val workouts = historyVm.workouts.collectAsState()

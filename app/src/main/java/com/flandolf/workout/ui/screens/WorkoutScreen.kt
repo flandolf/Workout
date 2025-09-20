@@ -64,7 +64,7 @@ fun WorkoutScreen(
     // No add set dialog
 
     Scaffold(
-        topBar = { CenterAlignedTopAppBar(title = { Text("Workout", fontWeight = FontWeight.SemiBold) }) }
+        topBar = { TopAppBar(title = { Text("Workout", fontWeight = FontWeight.SemiBold) }) }
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding).padding(12.dp)) {
             Row(

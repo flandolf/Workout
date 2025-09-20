@@ -43,7 +43,7 @@ fun ProgressScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        CenterAlignedTopAppBar(title = { Text("Progress", fontWeight = FontWeight.Bold) })
+        TopAppBar(title = { Text("Progress", fontWeight = FontWeight.Bold) })
         if (totals.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("No progress yet. Start logging workouts!", color = Color.Gray)

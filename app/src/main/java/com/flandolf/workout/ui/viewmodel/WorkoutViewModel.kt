@@ -3,6 +3,7 @@ package com.flandolf.workout.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.flandolf.workout.data.Workout
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.WorkoutWithExercises
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -124,6 +125,21 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             if (exercise != null) {
                 repo.deleteExercise(exercise)
                 _currentWorkout.value = id.let { repo.getWorkout(it!!) }
+            }
+        }
+    }
+
+    fun deleteWorkout(workout: Workout) {
+        viewModelScope.launch {
+            repo.deleteWorkout(workout)
+            // If the deleted workout was the current one, clear the current workout state
+            if (_currentWorkoutId.value == workout.id) {
+                _currentWorkoutId.value = null
+                _currentWorkout.value = null
+                _elapsedSeconds.value = 0L
+                _isTimerRunning.value = false
+                timerJob?.cancel()
+                timerJob = null
             }
         }
     }

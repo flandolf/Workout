@@ -90,6 +90,10 @@ class WorkoutRepository(private val context: Context) {
         dao.deleteExercise(exercise)
     }
 
+    suspend fun deleteWorkout(workout: Workout) {
+        dao.deleteWorkout(workout)
+    }
+
     private fun formatDuration(seconds: Long): String {
         val mins = seconds / 60
         return "$mins min"

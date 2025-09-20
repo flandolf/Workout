@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -17,6 +16,8 @@ import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
@@ -27,16 +28,18 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    workouts: List<WorkoutWithExercises>,
-    onSelect: (Long) -> Unit,
-    viewModel: HistoryViewModel? = null
+    workouts: List<WorkoutWithExercises>, viewModel: HistoryViewModel? = null
 ) {
     LaunchedEffect(Unit) {
         viewModel?.loadWorkouts()
     }
     val df = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
+
+    // State for delete confirmation dialog
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var workoutToDelete by remember { mutableStateOf<WorkoutWithExercises?>(null) }
     Column(modifier = Modifier.fillMaxSize()) {
-        CenterAlignedTopAppBar(title = { Text("History") })
+        TopAppBar(title = { Text("History", fontWeight = FontWeight.Bold) })
         if (workouts.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -56,11 +59,9 @@ fun HistoryScreen(
                             .fillMaxWidth()
                             .animateContentSize(),
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .clickable { expanded = !expanded }
-                                .padding(horizontal = 12.dp, vertical = 0.dp)
-                        ) {
+                        Column(modifier = Modifier
+                            .clickable { expanded = !expanded }
+                            .padding(horizontal = 12.dp, vertical = 0.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -114,12 +115,17 @@ fun HistoryScreen(
                                         Spacer(modifier = Modifier.height(6.dp))
                                         for ((i, s) in ex.sets.withIndex()) {
                                             Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(),
+                                                modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text("Set ${i + 1}", style = MaterialTheme.typography.bodySmall)
-                                                Text("${s.reps} reps — ${s.weight} kg", style = MaterialTheme.typography.bodySmall)
+                                                Text(
+                                                    "Set ${i + 1}",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                                Text(
+                                                    "${s.reps} reps — ${s.weight} kg",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
                                             }
                                         }
                                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -156,8 +162,13 @@ fun HistoryScreen(
                                 }
 
                                 // Trash/delete button on the bottom-right
-                                IconButton(onClick = { /* TODO: implement delete action */ }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete workout")
+                                IconButton(onClick = {
+                                    workoutToDelete = w
+                                    showDeleteDialog = true
+                                }) {
+                                    Icon(
+                                        Icons.Default.Delete, contentDescription = "Delete workout"
+                                    )
                                 }
                             }
                         }
@@ -168,5 +179,41 @@ fun HistoryScreen(
                 }
             }
         }
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog && workoutToDelete != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                workoutToDelete = null
+            },
+            title = { Text("Delete Workout") },
+            text = {
+                Text("Are you sure you want to delete this workout? This action cannot be undone.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        workoutToDelete?.let { workout ->
+                            viewModel?.deleteWorkout(workout.workout)
+                        }
+                        showDeleteDialog = false
+                        workoutToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Delete", color = Color.White)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    showDeleteDialog = false
+                    workoutToDelete = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
