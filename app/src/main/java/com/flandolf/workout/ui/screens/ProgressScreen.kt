@@ -1,34 +1,22 @@
 package com.flandolf.workout.ui.screens
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.flandolf.workout.data.WorkoutWithExercises
 import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import com.flandolf.workout.ui.components.BarChart
 import java.util.*
-import com.flandolf.workout.ui.components.BarChart
-import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,12 +68,16 @@ fun ProgressScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        }) { innerPadding ->
+        }
+    ) { innerPadding ->
+        val scrollState = rememberScrollState()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
+                .verticalScroll(scrollState)
         ) {
             if (exerciseTotals.isEmpty()) {
                 Box(
@@ -119,7 +111,7 @@ fun ProgressScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 8.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
@@ -257,12 +249,12 @@ fun ProgressScreen(
                     }
                 }
 
-                // Exercise Progress List
-                LazyColumn(
+                // Exercise Progress List (non-lazy so the whole screen scrolls as one)
+                Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(exerciseTotals.entries.sortedByDescending { it.value.first }) { entry ->
+                    exerciseTotals.entries.sortedByDescending { it.value.first }.forEach { entry ->
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -303,7 +295,7 @@ fun ProgressScreen(
                                     }
                                 }
                                 Icon(
-                                    Icons.Default.BarChart,
+                                    Icons.Default.PlayArrow,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
