@@ -176,7 +176,6 @@ fun ExerciseDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onGraphClick() },
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         )
@@ -233,7 +232,6 @@ fun ExerciseDetailScreen(
             items(exerciseData.dataPoints.takeLast(10).reversed()) { (date, weight, reps) ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
@@ -327,7 +325,6 @@ fun StatCard(
 ) {
     Card(
         modifier = modifier,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )

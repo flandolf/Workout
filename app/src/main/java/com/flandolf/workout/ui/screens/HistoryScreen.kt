@@ -94,7 +94,9 @@ fun HistoryScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .animateContentSize(),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
                         ) {
                             Column(modifier = Modifier
                                 .clickable { expanded = !expanded }

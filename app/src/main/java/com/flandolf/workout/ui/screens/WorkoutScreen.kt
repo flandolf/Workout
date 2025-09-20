@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -101,70 +102,66 @@ fun WorkoutScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
 
-    Scaffold (
+    Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isTimerRunning) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                actions = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = {
-                                if (isTimerRunning) {
-                                    onPauseTick()
+            TopAppBar(title = {
+                Text(
+                    text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isTimerRunning) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }, actions = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            if (isTimerRunning) {
+                                onPauseTick()
+                            } else {
+                                if (vm.currentWorkoutId.value == null) {
+                                    vm.startWorkout()
                                 } else {
-                                    if (vm.currentWorkoutId.value == null) {
-                                        vm.startWorkout()
-                                    } else {
-                                        onStartTick()
-                                    }
+                                    onStartTick()
                                 }
-                            },
-                            modifier = Modifier.height(40.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                if (isTimerRunning) "Pause" else "Start",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-
-                        Button(
-                            onClick = onEndWorkout,
-                            modifier = Modifier.height(40.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "End Workout",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("End", style = MaterialTheme.typography.bodySmall)
-                        }
+                            }
+                        },
+                        modifier = Modifier.height(40.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            if (isTimerRunning) "Pause" else "Start",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
 
+                    Button(
+                        onClick = onEndWorkout,
+                        modifier = Modifier.height(40.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "End Workout",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("End", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
                 }
-            )
-        }
-    ) { innerPadding ->
+
+            })
+        }) { innerPadding ->
 
         Column(
             modifier = Modifier
@@ -307,6 +304,9 @@ fun WorkoutScreen(
                     itemsIndexed(currentExercises) { idx, ex ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
@@ -352,7 +352,7 @@ fun WorkoutScreen(
                                         }
                                     }
                                 }
-                                
+
                                 // Previous best set display
                                 val previousBest = previousBestSets[ex.exercise.name]
                                 if (previousBest != null) {
@@ -371,8 +371,7 @@ fun WorkoutScreen(
                                             Text(
                                                 text = "Previous",
                                                 modifier = Modifier.padding(
-                                                    horizontal = 8.dp,
-                                                    vertical = 4.dp
+                                                    horizontal = 8.dp, vertical = 4.dp
                                                 ),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -394,12 +393,7 @@ fun WorkoutScreen(
 
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Column(modifier = Modifier.fillMaxWidth()) {
-                                    if (ex.sets.isEmpty()) {
-                                        Text(
-                                            "No sets yet.",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    } else {
+                                    if (ex.sets.isNotEmpty()) {
                                         ex.sets.forEachIndexed { i, s ->
                                             val editing = editSetMap[ex.exercise.id to i] == true
                                             if (!editing) {

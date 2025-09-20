@@ -42,6 +42,13 @@ android {
 }
 
 
+ksp {
+    // Export Room schema to a folder so the annotation processor can write schema JSON files.
+    // This prevents the warning about missing `room.schemaLocation`.
+    arg("room.schemaLocation", file("schemas").absolutePath)
+}
+
+
 dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
