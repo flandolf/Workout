@@ -49,11 +49,6 @@ fun ProgressScreen(
                 Text("No progress yet. Start logging workouts!", color = Color.Gray)
             }
         } else {
-            Text(
-                text = "Your Exercise Progress",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp)
-            )
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -63,28 +58,24 @@ fun ProgressScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(20.dp),
+                                .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.BarChart,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(36.dp)
+                                modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     entry.key,
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    fontSize = 20.sp
                                 )
                                 Text(
                                     "Total reps: ${entry.value.first}",
