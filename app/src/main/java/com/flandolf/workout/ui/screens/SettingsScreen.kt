@@ -1,10 +1,15 @@
 package com.flandolf.workout.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -45,15 +50,16 @@ fun SettingsScreen(
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 ListItem(
-                    headlineContent = { Text("Export Workouts as CSV", fontSize = 18.sp) },
-                    supportingContent = { Text("Download all your workout data as a CSV file.") },
+                    headlineContent = { Text("Export Workout Data", fontSize = 18.sp) },
+                    supportingContent = {
+                        Text("Export all workouts as CSV file with detailed set information, volume calculations, and timestamps. File will be saved to Downloads and shared for easy access.")
+                    },
                     leadingContent = {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
+                            imageVector = Icons.Default.Download,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )

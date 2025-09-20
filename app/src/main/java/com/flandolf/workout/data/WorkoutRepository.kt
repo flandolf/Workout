@@ -48,22 +48,45 @@ class WorkoutRepository(private val context: Context) {
 
     suspend fun getDistinctExerciseNames(): List<String> = dao.getDistinctExerciseNames()
 
+    /**
+     * Exports all workout data to a CSV file with comprehensive information including:
+     * - Date and time of workout
+     * - Workout duration (both in seconds and formatted)
+     * - Exercise details with set-by-set breakdown
+     * - Weight, reps, and calculated volume for each set
+     * - Proper CSV escaping for special characters
+     */
     suspend fun exportCsv(file: File): File {
         val workouts = getAllWorkouts()
         FileWriter(file).use { writer ->
-            writer.append("Date,Workout Duration,Exercise,Set,Reps,Weight\n")
-            val df = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            // Enhanced CSV header with more useful information
+            writer.append("Date,Time,Workout Duration (seconds),Workout Duration (formatted),Exercise Name,Set Number,Reps,Weight (kg),Volume (kg),Notes\n")
+
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+
             for (w in workouts) {
-                val date = df.format(Date(w.workout.date))
-                val durationText = formatDuration(w.workout.durationSeconds)
-                var setIndex: Int
+                val date = dateFormat.format(Date(w.workout.date))
+                val time = timeFormat.format(Date(w.workout.date))
+                val durationSeconds = w.workout.durationSeconds
+                val durationText = formatDuration(durationSeconds)
+
                 for (ex in w.exercises) {
-                    setIndex = 1
+                    var setIndex = 1
                     for (s in ex.sets) {
-                        writer.append(date).append(',').append(durationText).append(',')
+                        val volume = s.reps * s.weight
+                        val notes = "" // Could be extended to include notes in the future
+
+                        writer.append(escapeCsv(date)).append(',')
+                            .append(escapeCsv(time)).append(',')
+                            .append(durationSeconds.toString()).append(',')
+                            .append(escapeCsv(durationText)).append(',')
                             .append(escapeCsv(ex.exercise.name)).append(',')
-                            .append(setIndex.toString()).append(',').append(s.reps.toString())
-                            .append(',').append(s.weight.toString()).append('\n')
+                            .append(setIndex.toString()).append(',')
+                            .append(s.reps.toString()).append(',')
+                            .append(String.format("%.2f", s.weight)).append(',')
+                            .append(String.format("%.2f", volume)).append(',')
+                            .append(escapeCsv(notes)).append('\n')
                         setIndex++
                     }
                 }

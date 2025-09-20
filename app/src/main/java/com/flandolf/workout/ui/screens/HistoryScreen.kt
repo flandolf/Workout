@@ -3,18 +3,18 @@ package com.flandolf.workout.ui.screens
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -38,144 +38,224 @@ fun HistoryScreen(
     // State for delete confirmation dialog
     var showDeleteDialog by remember { mutableStateOf(false) }
     var workoutToDelete by remember { mutableStateOf<WorkoutWithExercises?>(null) }
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(title = { Text("History", fontWeight = FontWeight.Bold) })
-        if (workouts.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = androidx.compose.ui.Alignment.Center
-            ) {
-                Text(
-                    "No workouts logged yet. Start your first workout!",
-                    color = androidx.compose.ui.graphics.Color.Gray
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("History", fontWeight = FontWeight.SemiBold) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
-            }
-        } else {
-            LazyColumn(modifier = Modifier.padding(16.dp)) {
-                items(workouts) { w ->
-                    var expanded by remember { mutableStateOf(false) }
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateContentSize(),
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            if (workouts.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Column(modifier = Modifier
-                            .clickable { expanded = !expanded }
-                            .padding(horizontal = 12.dp, vertical = 0.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            "No workouts yet",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Your workout history will appear here",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(workouts) { w ->
+                        var expanded by remember { mutableStateOf(false) }
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateContentSize(),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .clickable { expanded = !expanded }
+                                    .padding(16.dp)
                             ) {
-                                Column {
-                                    Text(
-                                        df.format(Date(w.workout.date)),
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
-                                    )
-                                }
-                                IconButton(onClick = { expanded = !expanded }) {
-                                    Icon(
-                                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                        contentDescription = if (expanded) "Collapse" else "Expand"
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Exercises list: when collapsed show exercise name + best set; when expanded show full sets
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                for (ex in w.exercises) {
-                                    // compute best set by max weight, then max reps as tiebreaker
-                                    val best =
-                                        ex.sets.maxWithOrNull(compareBy({ it.weight }, { it.reps }))
-
-                                    // Table-like layout: name column (weight 0.6) and best set column (weight 0.4)
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp),
-                                        horizontalArrangement = Arrangement.SpaceEvenly
-                                    ) {
+                                // Header Row
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
                                         Text(
-                                            ex.exercise.name,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            modifier = Modifier.weight(0.75f),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            df.format(Date(w.workout.date)),
+                                            style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.SemiBold
                                         )
                                         Text(
-                                            if (best != null) "${best.reps} x ${best.weight}kg" else "",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            modifier = Modifier.weight(0.25f)
+                                            "${w.exercises.size} exercises",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
+                                    IconButton(onClick = { expanded = !expanded }) {
+                                        Icon(
+                                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                            contentDescription = if (expanded) "Collapse" else "Expand",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
 
-                                    if (expanded) {
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                        for ((i, s) in ex.sets.withIndex()) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Text(
-                                                    "Set ${i + 1}",
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                                Text(
-                                                    "${s.reps} reps — ${s.weight} kg",
-                                                    style = MaterialTheme.typography.bodySmall
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Exercises list
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    for (ex in w.exercises) {
+                                        val best = ex.sets.maxWithOrNull(compareBy({ it.weight }, { it.reps }))
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                ex.exercise.name,
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                modifier = Modifier.weight(0.6f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                if (best != null) "${best.reps} × ${best.weight}kg" else "No sets",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.weight(0.4f),
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.End
+                                            )
+                                        }
+
+                                        if (expanded) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            for ((i, s) in ex.sets.withIndex()) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(start = 16.dp, bottom = 4.dp),
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Text(
+                                                        "Set ${i + 1}",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    Text(
+                                                        "${s.reps} reps × ${s.weight} kg",
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                }
+                                            }
+                                            if (ex != w.exercises.last()) {
+                                                Divider(
+                                                    modifier = Modifier.padding(vertical = 8.dp),
+                                                    color = MaterialTheme.colorScheme.outlineVariant
                                                 )
                                             }
                                         }
-                                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                                     }
                                 }
-                            }
 
-                            // Bottom summary row: timer icon + duration, weight icon + total weight lifted
-                            Spacer(modifier = Modifier.height(8.dp))
-                            val totalWeight =
-                                w.exercises.sumOf { ex -> ex.sets.sumOf { it.reps * it.weight.toInt() } }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Schedule, contentDescription = "Duration")
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        "${w.workout.durationSeconds / 60}m ${w.workout.durationSeconds % 60}s",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                    Spacer(modifier = Modifier.width(16.dp))
-                                    Icon(
-                                        Icons.Default.FitnessCenter,
-                                        contentDescription = "Total weight"
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        "$totalWeight kg",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
+                                // Bottom summary row
+                                Spacer(modifier = Modifier.height(12.dp))
+                                val totalWeight = w.exercises.sumOf { ex ->
+                                    ex.sets.sumOf { it.reps * it.weight.toDouble() }.toInt()
                                 }
 
-                                // Trash/delete button on the bottom-right
-                                IconButton(onClick = {
-                                    workoutToDelete = w
-                                    showDeleteDialog = true
-                                }) {
-                                    Icon(
-                                        Icons.Default.Delete, contentDescription = "Delete workout"
-                                    )
+                                Divider(
+                                    modifier = Modifier.padding(bottom = 12.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                Icons.Default.Schedule,
+                                                contentDescription = "Duration",
+                                                modifier = Modifier.size(18.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                "${w.workout.durationSeconds / 60}m ${w.workout.durationSeconds % 60}s",
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                        }
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                Icons.Default.FitnessCenter,
+                                                contentDescription = "Total weight",
+                                                modifier = Modifier.size(18.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                "${String.format("%.1f", totalWeight.toFloat())} kg",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            workoutToDelete = w
+                                            showDeleteDialog = true
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete workout",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                    Spacer(
-                        modifier = Modifier.height(12.dp)
-                    )
                 }
             }
         }
