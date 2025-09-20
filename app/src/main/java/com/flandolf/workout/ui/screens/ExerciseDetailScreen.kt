@@ -51,9 +51,7 @@ import kotlin.math.max
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseDetailScreen(
-    exerciseName: String,
-    workouts: List<WorkoutWithExercises>,
-    onBackClick: () -> Unit
+    exerciseName: String, workouts: List<WorkoutWithExercises>, onBackClick: () -> Unit
 ) {
     // Calculate exercise-specific data
     val exerciseData = remember(exerciseName, workouts) {
@@ -115,7 +113,9 @@ fun ExerciseDetailScreen(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp) // Account for bottom navigation
+            contentPadding = PaddingValues(
+                top = 16.dp, bottom = 120.dp
+            ) // Account for bottom navigation
         ) {
             // Statistics Cards
             item {
@@ -209,7 +209,6 @@ fun ExerciseDetailScreen(
                 }
             }
 
-            // Recent Workouts
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -238,13 +237,10 @@ fun ExerciseDetailScreen(
                     )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // Date header
                         Text(
                             java.text.SimpleDateFormat(
-                                "EEEE, MMM dd",
-                                java.util.Locale.getDefault()
-                            )
-                                .format(java.util.Date(date)),
+                                "EEEE, MMM dd", java.util.Locale.getDefault()
+                            ).format(java.util.Date(date)),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
@@ -290,8 +286,7 @@ fun ExerciseDetailScreen(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            "$reps reps",
-                                            style = MaterialTheme.typography.bodyLarge
+                                            "$reps reps", style = MaterialTheme.typography.bodyLarge
                                         )
                                     }
                                 }
@@ -317,8 +312,6 @@ fun ExerciseDetailScreen(
             }
         }
     }
-
-
 
 
 }
@@ -351,8 +344,7 @@ fun StatCard(
                     .background(
                         color = MaterialTheme.colorScheme.primaryContainer,
                         shape = androidx.compose.foundation.shape.CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+                    ), contentAlignment = Alignment.Center
             ) {
                 Icon(
                     icon,
@@ -389,8 +381,7 @@ fun StatCard(
 
 @Composable
 private fun ProgressGraph(
-    dataPoints: List<Triple<Long, Float, Int>>,
-    modifier: Modifier = Modifier
+    dataPoints: List<Triple<Long, Float, Int>>, modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
@@ -427,9 +418,7 @@ private fun ProgressGraph(
 
             // Draw point
             drawCircle(
-                color = primaryColor,
-                radius = 4f,
-                center = Offset(x, y)
+                color = primaryColor, radius = 4f, center = Offset(x, y)
             )
 
             // Draw line to next point
@@ -442,9 +431,7 @@ private fun ProgressGraph(
 
         // Draw the progress line
         drawPath(
-            path = path,
-            color = primaryColor,
-            style = Stroke(width = 2f)
+            path = path, color = primaryColor, style = Stroke(width = 2f)
         )
     }
 }

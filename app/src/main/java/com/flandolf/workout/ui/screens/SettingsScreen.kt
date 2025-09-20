@@ -83,9 +83,7 @@ fun SettingsScreen(
             ) {
                 ListItem(headlineContent = {
                     Text(
-                        "Reset All Data",
-                        fontSize = 18.sp,
-                        color = MaterialTheme.colorScheme.error
+                        "Reset All Data", fontSize = 18.sp, color = MaterialTheme.colorScheme.error
                     )
                 }, supportingContent = {
                     Text(

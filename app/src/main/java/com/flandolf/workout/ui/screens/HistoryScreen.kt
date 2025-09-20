@@ -48,8 +48,7 @@ fun HistoryScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -58,8 +57,7 @@ fun HistoryScreen(
         ) {
             if (workouts.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -97,11 +95,9 @@ fun HistoryScreen(
                                 .animateContentSize(),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .clickable { expanded = !expanded }
-                                    .padding(16.dp)
-                            ) {
+                            Column(modifier = Modifier
+                                .clickable { expanded = !expanded }
+                                .padding(16.dp)) {
                                 // Header Row
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -134,7 +130,9 @@ fun HistoryScreen(
                                 // Exercises list
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     for (ex in w.exercises) {
-                                        val best = ex.sets.maxWithOrNull(compareBy({ it.weight }, { it.reps }))
+                                        val best = ex.sets.maxWithOrNull(
+                                            compareBy({ it.weight }, { it.reps })
+                                        )
 
                                         Row(
                                             modifier = Modifier
@@ -232,7 +230,11 @@ fun HistoryScreen(
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                "${String.format("%.1f", totalWeight.toFloat())} kg",
+                                                "${
+                                                    String.format(
+                                                        "%.1f", totalWeight.toFloat()
+                                                    )
+                                                } kg",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.Medium
                                             )
@@ -243,8 +245,7 @@ fun HistoryScreen(
                                         onClick = {
                                             workoutToDelete = w
                                             showDeleteDialog = true
-                                        },
-                                        modifier = Modifier.size(36.dp)
+                                        }, modifier = Modifier.size(36.dp)
                                     ) {
                                         Icon(
                                             Icons.Default.Delete,
@@ -263,37 +264,31 @@ fun HistoryScreen(
 
     // Delete confirmation dialog
     if (showDeleteDialog && workoutToDelete != null) {
-        AlertDialog(
-            onDismissRequest = {
-                showDeleteDialog = false
-                workoutToDelete = null
-            },
-            title = { Text("Delete Workout") },
-            text = {
-                Text("Are you sure you want to delete this workout? This action cannot be undone.")
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        workoutToDelete?.let { workout ->
-                            viewModel?.deleteWorkout(workout.workout)
-                        }
-                        showDeleteDialog = false
-                        workoutToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Delete", color = Color.White)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(onClick = {
+        AlertDialog(onDismissRequest = {
+            showDeleteDialog = false
+            workoutToDelete = null
+        }, title = { Text("Delete Workout") }, text = {
+            Text("Are you sure you want to delete this workout? This action cannot be undone.")
+        }, confirmButton = {
+            Button(
+                onClick = {
+                    workoutToDelete?.let { workout ->
+                        viewModel?.deleteWorkout(workout.workout)
+                    }
                     showDeleteDialog = false
                     workoutToDelete = null
-                }) {
-                    Text("Cancel")
-                }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Delete", color = Color.White)
             }
-        )
+        }, dismissButton = {
+            OutlinedButton(onClick = {
+                showDeleteDialog = false
+                workoutToDelete = null
+            }) {
+                Text("Cancel")
+            }
+        })
     }
 }

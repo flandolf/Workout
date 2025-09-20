@@ -83,17 +83,16 @@ class MainActivity : ComponentActivity() {
                                 viewModel = historyVm,
                                 onExerciseClick = { exerciseName ->
                                     navController.navigate("exercise_detail/$exerciseName")
-                                }
-                            )
+                                })
                         }
                         composable("exercise_detail/{exerciseName}") { backStackEntry ->
-                            val exerciseName = backStackEntry.arguments?.getString("exerciseName") ?: ""
+                            val exerciseName =
+                                backStackEntry.arguments?.getString("exerciseName") ?: ""
                             val workouts = historyVm.workouts.collectAsState()
                             ExerciseDetailScreen(
                                 exerciseName = exerciseName,
                                 workouts = workouts.value,
-                                onBackClick = { navController.popBackStack() }
-                            )
+                                onBackClick = { navController.popBackStack() })
                         }
                         composable("settings") {
                             SettingsScreen(onExportCsv = { exportCsv() }, onResetAll = {
@@ -142,22 +141,27 @@ class MainActivity : ComponentActivity() {
                     ).show()
 
                     // Create share intent
-                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/csv"
-                        putExtra(
-                            android.content.Intent.EXTRA_STREAM,
-                            androidx.core.content.FileProvider.getUriForFile(
-                                this@MainActivity,
-                                "${applicationContext.packageName}.fileprovider",
-                                exportedFile
+                    val shareIntent =
+                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/csv"
+                            putExtra(
+                                android.content.Intent.EXTRA_STREAM,
+                                androidx.core.content.FileProvider.getUriForFile(
+                                    this@MainActivity,
+                                    "${applicationContext.packageName}.fileprovider",
+                                    exportedFile
+                                )
                             )
-                        )
-                        putExtra(android.content.Intent.EXTRA_SUBJECT, "Workout Data Export")
-                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
+                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Workout Data Export")
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
 
                     // Show share dialog
-                    startActivity(android.content.Intent.createChooser(shareIntent, "Share CSV Export"))
+                    startActivity(
+                        android.content.Intent.createChooser(
+                            shareIntent, "Share CSV Export"
+                        )
+                    )
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

@@ -76,8 +76,7 @@ fun ProgressScreen(
                     titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
-        }
-    ) { innerPadding ->
+        }) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -86,8 +85,7 @@ fun ProgressScreen(
         ) {
             if (exerciseTotals.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,

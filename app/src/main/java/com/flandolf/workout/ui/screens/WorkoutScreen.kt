@@ -194,25 +194,24 @@ fun WorkoutScreen(
                             val charCount = newExerciseName.count { ch -> !ch.isWhitespace() }
                             DropdownMenu(
                                 expanded = showSuggestions && charCount >= minLettersForSuggestions && combinedSuggestions.any {
-                                it.contains(
-                                    newExerciseName, ignoreCase = true
-                                )
-                            },
+                                    it.contains(
+                                        newExerciseName, ignoreCase = true
+                                    )
+                                },
                                 onDismissRequest = { showSuggestions = false },
                                 modifier = Modifier.fillMaxWidth(),
                                 properties = PopupProperties(focusable = false)
                             ) {
                                 combinedSuggestions.filter {
-                                        it.contains(
-                                            newExerciseName,
-                                            ignoreCase = true
-                                        )
-                                    }.forEach { suggestion ->
-                                        DropdownMenuItem(text = { Text(suggestion) }, onClick = {
-                                            newExerciseName = suggestion
-                                            showSuggestions = false
-                                        })
-                                    }
+                                    it.contains(
+                                        newExerciseName, ignoreCase = true
+                                    )
+                                }.forEach { suggestion ->
+                                    DropdownMenuItem(text = { Text(suggestion) }, onClick = {
+                                        newExerciseName = suggestion
+                                        showSuggestions = false
+                                    })
+                                }
                             }
                         }
 
