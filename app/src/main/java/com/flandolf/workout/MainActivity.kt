@@ -31,12 +31,12 @@ import com.flandolf.workout.ui.screens.*
 import com.flandolf.workout.ui.theme.WorkoutTheme
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import androidx.lifecycle.lifecycleScope
-import com.flandolf.workout.data.SetEntity
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.sync.AuthState
 import com.flandolf.workout.ui.components.BottomNavigationBar
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import com.flandolf.workout.ui.viewmodel.SyncViewModel
+import com.flandolf.workout.ui.viewmodel.EditWorkoutViewModel
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
     private val workoutVm: WorkoutViewModel by viewModels()
     private val historyVm: HistoryViewModel by viewModels()
     private val syncVm: SyncViewModel by viewModels()
+    private val editVm: EditWorkoutViewModel by viewModels()
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,6 +114,7 @@ class MainActivity : ComponentActivity() {
                                         exerciseId, reps, weight
                                     )
                                 },
+                                onDeleteSet = { exerciseId, setIndex -> workoutVm.deleteSet(exerciseId, setIndex) },
                                 onDeleteExercise = { workoutVm.deleteExercise(it) },
                                 exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
                                 isTimerRunning = isTimerRunning.value,
@@ -122,7 +124,12 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("history") {
                             val workouts = historyVm.workouts.collectAsState()
-                            HistoryScreen(workouts = workouts.value, viewModel = historyVm)
+                            HistoryScreen(
+                                workouts = workouts.value,
+                                viewModel = historyVm
+                            ) { workoutId ->
+                                navController.navigate("edit_workout/$workoutId")
+                            }
 
                             // If there are no local workouts, suggest syncing down when appropriate
                             LaunchedEffect(
@@ -201,6 +208,38 @@ class MainActivity : ComponentActivity() {
                                 exerciseName = exerciseName,
                                 workouts = workouts.value,
                                 onBackClick = { navController.popBackStack() })
+                        }
+                        composable("edit_workout/{workoutId}") { backStackEntry ->
+                            val workoutIdStr = backStackEntry.arguments?.getString("workoutId")
+                            val workoutId = workoutIdStr?.toLongOrNull() ?: -1L
+                            LaunchedEffect(workoutId) {
+                                if (workoutId > 0) editVm.loadWorkout(workoutId)
+                            }
+                            val workoutState = editVm.workout.collectAsState()
+                            EditWorkoutScreen(
+                                workout = workoutState.value?.exercises ?: emptyList(),
+                                onBack = {
+                                    // Refresh history on return
+                                    historyVm.loadWorkouts()
+                                    navController.popBackStack()
+                                },
+                                onAddExercise = { name ->
+                                    editVm.addExercise(name)
+                                },
+                                onDeleteExercise = { exId ->
+                                    editVm.deleteExercise(exId)
+                                },
+                                onAddSet = { exId, reps, weight ->
+                                    editVm.addSet(exId, reps, weight)
+                                },
+                                onUpdateSet = { exId, setIndex, reps, weight ->
+                                    editVm.updateSet(exId, setIndex, reps, weight)
+                                },
+                                onDeleteSet = { exId, setIndex ->
+                                    editVm.deleteSet(exId, setIndex)
+                                },
+                                vm = editVm
+                            )
                         }
                         composable("settings") {
                             SettingsScreen(

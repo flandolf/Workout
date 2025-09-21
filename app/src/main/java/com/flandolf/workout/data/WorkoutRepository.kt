@@ -44,11 +44,21 @@ class WorkoutRepository(private val context: Context) {
     }
 
     suspend fun addExercise(workoutId: Long, name: String): Long {
-        return dao.insertExercise(ExerciseEntity(workoutId = workoutId, name = name))
+        val maxPos = dao.getMaxPositionForWorkout(workoutId)
+        val nextPos = maxPos + 1
+        return dao.insertExercise(ExerciseEntity(workoutId = workoutId, name = name, position = nextPos))
+    }
+
+    suspend fun updateExercise(exercise: ExerciseEntity) {
+        dao.updateExercise(exercise)
     }
 
     suspend fun addSet(exerciseId: Long, reps: Int, weight: Float): Long {
         return dao.insertSet(SetEntity(exerciseId = exerciseId, reps = reps, weight = weight))
+    }
+
+    suspend fun deleteSet(set: SetEntity) {
+        dao.deleteSet(set)
     }
 
     suspend fun getAllWorkouts(): List<WorkoutWithExercises> = dao.getAllWorkoutsWithExercises()

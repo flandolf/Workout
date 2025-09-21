@@ -1,12 +1,14 @@
 package com.flandolf.workout.ui.screens
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -29,7 +31,8 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    workouts: List<WorkoutWithExercises>, viewModel: HistoryViewModel? = null
+    workouts: List<WorkoutWithExercises>, viewModel: HistoryViewModel? = null,
+    onEditWorkout: (Long) -> Unit = {}
 ) {
     LaunchedEffect(Unit) {
         viewModel?.loadWorkouts()
@@ -97,6 +100,9 @@ fun HistoryScreen(
                                 .animateContentSize(),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            border = BorderStroke(
+                                1.dp, MaterialTheme.colorScheme.outlineVariant
                             )
                         ) {
                             Column(
@@ -247,17 +253,29 @@ fun HistoryScreen(
                                         }
                                     }
 
-                                    IconButton(
-                                        onClick = {
-                                            workoutToDelete = w
-                                            showDeleteDialog = true
-                                        }, modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Delete workout",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = { onEditWorkout(w.workout.id) },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Edit,
+                                                contentDescription = "Edit workout",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                workoutToDelete = w
+                                                showDeleteDialog = true
+                                            }, modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Delete workout",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -284,15 +302,19 @@ fun HistoryScreen(
                     showDeleteDialog = false
                     workoutToDelete = null
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
             ) {
                 Text("Delete", color = Color.White)
             }
         }, dismissButton = {
-            OutlinedButton(onClick = {
+            Button(onClick = {
                 showDeleteDialog = false
                 workoutToDelete = null
-            }) {
+            }
+            ) {
                 Text("Cancel")
             }
         })

@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.flandolf.workout.data.ExerciseEntity
 import com.flandolf.workout.data.SetEntity
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.WorkoutWithExercises
@@ -223,6 +224,77 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 val updatedSet = set.copy(reps = reps, weight = weight)
                 repo.updateSet(updatedSet)
                 _currentWorkout.value = id.let { repo.getWorkout(it) }
+            }
+        }
+    }
+
+    fun deleteSet(exerciseId: Long, setIndex: Int) {
+        viewModelScope.launch {
+            val id = _currentWorkoutId.value
+            val workout = id?.let { repo.getWorkout(it) }
+            val exercise = workout?.exercises?.find { it.exercise.id == exerciseId }
+            val set = exercise?.sets?.getOrNull(setIndex)
+            if (set != null) {
+                repo.deleteSet(set)
+                _currentWorkout.value = id.let { repo.getWorkout(it) }
+            }
+        }
+    }
+
+    fun moveExerciseUp(exerciseId: Long) {
+        viewModelScope.launch {
+            val workout = _currentWorkout.value ?: return@launch
+            val sorted = workout.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+
+            // Normalize positions to be unique and sequential
+            var changed = false
+            sorted.forEachIndexed { idx, ex ->
+                if (ex.exercise.position != idx) {
+                    changed = true
+                    repo.updateExercise(ex.exercise.copy(position = idx))
+                }
+            }
+            val refreshed = if (changed) _currentWorkoutId.value?.let { repo.getWorkout(it) } else workout
+            val list = refreshed?.exercises?.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id })) ?: return@launch
+
+            val index = list.indexOfFirst { it.exercise.id == exerciseId }
+            if (index > 0) {
+                val current = list[index].exercise
+                val prev = list[index - 1].exercise
+                val currentPos = current.position
+                val prevPos = prev.position
+                repo.updateExercise(current.copy(position = prevPos))
+                repo.updateExercise(prev.copy(position = currentPos))
+                _currentWorkout.value = _currentWorkoutId.value?.let { repo.getWorkout(it) }
+            }
+        }
+    }
+
+    fun moveExerciseDown(exerciseId: Long) {
+        viewModelScope.launch {
+            val workout = _currentWorkout.value ?: return@launch
+            val sorted = workout.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+
+            // Normalize positions to be unique and sequential
+            var changed = false
+            sorted.forEachIndexed { idx, ex ->
+                if (ex.exercise.position != idx) {
+                    changed = true
+                    repo.updateExercise(ex.exercise.copy(position = idx))
+                }
+            }
+            val refreshed = if (changed) _currentWorkoutId.value?.let { repo.getWorkout(it) } else workout
+            val list = refreshed?.exercises?.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id })) ?: return@launch
+
+            val index = list.indexOfFirst { it.exercise.id == exerciseId }
+            if (index >= 0 && index < list.lastIndex) {
+                val current = list[index].exercise
+                val next = list[index + 1].exercise
+                val currentPos = current.position
+                val nextPos = next.position
+                repo.updateExercise(current.copy(position = nextPos))
+                repo.updateExercise(next.copy(position = currentPos))
+                _currentWorkout.value = _currentWorkoutId.value?.let { repo.getWorkout(it) }
             }
         }
     }

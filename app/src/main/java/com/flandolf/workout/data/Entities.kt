@@ -23,6 +23,8 @@ data class ExerciseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val workoutId: Long,
     val name: String,
+    // Ordering within a workout (lower comes first)
+    val position: Int = 0,
     // Firestore document ID mapping for sync
     val firestoreId: String? = null
 )

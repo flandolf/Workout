@@ -26,6 +26,9 @@ interface WorkoutDao {
     @Insert
     suspend fun insertSet(set: SetEntity): Long
 
+    @Delete
+    suspend fun deleteSet(set: SetEntity)
+
     // Lookups to support upsert during download
     @Query("SELECT * FROM exercises WHERE firestoreId = :firestoreId LIMIT 1")
     suspend fun getExerciseByFirestoreId(firestoreId: String): ExerciseEntity?
@@ -77,4 +80,7 @@ interface WorkoutDao {
 
     @Query("DELETE FROM exercises WHERE workoutId = :workoutId")
     suspend fun deleteExercisesForWorkout(workoutId: Long)
+
+    @Query("SELECT COALESCE(MAX(position), -1) FROM exercises WHERE workoutId = :workoutId")
+    suspend fun getMaxPositionForWorkout(workoutId: Long): Int
 }
