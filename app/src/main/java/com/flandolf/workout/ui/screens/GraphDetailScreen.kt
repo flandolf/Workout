@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
 import com.flandolf.workout.data.formatWeight
+import com.flandolf.workout.data.computeVolume
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,7 +27,8 @@ fun GraphDetailScreen(
         workouts.sortedBy { it.workout.date }.mapNotNull { workout ->
             val exercise = workout.exercises.find { it.exercise.name == exerciseName }
             exercise?.let { ex ->
-                val totalVolume = ex.sets.sumOf { (it.reps * it.weight).toInt() }.toFloat()
+                // Use shared computeVolume helper to avoid truncation of decimal weights
+                val totalVolume = computeVolume(ex.sets)
                 val totalReps = ex.sets.sumOf { it.reps }
                 val maxWeight = ex.sets.maxOfOrNull { it.weight } ?: 0f
                 val maxReps = ex.sets.maxOfOrNull { it.reps } ?: 0

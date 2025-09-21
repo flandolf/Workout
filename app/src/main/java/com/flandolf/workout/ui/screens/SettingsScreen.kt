@@ -49,7 +49,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                .padding(bottom = 120.dp)
+                .padding(bottom = 80.dp)
                 .fillMaxWidth()
         ) {
             item {

@@ -59,8 +59,8 @@ fun ProgressGraph(
         val yAxisX = padding
 
         // Draw background grid
-        val gridColor = surfaceVariant.copy(alpha = 0.3f)
-        val minorGridColor = surfaceVariant.copy(alpha = 0.1f)
+        val gridColor = surfaceVariant.copy(alpha = 0.28f)
+        val minorGridColor = surfaceVariant.copy(alpha = 0.08f)
 
         // Horizontal grid lines (5 lines)
         val hGridLines = 5
@@ -108,7 +108,7 @@ fun ProgressGraph(
             val textLayout = textMeasurer.measure(
                 label, style = TextStyle(
                     color = onSurface,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                 )
             )
@@ -130,7 +130,7 @@ fun ProgressGraph(
                 val textLayout = textMeasurer.measure(
                     label, style = TextStyle(
                         color = onSurface,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                     )
                 )
@@ -143,6 +143,12 @@ fun ProgressGraph(
         // Draw the line chart with gradient fill
         val path = Path()
         val fillPath = Path()
+
+        // Track last drawn label X/Y to avoid overlap
+        var lastLabelX = Float.NEGATIVE_INFINITY
+        var lastLabelY = Float.NEGATIVE_INFINITY
+        val labelEpsilon = 0.001f
+
         dataPoints.forEachIndexed { index, (_, value, _) ->
             val x = padding + (graphWidth / max(dataPoints.size - 1, 1)) * index
             val y = padding + graphHeight - ((value - minValue) / valueRange) * graphHeight
@@ -171,25 +177,80 @@ fun ProgressGraph(
 
             // Smart label placement
             val labelOffset = 32f
-            val textY = if (y - labelOffset - textLayout.size.height < padding) {
-                y + labelOffset
-            } else {
-                y - labelOffset
+            val aboveY = y - labelOffset
+            val belowY = y + labelOffset
+            // initial choose above if there's room otherwise below
+            var textY = if (aboveY - textLayout.size.height < padding) belowY else aboveY
+
+            // Decide whether to show label: value change
+            val valueChanged = if (index == 0) true else kotlin.math.abs(value - dataPoints[index - 1].second) > labelEpsilon
+            var shouldShowLabel = valueChanged
+
+            // Prevent labels from crowding horizontally/vertically; always allow first and last
+            val labelCenterX = x
+            val overlapThresholdX = (textLayout.size.width + 8).toFloat() * 0.6f
+            val overlapThresholdY = (textLayout.size.height + 4).toFloat() * 0.9f
+
+            if (shouldShowLabel) {
+                // if horizontally too close to last label and on same vertical side, try flipping
+                val tooCloseX = lastLabelX != Float.NEGATIVE_INFINITY && kotlin.math.abs(labelCenterX - lastLabelX) < overlapThresholdX
+                val sameSideY = lastLabelY != Float.NEGATIVE_INFINITY && kotlin.math.abs(textY - lastLabelY) < overlapThresholdY
+
+                if (tooCloseX && sameSideY && index != dataPoints.lastIndex) {
+                    // attempt flip vertical side
+                    val altY = if (textY < y) belowY else aboveY
+                    // Ensure flipping keeps label within bounds
+                    val clampedAltY = when {
+                        altY < padding + 4f -> padding + 4f
+                        altY + textLayout.size.height > xAxisY - 4f -> xAxisY - textLayout.size.height - 4f
+                        else -> altY
+                    }
+                    // only accept flip if it moves label sufficiently away from last label
+                    if (kotlin.math.abs(clampedAltY - lastLabelY) >= overlapThresholdY * 0.8f) {
+                        textY = clampedAltY
+                    } else {
+                        // otherwise skip showing this label to reduce clutter
+                        shouldShowLabel = false
+                    }
+                }
+
+                // Final clamp to ensure label doesn't draw off-canvas vertically
+                if (shouldShowLabel) {
+                    textY = max(textY, padding + 4f)
+                    val maxTop = xAxisY - textLayout.size.height - 4f
+                    if (textY > maxTop) textY = maxTop
+                }
             }
 
-            // Draw label background for better readability
-            drawRoundRect(
-                color = surface.copy(alpha = 0.8f),
-                topLeft = Offset(x - textLayout.size.width / 2 - 4, textY - 2),
-                size = androidx.compose.ui.geometry.Size(
-                    (textLayout.size.width + 8).toFloat(), (textLayout.size.height + 4).toFloat()
-                ),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
-            )
+            if (shouldShowLabel) {
+                // Draw small leader line from point to label for clarity
+                val lineColor = onSurfaceVariant.copy(alpha = 0.6f)
+                val labelEdgeY = if (textY < y) textY + textLayout.size.height + 2f else textY - 2f
+                drawLine(
+                    color = lineColor,
+                    start = Offset(x, y),
+                    end = Offset(x, labelEdgeY),
+                    strokeWidth = 1f
+                )
 
-            drawText(
-                textLayout, topLeft = Offset(x - textLayout.size.width / 2, textY)
-            )
+                // Draw label background for better readability
+                drawRoundRect(
+                    color = surface.copy(alpha = 0.88f),
+                    topLeft = Offset(x - textLayout.size.width / 2 - 4, textY - 2),
+                    size = androidx.compose.ui.geometry.Size(
+                        (textLayout.size.width + 8).toFloat(), (textLayout.size.height + 4).toFloat()
+                    ),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
+                )
+
+                drawText(
+                    textLayout, topLeft = Offset(x - textLayout.size.width / 2, textY)
+                )
+
+                // update lastLabelX/Y
+                lastLabelX = labelCenterX
+                lastLabelY = textY
+            }
 
             if (index == 0) {
                 path.moveTo(x, y)

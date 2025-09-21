@@ -65,7 +65,9 @@ fun ExerciseDetailScreen(
             val exercise = workout.exercises.find { it.exercise.name == exerciseName }
             if (exercise != null && exercise.sets.isNotEmpty()) {
                 val workoutReps = exercise.sets.sumOf { it.reps }
-                val workoutVolume = exercise.sets.sumOf { it.reps.toInt() * it.weight.toInt() }
+                // Use float math for volume: reps * weight (weight is Float). Avoid converting to Int
+                // which truncates decimal weight and causes the mismatch.
+                val workoutVolume = exercise.sets.sumOf { (it.reps * it.weight).toDouble() }.toFloat()
                 val workoutBestWeight = exercise.sets.maxOf { it.weight }
                 val workoutBestReps = exercise.sets.maxOf { it.reps }
 
@@ -217,7 +219,7 @@ fun ExerciseDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Recent Workouts",
+                        "Workout History",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -229,7 +231,7 @@ fun ExerciseDetailScreen(
                 }
             }
 
-            items(exerciseData.dataPoints.takeLast(10).reversed()) { (date, weight, reps) ->
+            items(exerciseData.dataPoints.reversed()) { (date, weight, reps) ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -388,4 +390,3 @@ private data class ExerciseStats(
     val averageWeight: Float,
     val dataPoints: List<Triple<Long, Float, Int>>
 )
-

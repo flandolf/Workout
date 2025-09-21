@@ -104,6 +104,7 @@ fun BarChart(
         val barWidth = availableWidth / dataPoints.size
 
         // Draw bars
+        val epsilon = 0.001f
         dataPoints.forEachIndexed { index, (label, value) ->
             val barHeight = (value / valueRange) * graphHeight
             val barX = padding + (barWidth + barSpacing) * index
@@ -133,7 +134,10 @@ fun BarChart(
             )
 
             // Draw value label on top of bar
-            if (showValues && value > 0) {
+            val prevValue = if (index > 0) dataPoints[index - 1].second else Float.NaN
+            val shouldShowValue = showValues && value > 0f && (index == 0 || kotlin.math.abs(value - prevValue) > epsilon)
+
+            if (shouldShowValue) {
                 val valueLabel = valueFormatter(value)
                 val valueTextLayout = textMeasurer.measure(
                     valueLabel, style = TextStyle(
@@ -144,25 +148,25 @@ fun BarChart(
                 )
 
                 val valueX = barX + barWidth / 2 - valueTextLayout.size.width / 2
-                val valueY = barY - valueTextLayout.size.height - 4f
+                // Desired Y above the bar
+                val desiredY = barY - valueTextLayout.size.height - 4f
+                // Clamp so the label stays visible within the canvas top (keep a small margin)
+                val finalY = max(desiredY, 4f)
 
-                // Only show value if it fits above the bar
-                if (valueY >= padding) {
-                    // Draw background for value
-                    drawRoundRect(
-                        color = surface.copy(alpha = 0.8f),
-                        topLeft = Offset(valueX - 2, valueY - 2),
-                        size = Size(
-                            (valueTextLayout.size.width + 4).toFloat(),
-                            (valueTextLayout.size.height + 4).toFloat()
-                        ),
-                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f)
-                    )
+                // Draw background for value
+                drawRoundRect(
+                    color = surface.copy(alpha = 0.8f),
+                    topLeft = Offset(valueX - 2, finalY - 2),
+                    size = Size(
+                        (valueTextLayout.size.width + 4).toFloat(),
+                        (valueTextLayout.size.height + 4).toFloat()
+                    ),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(2f, 2f)
+                )
 
-                    drawText(
-                        valueTextLayout, topLeft = Offset(valueX, valueY)
-                    )
-                }
+                drawText(
+                    valueTextLayout, topLeft = Offset(valueX, finalY)
+                )
             }
 
             // Draw X axis label

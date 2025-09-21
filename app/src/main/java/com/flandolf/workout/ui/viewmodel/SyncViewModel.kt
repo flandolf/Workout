@@ -35,10 +35,27 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             ) { authState, syncStatus ->
                 authState to syncStatus
             }.collect { (authState, syncStatus) ->
-                _uiState.value = _uiState.value.copy(
+                // Determine whether a sync is currently in progress. The repository uses
+                // a sentinel value (-1) for pendingUploads/pendingDownloads to indicate
+                // an ongoing sync.
+                val isSyncingNow = syncStatus.pendingUploads == -1 || syncStatus.pendingDownloads == -1
+
+                // Preserve previous start time if a sync was already running; otherwise
+                // set start time when sync begins and reset to 0 when it ends.
+                val previous = _uiState.value
+                val newStartTime = if (isSyncingNow) {
+                    if (previous.isSyncing && previous.syncStartTime > 0L) previous.syncStartTime
+                    else System.currentTimeMillis()
+                } else {
+                    0L
+                }
+
+                _uiState.value = previous.copy(
                     authState = authState,
                     syncStatus = syncStatus,
-                    isInitialized = authState != AuthState.LOADING
+                    isInitialized = authState != AuthState.LOADING,
+                    isSyncing = isSyncingNow,
+                    syncStartTime = newStartTime
                 )
 
                 // If authenticated and network is online, ensure sync repository is initialized
@@ -188,7 +205,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Failed to download data: ${e.message}"
+                    errorMessage = "Failed to download data: ${'$'}{e.message}"
                 )
             }
         }
@@ -243,7 +260,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Failed to delete cloud data: ${e.message}"
+                    errorMessage = "Failed to delete cloud data: ${'$'}{e.message}"
                 )
             }
         }
@@ -257,5 +274,9 @@ data class SyncUiState(
     val isLoading: Boolean = false,
     val isInitialized: Boolean = false,
     val message: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+
+    // New: indicate sync in progress and when it started (ms since epoch)
+    val isSyncing: Boolean = false,
+    val syncStartTime: Long = 0L
 )

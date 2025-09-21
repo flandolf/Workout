@@ -243,7 +243,6 @@ fun HistoryScreen(
                                                     formatWeight(totalWeight.toFloat())
                                                 } kg",
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium
                                             )
                                         }
                                     }
