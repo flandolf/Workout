@@ -1,14 +1,12 @@
 package com.flandolf.workout.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Download
@@ -18,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +32,6 @@ fun SettingsScreen(
     onManualSync: (() -> Unit)? = null
 ) {
     val showResetDialog = remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
     
     // Collect sync state
     val syncUiState = syncViewModel?.uiState?.collectAsState()?.value
@@ -46,21 +42,61 @@ fun SettingsScreen(
             TopAppBar(title = { Text("Settings", fontWeight = FontWeight.Bold) })
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .verticalScroll(scrollState),
-            horizontalAlignment = Alignment.CenterHorizontally
+        LazyColumn (
+            modifier = Modifier.padding(innerPadding).padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()
         ) {
-            // Sync Section
-            if (syncViewModel != null && syncUiState != null) {
+            item {
+                if (syncViewModel != null && syncUiState != null) {
+                    Text(
+                        text = "Cloud Sync",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .padding(bottom = 8.dp)
+                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        ListItem(
+                            headlineContent = { Text("Sync Settings", fontSize = 18.sp) },
+                            supportingContent = {
+                                Text("Manage cloud synchronization and backup for your workout data across devices.")
+                            },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.CloudSync,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                // Navigation to sync settings would go here
+                                // For now, we'll show sync status inline
+                            }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Inline sync settings
+                    SyncSettingsScreen(
+                        syncUiState,
+                        syncViewModel,
+                        showAuthDialog,
+                        { syncViewModel.hideAuthDialog() },
+                        onManualSync
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+            item {
                 Text(
-                    text = "Cloud Sync",
+                    text = "General",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
-                        .align(Alignment.Start)
                         .padding(bottom = 8.dp)
                 )
                 Card(
@@ -68,104 +104,58 @@ fun SettingsScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     ListItem(
-                        headlineContent = { Text("Sync Settings", fontSize = 18.sp) },
+                        headlineContent = { Text("Export Workout Data", fontSize = 18.sp) },
                         supportingContent = {
-                            Text("Manage cloud synchronization and backup for your workout data across devices.")
+                            Text("Export all workouts as CSV file with detailed set information, volume calculations, and timestamps. File will be saved to Downloads and shared for easy access.")
                         },
                         leadingContent = {
                             Icon(
-                                imageVector = Icons.Default.CloudSync,
+                                imageVector = Icons.Default.Download,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         },
-                        modifier = Modifier.clickable { 
-                            // Navigation to sync settings would go here
-                            // For now, we'll show sync status inline
-                        }
+                        modifier = Modifier.clickable { onExportCsv() }
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Inline sync settings
-                SyncSettingsScreen(
-                    syncUiState,
-                    syncViewModel,
-                    showAuthDialog,
-                    { syncViewModel.hideAuthDialog() },
-                    onManualSync
-                )
-                
-                Spacer(modifier = Modifier.height(24.dp))
             }
-            
-            // General Section
-            Text(
-                text = "General",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .align(Alignment.Start)
-                    .padding(bottom = 8.dp)
-            )
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                ListItem(
-                    headlineContent = { Text("Export Workout Data", fontSize = 18.sp) },
-                    supportingContent = {
-                        Text("Export all workouts as CSV file with detailed set information, volume calculations, and timestamps. File will be saved to Downloads and shared for easy access.")
-                    },
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    },
-                    modifier = Modifier.clickable { onExportCsv() }
+            item {
+                Text(
+                    text = "Danger Zone",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .padding(bottom = 8.dp)
                 )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-            Text(
-                text = "Danger Zone",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier
-                    .align(Alignment.Start)
-                    .padding(bottom = 8.dp)
-            )
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-            ) {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            "Reset All Data", 
-                            fontSize = 18.sp, 
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }, 
-                    supportingContent = {
-                        Text(
-                            "This will permanently delete all your workouts and exercises from this device. Cloud data will remain if you're signed in.",
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }, 
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }, 
-                    modifier = Modifier.clickable { showResetDialog.value = true }
-                )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                ) {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                "Reset All Data",
+                                fontSize = 18.sp,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                "This will permanently delete all your workouts and exercises from this device. Cloud data will remain if you're signed in.",
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        },
+                        modifier = Modifier.clickable { showResetDialog.value = true }
+                    )
+                }
             }
         }
 
