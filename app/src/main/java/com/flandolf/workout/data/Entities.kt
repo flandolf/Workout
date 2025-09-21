@@ -2,7 +2,7 @@ package com.flandolf.workout.data
 
 import androidx.room.*
 
-@Entity(tableName = "workouts")
+@Entity(tableName = "workouts", indices = [Index(value = ["firestoreId"], unique = true)])
 data class Workout(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: Long = System.currentTimeMillis(),
@@ -17,7 +17,7 @@ data class Workout(
         parentColumns = ["id"],
         childColumns = ["workoutId"],
         onDelete = ForeignKey.CASCADE
-    )], indices = [Index("workoutId")]
+    )], indices = [Index("workoutId"), Index(value = ["firestoreId"], unique = true)]
 )
 data class ExerciseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -33,7 +33,7 @@ data class ExerciseEntity(
         parentColumns = ["id"],
         childColumns = ["exerciseId"],
         onDelete = ForeignKey.CASCADE
-    )], indices = [Index("exerciseId")]
+    )], indices = [Index("exerciseId"), Index(value = ["firestoreId"], unique = true)]
 )
 data class SetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

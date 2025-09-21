@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Workout::class, ExerciseEntity::class, SetEntity::class], version = 2)
+@Database(entities = [Workout::class, ExerciseEntity::class, SetEntity::class], version = 3)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
 
@@ -24,9 +24,18 @@ abstract class AppDatabase : RoomDatabase() {
                     }
                 }
 
+                val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+                    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                        // Create unique indices on firestoreId to prevent duplicate imports
+                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_workouts_firestoreId ON workouts(firestoreId)")
+                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_exercises_firestoreId ON exercises(firestoreId)")
+                        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_sets_firestoreId ON sets(firestoreId)")
+                    }
+                }
+
                 val builder = Room.databaseBuilder(
                     context.applicationContext, AppDatabase::class.java, "workout_db"
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 val instance = if (allowMainThread) builder.allowMainThreadQueries()
                     .build() else builder.build()
                 INSTANCE = instance
