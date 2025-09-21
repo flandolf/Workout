@@ -54,34 +54,6 @@ data class FirestoreSet(
     val isDeleted: Boolean = false,
     val version: Long = 1L
 )
-/**
- * Sync metadata to track synchronization state
- */
-data class SyncMetadata(
-    val localId: Long = 0L,
-    val firestoreId: String = "",
-    val lastSyncTime: Long = 0L,
-    val needsSync: Boolean = true,
-    val syncVersion: Long = 1L,
-    val entityType: String = "", // "workout", "exercise", "set"
-    val operation: String = "CREATE" // "CREATE", "UPDATE", "DELETE"
-)
-
-/**
- * Wrapper for sync operations
- */
-data class SyncOperation<T>(
-    val data: T,
-    val operation: SyncOperationType,
-    val localId: Long,
-    val firestoreId: String = ""
-)
-
-enum class SyncOperationType {
-    CREATE,
-    UPDATE,
-    DELETE
-}
 
 /**
  * Sync status tracking

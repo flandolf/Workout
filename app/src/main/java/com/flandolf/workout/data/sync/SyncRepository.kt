@@ -7,8 +7,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.toObject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 
@@ -32,6 +36,32 @@ class SyncRepository(
 
     private var isInitialized = false
 
+    // Network monitoring
+    private val networkMonitor = NetworkMonitor(context)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        // Observe network changes and update sync status accordingly
+        scope.launch {
+            networkMonitor.isOnline.collect { online ->
+                try {
+                    _syncStatus.value = _syncStatus.value.copy(isOnline = online)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to update syncStatus.isOnline", e)
+                }
+
+                // If network became available and we haven't initialized sync yet, attempt to initialize
+                if (online && !isInitialized && isUserAuthenticated()) {
+                    try {
+                        initialize()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Auto-initialize on network available failed", e)
+                    }
+                }
+            }
+        }
+    }
+
     // Deterministic ID helpers
     private fun workoutDocId(userId: String, localId: Long) = "${userId}_w_${localId}"
     private fun exerciseDocId(userId: String, localId: Long, localWorkoutId: Long) = "${userId}_e_${localWorkoutId}_${localId}"
@@ -44,10 +74,12 @@ class SyncRepository(
         if (isInitialized) return
 
         try {
-            _syncStatus.value = _syncStatus.value.copy(isOnline = true)
+            // Respect actual network state from the monitor rather than assuming online
+            val currentlyOnline = try { networkMonitor.isOnline.value } catch (_: Exception) { false }
+            _syncStatus.value = _syncStatus.value.copy(isOnline = currentlyOnline)
 
             // Perform initial sync if user is authenticated
-            if (isUserAuthenticated()) {
+            if (isUserAuthenticated() && currentlyOnline) {
                 performFullSync()
                 setupRealtimeListeners()
             }

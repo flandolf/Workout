@@ -16,13 +16,16 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository()
     private val workoutRepository = WorkoutRepository(application.applicationContext)
     private val syncRepository = workoutRepository.syncRepository
-    
+
     private val _uiState = MutableStateFlow(SyncUiState())
     val uiState: StateFlow<SyncUiState> = _uiState
-    
+
     private val _showAuthDialog = MutableStateFlow(false)
     val showAuthDialog: StateFlow<Boolean> = _showAuthDialog
-    
+
+    // Guard to avoid repeatedly requesting initialization
+    private var requestedInitialize = false
+
     init {
         // Combine auth and sync states
         viewModelScope.launch {
@@ -37,6 +40,23 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                     syncStatus = syncStatus,
                     isInitialized = authState != AuthState.LOADING
                 )
+
+                // If authenticated and network is online, ensure sync repository is initialized
+                if (authState == AuthState.AUTHENTICATED && syncStatus.isOnline && !requestedInitialize) {
+                    requestedInitialize = true
+                    viewModelScope.launch {
+                        try {
+                            workoutRepository.initializeSync()
+                        } catch (_: Exception) {
+                            // initialization failures are surfaced via SyncRepository.syncStatus
+                        }
+                    }
+                }
+
+                // Reset guard if user signs out
+                if (authState == AuthState.UNAUTHENTICATED) {
+                    requestedInitialize = false
+                }
             }
         }
     }
