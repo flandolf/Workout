@@ -177,12 +177,12 @@ fun EditWorkoutScreen(
                     AnimatedVisibility(
                         visible = exVisible,
                         enter = fadeIn(tween(220)),
-                        exit = fadeOut(tween(220)) + shrinkVertically(tween(220))
+                        exit = fadeOut(tween(220)) + shrinkVertically(tween(220)),
+                        modifier = Modifier.animateItem(spring(stiffness = Spring.StiffnessMediumLow))
                     ) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .animateItem(spring(stiffness = Spring.StiffnessMediumLow))
                                 .animateContentSize(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
@@ -214,11 +214,11 @@ fun EditWorkoutScreen(
                                             val key = ex.exercise.id
                                             exerciseVisibleMap[key] = false
                                             coroutineScope.launch {
-                                                kotlinx.coroutines.delay(260)
-                                                onDeleteExercise(key)
-                                                exerciseVisibleMap.remove(key)
-                                            }
-                                        }) {
+                                                delay(260)
+                                                 onDeleteExercise(key)
+                                                 exerciseVisibleMap.remove(key)
+                                             }
+                                         }) {
                                             Icon(Icons.Default.Delete, contentDescription = "Delete exercise", tint = MaterialTheme.colorScheme.error)
                                         }
                                     }
@@ -322,9 +322,9 @@ fun EditWorkoutScreen(
                                                             setVisibleMap[setKey] = false
                                                             val capturedIndex = i
                                                             coroutineScope.launch {
-                                                                kotlinx.coroutines.delay(260)
+                                                                delay(260)
                                                                 onDeleteSet(ex.exercise.id, capturedIndex)
-                                                                setVisibleMap.remove(setKey)
+                                                                setVisibleMap.remove(ex.exercise.id to s.id)
                                                             }
                                                         }) {
                                                             Icon(Icons.Default.Delete, contentDescription = "Delete set", tint = MaterialTheme.colorScheme.error)

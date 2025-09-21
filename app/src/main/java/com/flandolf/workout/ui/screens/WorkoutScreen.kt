@@ -113,6 +113,8 @@ fun WorkoutScreen(
     val coroutineScope = rememberCoroutineScope()
     var addExerciseVisible by remember { mutableStateOf(false) }
     var newExerciseName by remember { mutableStateOf("") }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+    var showIncompleteDialog by remember { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -156,8 +158,38 @@ fun WorkoutScreen(
                         )
                     }
 
+                    // Discard button
+                    OutlinedButton(
+                        onClick = { showDiscardDialog = true },
+                        modifier = Modifier.height(40.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Discard Workout",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Discard", style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    // End workout button: check for incomplete sets before allowing
+                    val hasIncompleteSets = remember(currentExercises) {
+                        currentExercises.any { ex ->
+                            ex.sets.isEmpty() || ex.sets.any { s -> s.reps <= 0 }
+                        }
+                    }
+
                     Button(
-                        onClick = onEndWorkout,
+                        onClick = {
+                            if (hasIncompleteSets) {
+                                showIncompleteDialog = true
+                            } else {
+                                onEndWorkout()
+                            }
+                        },
                         modifier = Modifier.height(40.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -325,12 +357,12 @@ fun WorkoutScreen(
                         AnimatedVisibility(
                             visible = exVisible,
                             enter = fadeIn(tween(220)),
-                            exit = fadeOut(tween(220)) + shrinkVertically(tween(220))
+                            exit = fadeOut(tween(220)) + shrinkVertically(tween(220)),
+                            modifier = Modifier.animateItem(spring(stiffness = Spring.StiffnessMediumLow))
                         ) {
                             Card(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .animateItem(spring(stiffness = Spring.StiffnessMediumLow)),
+                                    .fillMaxWidth(),
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surface
                                 )
@@ -718,5 +750,42 @@ fun WorkoutScreen(
                 }
             }
         }
+    }
+
+    // Discard confirmation dialog
+    if (showDiscardDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard workout") },
+            text = { Text("Are you sure you want to discard this workout? This will delete it permanently.") },
+            confirmButton = {
+                Button(onClick = {
+                    showDiscardDialog = false
+                    // perform discard via ViewModel and then navigate back
+                    vm.discardWorkout()
+                    onEndWorkout()
+                }, colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )) {
+                    Text("Discard", color = androidx.compose.ui.graphics.Color.White)
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showDiscardDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    // Incomplete sets dialog
+    if (showIncompleteDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showIncompleteDialog = false },
+            title = { Text("Incomplete sets") },
+            text = { Text("Some sets have missing reps or weight. Please complete or remove them before ending the workout.") },
+            confirmButton = {
+                Button(onClick = { showIncompleteDialog = false }) { Text("OK") }
+            }
+        )
     }
 }

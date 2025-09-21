@@ -142,6 +142,29 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    /**
+     * Discard the current workout entirely (delete it) and clear local state.
+     */
+    fun discardWorkout() {
+        viewModelScope.launch {
+            val id = _currentWorkoutId.value
+            if (id != null) {
+                val existingWith = repo.getWorkout(id)
+                val existing = existingWith?.workout
+                if (existing != null) {
+                    repo.deleteWorkout(existing)
+                }
+                _currentWorkoutId.value = null
+                _elapsedSeconds.value = 0L
+                timerJob?.cancel()
+                timerJob = null
+                _isTimerRunning.value = false
+                _currentWorkout.value = null
+                clearSavedState()
+            }
+        }
+    }
+
     fun tickOneSecond() {
         _elapsedSeconds.value = _elapsedSeconds.value + 1
     }

@@ -138,9 +138,12 @@ fun HistoryScreen(
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                // Exercises list
+                                // Exercises list (respect saved exercise order)
                                 Column(modifier = Modifier.fillMaxWidth()) {
-                                    for (ex in w.exercises) {
+                                    val sortedExercises = remember(w.exercises) {
+                                        w.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+                                    }
+                                    for (ex in sortedExercises) {
                                         val best = ex.sets.maxWithOrNull(
                                             compareBy({ it.weight }, { it.reps })
                                         )
@@ -192,7 +195,7 @@ fun HistoryScreen(
                                                     )
                                                 }
                                             }
-                                            if (ex != w.exercises.last()) {
+                                            if (ex != sortedExercises.last()) {
                                                 HorizontalDivider(
                                                     modifier = Modifier.padding(vertical = 8.dp),
                                                     color = MaterialTheme.colorScheme.outlineVariant
