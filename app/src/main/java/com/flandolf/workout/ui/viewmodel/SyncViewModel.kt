@@ -73,7 +73,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Anonymous sign-in removed. Use email/password or external providers.
-    
+
     /**
      * Sign in with email and password
      */
@@ -84,10 +84,10 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             )
             return
         }
-        
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            
+
             val result = authRepository.signInWithEmailPassword(email, password)
             if (result.isSuccess) {
                 _uiState.value = _uiState.value.copy(
@@ -103,7 +103,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
     /**
      * Create account with email and password
      */
@@ -114,17 +114,17 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             )
             return
         }
-        
+
         if (password.length < 6) {
             _uiState.value = _uiState.value.copy(
                 errorMessage = "Password must be at least 6 characters"
             )
             return
         }
-        
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            
+
             val result = authRepository.createAccountWithEmailPassword(email, password)
             if (result.isSuccess) {
                 _uiState.value = _uiState.value.copy(
@@ -140,7 +140,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
     /**
      * Sign out current user
      */
@@ -158,7 +158,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
     /**
      * Perform manual sync
      */
@@ -167,7 +167,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             workoutRepository.performSync()
         }
     }
-    
+
     /**
      * Sync down from remote database only (download remote changes to local)
      */
@@ -178,7 +178,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 message = null,
                 errorMessage = null
             )
-            
+
             try {
                 workoutRepository.syncDown()
                 _uiState.value = _uiState.value.copy(
@@ -193,21 +193,21 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
-    
+
     /**
      * Show authentication dialog
      */
     fun showAuthDialog() {
         _showAuthDialog.value = true
     }
-    
+
     /**
      * Hide authentication dialog
      */
     fun hideAuthDialog() {
         _showAuthDialog.value = false
     }
-    
+
     /**
      * Clear messages
      */
@@ -217,7 +217,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             errorMessage = null
         )
     }
-    
+
     /**
      * Get current user email
      */

@@ -3,6 +3,8 @@ package com.flandolf.workout
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.os.Environment
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -21,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.core.content.FileProvider
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -28,10 +31,17 @@ import com.flandolf.workout.ui.screens.*
 import com.flandolf.workout.ui.theme.WorkoutTheme
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import androidx.lifecycle.lifecycleScope
+import com.flandolf.workout.data.SetEntity
+import com.flandolf.workout.data.WorkoutRepository
+import com.flandolf.workout.data.sync.AuthState
 import com.flandolf.workout.ui.components.BottomNavigationBar
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import com.flandolf.workout.ui.viewmodel.SyncViewModel
 import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     private val workoutVm: WorkoutViewModel by viewModels()
@@ -95,6 +105,9 @@ class MainActivity : ComponentActivity() {
                                     // Stay on workout screen instead of navigating up
                                 },
                                 onAddExercise = { workoutVm.addExercise(it) },
+                                onUpdateSet = { exerciseId, setId, reps, weight ->
+                                    workoutVm.updateSet(exerciseId, setId, reps, weight)
+                                },
                                 onAddSet = { exerciseId, reps, weight ->
                                     workoutVm.addSet(
                                         exerciseId, reps, weight
@@ -118,7 +131,7 @@ class MainActivity : ComponentActivity() {
                                 syncUiState.syncStatus.isOnline
                             ) {
                                 if (workouts.value.isEmpty()) {
-                                    if (syncUiState.authState == com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
+                                    if (syncUiState.authState == AuthState.AUTHENTICATED) {
                                         if (syncUiState.syncStatus.isOnline) {
                                             val res = snackbarHostState.showSnackbar(
                                                 "No local workouts. Restore from cloud?",
@@ -152,7 +165,7 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 if (workouts.value.isEmpty()) {
                                     // Reuse same messaging as history
-                                    if (syncUiState.authState == com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
+                                    if (syncUiState.authState == AuthState.AUTHENTICATED) {
                                         if (syncUiState.syncStatus.isOnline) {
                                             val res = snackbarHostState.showSnackbar(
                                                 "No local workouts. Restore from cloud?",
@@ -196,7 +209,7 @@ class MainActivity : ComponentActivity() {
                                 onImportWorkoutCsv = { onImportWorkoutCsv() },
                                 onResetAll = {
                                     lifecycleScope.launch {
-                                        val repo = com.flandolf.workout.data.WorkoutRepository(
+                                        val repo = WorkoutRepository(
                                             applicationContext
                                         )
                                         try {
@@ -214,7 +227,7 @@ class MainActivity : ComponentActivity() {
                                 syncViewModel = syncVm,
                                 onManualSync = {
                                     // Guard against offline or unauthenticated
-                                    if (!syncUiState.isInitialized || syncUiState.authState != com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
+                                    if (!syncUiState.isInitialized || syncUiState.authState != AuthState.AUTHENTICATED) {
                                         coroutineScope.launch {
                                             snackbarHostState.showSnackbar("Sign in to sync with the cloud")
                                         }
@@ -240,27 +253,27 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun exportCsv() {
-        val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
-            .format(java.util.Date())
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+            .format(Date())
         val fileName = "workout_export_$timestamp.csv"
 
         // Use Downloads directory for better accessibility
-        val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(
-            android.os.Environment.DIRECTORY_DOWNLOADS
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DOWNLOADS
         )
-        val file = java.io.File(downloadsDir, fileName)
+        val file = File(downloadsDir, fileName)
 
         lifecycleScope.launch {
             try {
-                val repo = com.flandolf.workout.data.WorkoutRepository(applicationContext)
+                val repo = WorkoutRepository(applicationContext)
                 val exportedFile = repo.exportCsv(file)
 
                 // Show success message and offer to share
                 runOnUiThread {
-                    android.widget.Toast.makeText(
+                    Toast.makeText(
                         this@MainActivity,
                         "CSV exported to Downloads: $fileName",
-                        android.widget.Toast.LENGTH_LONG
+                        Toast.LENGTH_LONG
                     ).show()
 
                     // Create share intent
@@ -269,7 +282,7 @@ class MainActivity : ComponentActivity() {
                             type = "text/csv"
                             putExtra(
                                 Intent.EXTRA_STREAM,
-                                androidx.core.content.FileProvider.getUriForFile(
+                                FileProvider.getUriForFile(
                                     this@MainActivity,
                                     "${applicationContext.packageName}.fileprovider",
                                     exportedFile
@@ -289,10 +302,10 @@ class MainActivity : ComponentActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 runOnUiThread {
-                    android.widget.Toast.makeText(
+                    Toast.makeText(
                         this@MainActivity,
                         "Export failed: ${e.localizedMessage ?: "Unknown error"}",
-                        android.widget.Toast.LENGTH_LONG
+                        Toast.LENGTH_LONG
                     ).show()
                 }
             }
@@ -326,7 +339,7 @@ class MainActivity : ComponentActivity() {
                             val inputStream = contentResolver.openInputStream(uri)
                             if (inputStream != null) {
                                 val repo =
-                                    com.flandolf.workout.data.WorkoutRepository(applicationContext)
+                                    WorkoutRepository(applicationContext)
                                 val importedCount = repo.importWorkoutCsv(inputStream)
                                 inputStream.close()
 
@@ -335,28 +348,28 @@ class MainActivity : ComponentActivity() {
                                 historyVm.loadWorkouts()
 
                                 runOnUiThread {
-                                    android.widget.Toast.makeText(
+                                    Toast.makeText(
                                         this@MainActivity,
                                         "Import successful: $importedCount workouts imported",
-                                        android.widget.Toast.LENGTH_LONG
+                                        Toast.LENGTH_LONG
                                     ).show()
                                 }
                             } else {
                                 runOnUiThread {
-                                    android.widget.Toast.makeText(
+                                    Toast.makeText(
                                         this@MainActivity,
                                         "Import failed: Could not read file",
-                                        android.widget.Toast.LENGTH_LONG
+                                        Toast.LENGTH_LONG
                                     ).show()
                                 }
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
                             runOnUiThread {
-                                android.widget.Toast.makeText(
+                                Toast.makeText(
                                     this@MainActivity,
                                     "Import failed: ${e.localizedMessage ?: "Unknown error"}",
-                                    android.widget.Toast.LENGTH_LONG
+                                    Toast.LENGTH_LONG
                                 ).show()
                             }
                         }
@@ -375,7 +388,7 @@ class MainActivity : ComponentActivity() {
                             val inputStream = contentResolver.openInputStream(uri)
                             if (inputStream != null) {
                                 val repo =
-                                    com.flandolf.workout.data.WorkoutRepository(applicationContext)
+                                    WorkoutRepository(applicationContext)
                                 val importedCount = repo.importStrongCsv(inputStream)
                                 inputStream.close()
 
@@ -384,28 +397,28 @@ class MainActivity : ComponentActivity() {
                                 historyVm.loadWorkouts()
 
                                 runOnUiThread {
-                                    android.widget.Toast.makeText(
+                                    Toast.makeText(
                                         this@MainActivity,
                                         "Import successful: $importedCount workouts imported",
-                                        android.widget.Toast.LENGTH_LONG
+                                        Toast.LENGTH_LONG
                                     ).show()
                                 }
                             } else {
                                 runOnUiThread {
-                                    android.widget.Toast.makeText(
+                                    Toast.makeText(
                                         this@MainActivity,
                                         "Import failed: Could not read file",
-                                        android.widget.Toast.LENGTH_LONG
+                                        Toast.LENGTH_LONG
                                     ).show()
                                 }
                             }
                         } catch (e: Exception) {
                             e.printStackTrace()
                             runOnUiThread {
-                                android.widget.Toast.makeText(
+                                Toast.makeText(
                                     this@MainActivity,
                                     "Import failed: ${e.localizedMessage ?: "Unknown error"}",
-                                    android.widget.Toast.LENGTH_LONG
+                                    Toast.LENGTH_LONG
                                 ).show()
                             }
                         }

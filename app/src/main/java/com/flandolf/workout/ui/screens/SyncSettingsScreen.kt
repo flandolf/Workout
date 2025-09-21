@@ -58,7 +58,7 @@ fun SyncSettingsScreen(
                             MaterialTheme.colorScheme.error
                         }
                     )
-                    
+
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = when (uiState.authState) {
@@ -69,7 +69,7 @@ fun SyncSettingsScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        
+
                         Text(
                             text = when (uiState.authState) {
                                 AuthState.AUTHENTICATED -> {
@@ -80,6 +80,7 @@ fun SyncSettingsScreen(
                                         "Authenticated user"
                                     }
                                 }
+
                                 AuthState.UNAUTHENTICATED -> "Sign in to sync your workouts across devices"
                                 AuthState.LOADING -> "Checking authentication status..."
                             },
@@ -87,10 +88,10 @@ fun SyncSettingsScreen(
                         )
                     }
                 }
-                
+
                 if (uiState.authState == AuthState.AUTHENTICATED) {
                     Spacer(modifier = Modifier.height(12.dp))
-                    
+
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -102,21 +103,29 @@ fun SyncSettingsScreen(
                                 onClick = { onManualSync?.invoke() ?: syncViewModel.performSync() },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(
+                                    Icons.Default.Sync,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Sync Now")
                             }
-                            
+
                             OutlinedButton(
                                 onClick = { onManualSync?.invoke() ?: syncViewModel.syncDown() },
                                 modifier = Modifier.weight(1f)
                             ) {
-                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Icon(
+                                    Icons.Default.CloudDownload,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Sync Down")
                             }
                         }
-                        
+
                         OutlinedButton(
                             onClick = { syncViewModel.signOut() },
                             modifier = Modifier.fillMaxWidth(),
@@ -124,7 +133,11 @@ fun SyncSettingsScreen(
                                 contentColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Sign Out")
                         }
@@ -139,7 +152,11 @@ fun SyncSettingsScreen(
                                 containerColor = MaterialTheme.colorScheme.errorContainer
                             )
                         ) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(
+                                Icons.Default.DeleteForever,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Nuke Cloud Data")
                         }
@@ -147,7 +164,7 @@ fun SyncSettingsScreen(
                 }
             }
         }
-        
+
         // Sync Status Card
         if (uiState.authState == AuthState.AUTHENTICATED) {
             Card(
@@ -172,32 +189,35 @@ fun SyncSettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(12.dp))
-                    
-                    SyncStatusRow("Connection", if (uiState.syncStatus.isOnline) "Online" else "Offline")
-                    
+
+                    SyncStatusRow(
+                        "Connection",
+                        if (uiState.syncStatus.isOnline) "Online" else "Offline"
+                    )
+
                     if (uiState.syncStatus.lastSyncTime > 0) {
                         val lastSync = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
                             .format(Date(uiState.syncStatus.lastSyncTime))
                         SyncStatusRow("Last Sync", lastSync)
                     }
-                    
+
                     if (uiState.syncStatus.pendingUploads > 0) {
                         SyncStatusRow("Pending Uploads", "${uiState.syncStatus.pendingUploads}")
                     }
-                    
+
                     if (uiState.syncStatus.hasConflicts) {
                         SyncStatusRow("Status", "Conflicts detected", isError = true)
                     }
-                    
+
                     uiState.syncStatus.errorMessage?.let { error ->
                         SyncStatusRow("Error", error, isError = true)
                     }
                 }
             }
         }
-        
+
         // Authentication Actions
         if (uiState.authState == AuthState.UNAUTHENTICATED) {
             Card(
@@ -213,7 +233,7 @@ fun SyncSettingsScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -222,16 +242,20 @@ fun SyncSettingsScreen(
                             onClick = { syncViewModel.showAuthDialog() },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Icon(
+                                Icons.Default.Email,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Email")
                         }
-                        
+
                         // Anonymous sign-in removed; only email/provider sign-in available
                     }
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Text(
                         "Email accounts enable full cross-device sync.",
                         style = MaterialTheme.typography.bodySmall,
@@ -240,7 +264,7 @@ fun SyncSettingsScreen(
                 }
             }
         }
-        
+
         // Loading indicator
         if (uiState.isLoading) {
             Card(
@@ -259,7 +283,7 @@ fun SyncSettingsScreen(
                 }
             }
         }
-        
+
         // Messages
         uiState.message?.let { message ->
             Card(
@@ -289,7 +313,7 @@ fun SyncSettingsScreen(
                 }
             }
         }
-        
+
         uiState.errorMessage?.let { error ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -317,7 +341,11 @@ fun SyncSettingsScreen(
                             Text("Dismiss")
                         }
                         // If the error looks like a network issue, offer a retry by reopening the auth dialog
-                        if (error.contains("network", ignoreCase = true) || error.contains("timeout", ignoreCase = true)) {
+                        if (error.contains(
+                                "network",
+                                ignoreCase = true
+                            ) || error.contains("timeout", ignoreCase = true)
+                        ) {
                             TextButton(onClick = { syncViewModel.showAuthDialog() }) {
                                 Text("Retry Sign In")
                             }
@@ -327,7 +355,7 @@ fun SyncSettingsScreen(
             }
         }
     }
-    
+
     // Authentication Dialog
     if (showAuthDialog) {
         AuthDialog(
@@ -379,7 +407,7 @@ private fun AuthDialog(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isCreatingAccount by remember { mutableStateOf(false) }
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -395,7 +423,7 @@ private fun AuthDialog(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
+
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -405,7 +433,7 @@ private fun AuthDialog(
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
@@ -415,7 +443,7 @@ private fun AuthDialog(
                         enabled = !isLoading
                     ) {
                         Text(
-                            if (isCreatingAccount) "Already have an account? Sign in" 
+                            if (isCreatingAccount) "Already have an account? Sign in"
                             else "Don't have an account? Create one"
                         )
                     }

@@ -24,25 +24,25 @@ fun GraphDetailScreen(
     // Calculate data points for different progressions
     val workoutData = remember(workouts, exerciseName) {
         workouts.sortedBy { it.workout.date }.mapNotNull { workout ->
-                val exercise = workout.exercises.find { it.exercise.name == exerciseName }
-                exercise?.let { ex ->
-                    val totalVolume = ex.sets.sumOf { (it.reps * it.weight).toInt() }.toFloat()
-                    val totalReps = ex.sets.sumOf { it.reps }
-                    val maxWeight = ex.sets.maxOfOrNull { it.weight } ?: 0f
-                    val maxReps = ex.sets.maxOfOrNull { it.reps } ?: 0
-                    val estimated1RM = if (maxReps > 0 && maxWeight > 0) {
-                        maxWeight * (36f / (37f - maxReps))
-                    } else 0f
+            val exercise = workout.exercises.find { it.exercise.name == exerciseName }
+            exercise?.let { ex ->
+                val totalVolume = ex.sets.sumOf { (it.reps * it.weight).toInt() }.toFloat()
+                val totalReps = ex.sets.sumOf { it.reps }
+                val maxWeight = ex.sets.maxOfOrNull { it.weight } ?: 0f
+                val maxReps = ex.sets.maxOfOrNull { it.reps } ?: 0
+                val estimated1RM = if (maxReps > 0 && maxWeight > 0) {
+                    maxWeight * (36f / (37f - maxReps))
+                } else 0f
 
-                    WorkoutProgressData(
-                        date = workout.workout.date,
-                        maxWeight = maxWeight,
-                        totalVolume = totalVolume,
-                        totalReps = totalReps,
-                        estimated1RM = estimated1RM
-                    )
-                }
+                WorkoutProgressData(
+                    date = workout.workout.date,
+                    maxWeight = maxWeight,
+                    totalVolume = totalVolume,
+                    totalReps = totalReps,
+                    estimated1RM = estimated1RM
+                )
             }
+        }
     }
 
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -160,7 +160,10 @@ fun GraphDetailScreen(
 
                                 StatRow("Current Volume", "${formatWeight(current, true)} kg")
                                 StatRow("Best Volume", "${formatWeight(best, true)} kg")
-                                StatRow("Average Volume", "${String.format(Locale.US, "%.1f", avg)} kg")
+                                StatRow(
+                                    "Average Volume",
+                                    "${String.format(Locale.US, "%.1f", avg)} kg"
+                                )
                             }
 
                             2 -> { // Reps

@@ -13,12 +13,12 @@ class AuthRepository(
     companion object {
         private const val TAG = "AuthRepository"
     }
-    
+
     private val _currentUser = MutableStateFlow(auth.currentUser)
 
     private val _authState = MutableStateFlow(AuthState.LOADING)
     val authState: StateFlow<AuthState> = _authState
-    
+
     init {
         // Listen for auth state changes
         auth.addAuthStateListener { firebaseAuth ->
@@ -48,11 +48,14 @@ class AuthRepository(
             Result.failure(e)
         }
     }
-    
+
     /**
      * Create account with email and password
      */
-    suspend fun createAccountWithEmailPassword(email: String, password: String): Result<FirebaseUser> {
+    suspend fun createAccountWithEmailPassword(
+        email: String,
+        password: String
+    ): Result<FirebaseUser> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user
@@ -67,11 +70,11 @@ class AuthRepository(
             Result.failure(e)
         }
     }
-    
+
     /**
      * Sign out current user
      */
-     fun signOut(): Result<Unit> {
+    fun signOut(): Result<Unit> {
         return try {
             auth.signOut()
             Log.d(TAG, "User signed out successfully")

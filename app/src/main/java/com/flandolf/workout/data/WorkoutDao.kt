@@ -70,4 +70,11 @@ interface WorkoutDao {
         LIMIT 1
     """)
     suspend fun getBestSetFromLastWorkout(exerciseName: String, currentWorkoutId: Long): SetEntity?
+
+    // New helpers for sync-down rebuild from nested FS doc
+    @Query("DELETE FROM sets WHERE exerciseId IN (SELECT id FROM exercises WHERE workoutId = :workoutId)")
+    suspend fun deleteSetsForWorkout(workoutId: Long)
+
+    @Query("DELETE FROM exercises WHERE workoutId = :workoutId")
+    suspend fun deleteExercisesForWorkout(workoutId: Long)
 }

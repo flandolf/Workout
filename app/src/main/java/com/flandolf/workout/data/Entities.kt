@@ -36,7 +36,7 @@ data class ExerciseEntity(
     )], indices = [Index("exerciseId"), Index(value = ["firestoreId"], unique = true)]
 )
 data class SetEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val exerciseId: Long,
     val reps: Int,
     val weight: Float,

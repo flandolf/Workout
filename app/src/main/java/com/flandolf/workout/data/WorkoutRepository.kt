@@ -127,6 +127,10 @@ class WorkoutRepository(private val context: Context) {
         }
     }
 
+    suspend fun updateSet(set: SetEntity) {
+        dao.updateSet(set)
+    }
+
     private fun formatDuration(seconds: Long): String {
         val mins = seconds / 60
         return "$mins min"
@@ -142,6 +146,7 @@ class WorkoutRepository(private val context: Context) {
             android.util.Log.e("WorkoutRepository", "Failed to reset local data", e)
         }
     }
+
 
     /**
      * Initialize sync functionality

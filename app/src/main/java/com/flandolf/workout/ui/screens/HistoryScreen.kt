@@ -99,9 +99,10 @@ fun HistoryScreen(
                                 containerColor = MaterialTheme.colorScheme.surface
                             )
                         ) {
-                            Column(modifier = Modifier
-                                .clickable { expanded = !expanded }
-                                .padding(16.dp)) {
+                            Column(
+                                modifier = Modifier
+                                    .clickable { expanded = !expanded }
+                                    .padding(16.dp)) {
                                 // Header Row
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -180,7 +181,7 @@ fun HistoryScreen(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                     Text(
-                                                        "${s.reps} reps × ${formatWeight(s.weight)} kg",
+                                                        "${formatWeight(s.weight)} × kg ${s.reps} reps ",
                                                         style = MaterialTheme.typography.bodyMedium
                                                     )
                                                 }

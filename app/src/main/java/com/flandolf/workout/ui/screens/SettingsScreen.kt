@@ -35,7 +35,7 @@ fun SettingsScreen(
     onManualSync: (() -> Unit)? = null
 ) {
     val showResetDialog = remember { mutableStateOf(false) }
-    
+
     // Collect sync state
     val syncUiState = syncViewModel?.uiState?.collectAsState()?.value
     val showAuthDialog = syncViewModel?.showAuthDialog?.collectAsState()?.value ?: false
@@ -45,8 +45,12 @@ fun SettingsScreen(
             TopAppBar(title = { Text("Settings", fontWeight = FontWeight.Bold) })
         }
     ) { innerPadding ->
-        LazyColumn (
-            modifier = Modifier.padding(innerPadding).padding(horizontal = 16.dp, vertical = 8.dp).padding(bottom=120.dp).fillMaxWidth()
+        LazyColumn(
+            modifier = Modifier
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(bottom = 120.dp)
+                .fillMaxWidth()
         ) {
             item {
                 if (syncViewModel != null && syncUiState != null) {
@@ -200,12 +204,12 @@ fun SettingsScreen(
             AlertDialog(
                 onDismissRequest = { showResetDialog.value = false },
                 title = { Text("Reset All Data", color = MaterialTheme.colorScheme.error) },
-                text = { 
+                text = {
                     Text(
                         "Are you sure you want to permanently delete all workout data from this device? " +
-                        "This action cannot be undone. If you're signed in to cloud sync, your data will remain " +
-                        "in the cloud and can be re-synced later."
-                    ) 
+                                "This action cannot be undone. If you're signed in to cloud sync, your data will remain " +
+                                "in the cloud and can be re-synced later."
+                    )
                 },
                 confirmButton = {
                     Button(
@@ -214,13 +218,13 @@ fun SettingsScreen(
                             onResetAll?.invoke()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) { 
-                        Text("Delete Everything", color = Color.White) 
+                    ) {
+                        Text("Delete Everything", color = Color.White)
                     }
                 },
                 dismissButton = {
-                    OutlinedButton(onClick = { showResetDialog.value = false }) { 
-                        Text("Cancel") 
+                    OutlinedButton(onClick = { showResetDialog.value = false }) {
+                        Text("Cancel")
                     }
                 }
             )

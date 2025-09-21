@@ -254,7 +254,6 @@ fun WorkoutScreen(
                                     DropdownMenuItem(text = { Text(suggestion) }, onClick = {
                                         newExerciseName = suggestion
                                         showSuggestions = false
-                                        // Automatically add the exercise when selected from dropdown
                                         if (suggestion.isNotBlank()) {
                                             onAddExercise(suggestion.trim())
                                             newExerciseName = ""
@@ -378,13 +377,7 @@ fun WorkoutScreen(
                                             )
                                         }
                                         Text(
-                                            "${formatWeight(previousBest.weight)} kg",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            "${previousBest.reps} reps",
+                                            "${formatWeight(previousBest.weight)} kg × ${previousBest.reps} reps",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -415,18 +408,15 @@ fun WorkoutScreen(
                                                                     horizontal = 10.dp,
                                                                     vertical = 6.dp
                                                                 ),
-                                                                style = MaterialTheme.typography.bodyMedium
+                                                                style = MaterialTheme.typography.bodyMedium,
+                                                                color = MaterialTheme.colorScheme.primary,
                                                             )
                                                         }
 
                                                         Text(
-                                                            "${formatWeight(s.weight)} kg",
-                                                            style = MaterialTheme.typography.bodyMedium
-                                                        )
-                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                        Text(
-                                                            "${s.reps} reps",
-                                                            style = MaterialTheme.typography.bodyMedium
+                                                            "${formatWeight(s.weight)} kg × ${s.reps} reps",
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            color = MaterialTheme.colorScheme.primary,
                                                         )
 
                                                     }
@@ -452,16 +442,30 @@ fun WorkoutScreen(
                                                     }
                                                 }
                                             } else {
-                                                var editReps by remember("edit_reps_${ex.exercise.id}_$i") {
-                                                    mutableStateOf(
-                                                        s.reps.toString()
-                                                    )
-                                                }
-                                                var editWeight by remember("edit_weight_${ex.exercise.id}_$i") {
+                                                // Reinitialize edit fields each time editing opens by using
+                                                // the editing boolean as the remember key. This ensures the
+                                                // fields are prefilled with the current set values.
+                                                var editReps by remember(editing) { mutableStateOf(s.reps.toString()) }
+                                                var editWeight by remember(editing) {
                                                     mutableStateOf(
                                                         s.weight.toString()
                                                     )
                                                 }
+
+                                                val editFocusRequester =
+                                                    remember { FocusRequester() }
+
+                                                // When editing opens, request focus on the weight field and show keyboard
+                                                LaunchedEffect(Unit) {
+                                                    // small delay to ensure the field is composed
+                                                    delay(50)
+                                                    try {
+                                                        editFocusRequester.requestFocus()
+                                                    } catch (_: Exception) {
+                                                    }
+                                                    keyboardController?.show()
+                                                }
+
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -475,7 +479,8 @@ fun WorkoutScreen(
                                                         modifier = Modifier
                                                             .weight(1f)
                                                             .heightIn(min = 56.dp)
-                                                            .padding(vertical = 4.dp),
+                                                            .padding(vertical = 4.dp)
+                                                            .focusRequester(editFocusRequester),
                                                         singleLine = true,
                                                         keyboardOptions = KeyboardOptions(
                                                             keyboardType = KeyboardType.Decimal,
@@ -507,7 +512,10 @@ fun WorkoutScreen(
                                                             editWeight.toFloatOrNull() ?: 0f
                                                         if (reps > 0) {
                                                             onUpdateSet(
-                                                                ex.exercise.id, i, reps, weight
+                                                                ex.exercise.id,
+                                                                i,
+                                                                reps,
+                                                                weight
                                                             )
                                                             editSetMap.remove(ex.exercise.id to i)
                                                         }
@@ -651,4 +659,3 @@ fun WorkoutScreen(
         }
     }
 }
-

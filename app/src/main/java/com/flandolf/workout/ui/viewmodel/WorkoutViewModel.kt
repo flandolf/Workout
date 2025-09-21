@@ -3,21 +3,20 @@ package com.flandolf.workout.ui.viewmodel
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.flandolf.workout.data.Workout
+import com.flandolf.workout.data.SetEntity
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.WorkoutWithExercises
-import com.flandolf.workout.data.SetEntity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import androidx.core.content.edit
 
 class WorkoutViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = WorkoutRepository(application.applicationContext)
     private val prefs: SharedPreferences =
-        application.getSharedPreferences("workout_prefs", Context.MODE_PRIVATE)
+            application.getSharedPreferences("workout_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private const val KEY_CURRENT_WORKOUT_ID = "current_workout_id"
@@ -117,12 +116,13 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private fun startTimerJob() {
         timerJob?.cancel()
         _isTimerRunning.value = true
-        timerJob = viewModelScope.launch {
-            while (true) {
-                kotlinx.coroutines.delay(1000L)
-                _elapsedSeconds.value = _elapsedSeconds.value + 1
-            }
-        }
+        timerJob =
+                viewModelScope.launch {
+                    while (true) {
+                        kotlinx.coroutines.delay(1000L)
+                        _elapsedSeconds.value = _elapsedSeconds.value + 1
+                    }
+                }
     }
 
     fun endWorkout() {
@@ -180,9 +180,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun loadExerciseNameSuggestions() {
-        viewModelScope.launch {
-            _exerciseNameSuggestions.value = repo.getDistinctExerciseNames()
-        }
+        viewModelScope.launch { _exerciseNameSuggestions.value = repo.getDistinctExerciseNames() }
     }
 
     fun loadPreviousBestSets() {
@@ -192,7 +190,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             if (currentWorkout != null && currentWorkoutId != null) {
                 val previousSets = mutableMapOf<String, SetEntity>()
                 for (exercise in currentWorkout.exercises) {
-                    val previousBestSet = repo.getBestSetFromLastWorkout(exercise.exercise.name, currentWorkoutId)
+                    val previousBestSet =
+                            repo.getBestSetFromLastWorkout(exercise.exercise.name, currentWorkoutId)
                     if (previousBestSet != null) {
                         previousSets[exercise.exercise.name] = previousBestSet
                     }
@@ -209,7 +208,21 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             val exercise = workout?.exercises?.find { it.exercise.id == exerciseId }?.exercise
             if (exercise != null) {
                 repo.deleteExercise(exercise)
-                _currentWorkout.value = id.let { repo.getWorkout(it!!) }
+                _currentWorkout.value = id.let { repo.getWorkout(it) }
+            }
+        }
+    }
+
+    fun updateSet(exerciseId: Long, setIndex: Int, reps: Int, weight: Float) {
+        viewModelScope.launch {
+            val id = _currentWorkoutId.value
+            val workout = id?.let { repo.getWorkout(it) }
+            val exercise = workout?.exercises?.find { it.exercise.id == exerciseId }
+            val set = exercise?.sets?.getOrNull(setIndex)
+            if (set != null) {
+                val updatedSet = set.copy(reps = reps, weight = weight)
+                repo.updateSet(updatedSet)
+                _currentWorkout.value = id.let { repo.getWorkout(it) }
             }
         }
     }
@@ -232,4 +245,5 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             clearSavedState()
         }
     }
+
 }
