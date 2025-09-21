@@ -26,6 +26,19 @@ interface WorkoutDao {
     @Insert
     suspend fun insertSet(set: SetEntity): Long
 
+    // Lookups to support upsert during download
+    @Query("SELECT * FROM exercises WHERE firestoreId = :firestoreId LIMIT 1")
+    suspend fun getExerciseByFirestoreId(firestoreId: String): ExerciseEntity?
+
+    @Query("SELECT * FROM exercises WHERE id = :localId AND workoutId = :localWorkoutId LIMIT 1")
+    suspend fun getExerciseByLocalId(localId: Long, localWorkoutId: Long): ExerciseEntity?
+
+    @Query("SELECT * FROM sets WHERE firestoreId = :firestoreId LIMIT 1")
+    suspend fun getSetByFirestoreId(firestoreId: String): SetEntity?
+
+    @Query("SELECT * FROM sets WHERE id = :localId AND exerciseId = :localExerciseId LIMIT 1")
+    suspend fun getSetByLocalId(localId: Long, localExerciseId: Long): SetEntity?
+
     @Update
     suspend fun updateSet(set: SetEntity)
 

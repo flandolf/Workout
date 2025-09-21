@@ -29,9 +29,10 @@ import com.flandolf.workout.ui.viewmodel.SyncViewModel
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun SettingsScreen(
-    onExportCsv: () -> Unit, 
+    onExportCsv: () -> Unit,
     onResetAll: (() -> Unit)? = null,
-    syncViewModel: SyncViewModel? = null
+    syncViewModel: SyncViewModel? = null,
+    onManualSync: (() -> Unit)? = null
 ) {
     val showResetDialog = remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -89,10 +90,11 @@ fun SettingsScreen(
                 
                 // Inline sync settings
                 SyncSettingsScreen(
-                    uiState = syncUiState,
-                    syncViewModel = syncViewModel,
-                    showAuthDialog = showAuthDialog,
-                    onDismissAuthDialog = { syncViewModel.hideAuthDialog() }
+                    syncUiState,
+                    syncViewModel,
+                    showAuthDialog,
+                    { syncViewModel.hideAuthDialog() },
+                    onManualSync
                 )
                 
                 Spacer(modifier = Modifier.height(24.dp))

@@ -10,8 +10,14 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -38,9 +44,26 @@ class MainActivity : ComponentActivity() {
         setContent {
             WorkoutTheme {
                 val navController = rememberNavController()
+                val snackbarHostState = remember { SnackbarHostState() }
+                val coroutineScope = rememberCoroutineScope()
+                val syncUiState by syncVm.uiState.collectAsState()
+
+                // Debounce simple snackbar messages to avoid spam
+                LaunchedEffect(syncUiState.message, syncUiState.errorMessage) {
+                    val msg = syncUiState.errorMessage ?: syncUiState.message
+                    if (!msg.isNullOrBlank()) {
+                        // show the snackbar once and then clear
+                        snackbarHostState.showSnackbar(msg)
+                        // clear messages so we don't spam the user
+                        syncVm.clearMessages()
+                    }
+                }
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    bottomBar = { BottomNavigationBar(navController) }) {
+                    bottomBar = { BottomNavigationBar(navController) },
+                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+                ) {
                     NavHost(
                         navController = navController,
                         startDestination = "workout",
@@ -85,7 +108,25 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("history") {
                             val workouts = historyVm.workouts.collectAsState()
-                            HistoryScreen(workouts = workouts.value, viewModel = historyVm)
+                                HistoryScreen(workouts = workouts.value, viewModel = historyVm)
+
+                                // If there are no local workouts, suggest syncing down when appropriate
+                                LaunchedEffect(workouts.value.size, syncUiState.authState, syncUiState.syncStatus.isOnline) {
+                                    if (workouts.value.isEmpty()) {
+                                        if (syncUiState.authState == com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
+                                            if (syncUiState.syncStatus.isOnline) {
+                                                val res = snackbarHostState.showSnackbar("No local workouts. Restore from cloud?", actionLabel = "Restore")
+                                                if (res == SnackbarResult.ActionPerformed) {
+                                                    syncVm.syncDown()
+                                                }
+                                            } else {
+                                                snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
+                                            }
+                                        } else {
+                                            snackbarHostState.showSnackbar("No local workouts. Sign in to restore cloud data.")
+                                        }
+                                    }
+                                }
                         }
                         composable("progress") {
                             val workouts = historyVm.workouts.collectAsState()
@@ -95,6 +136,24 @@ class MainActivity : ComponentActivity() {
                                 onExerciseClick = { exerciseName ->
                                     navController.navigate("exercise_detail/$exerciseName")
                                 })
+
+                                LaunchedEffect(workouts.value.size, syncUiState.authState, syncUiState.syncStatus.isOnline) {
+                                    if (workouts.value.isEmpty()) {
+                                        // Reuse same messaging as history
+                                        if (syncUiState.authState == com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
+                                            if (syncUiState.syncStatus.isOnline) {
+                                                val res = snackbarHostState.showSnackbar("No local workouts. Restore from cloud?", actionLabel = "Restore")
+                                                if (res == SnackbarResult.ActionPerformed) {
+                                                    syncVm.syncDown()
+                                                }
+                                            } else {
+                                                snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
+                                            }
+                                        } else {
+                                            snackbarHostState.showSnackbar("No local workouts. Sign in to restore cloud data.")
+                                        }
+                                    }
+                                }
                         }
                         composable("exercise_detail/{exerciseName}") { backStackEntry ->
                             val exerciseName =
@@ -117,7 +176,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("settings") {
                             SettingsScreen(
-                                onExportCsv = { exportCsv() }, 
+                                onExportCsv = { exportCsv() },
                                 onResetAll = {
                                     lifecycleScope.launch {
                                         val repo = com.flandolf.workout.data.WorkoutRepository(
@@ -129,10 +188,31 @@ class MainActivity : ComponentActivity() {
                                             historyVm.loadWorkouts()
                                         } catch (e: Exception) {
                                             e.printStackTrace()
+                                            // Surface error to user via snackbar
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar("Reset failed: ${e.localizedMessage ?: "Unknown"}")
+                                            }
                                         }
                                     }
                                 },
-                                syncViewModel = syncVm
+                                syncViewModel = syncVm,
+                                onManualSync = {
+                                    // Guard against offline or unauthenticated
+                                    if (!syncUiState.isInitialized || syncUiState.authState != com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar("Sign in to sync with the cloud")
+                                        }
+                                    } else if (!syncUiState.syncStatus.isOnline) {
+                                        coroutineScope.launch {
+                                            val res = snackbarHostState.showSnackbar("Offline: will retry when online", actionLabel = "Retry")
+                                            if (res == SnackbarResult.ActionPerformed) {
+                                                syncVm.performSync()
+                                            }
+                                        }
+                                    } else {
+                                        syncVm.performSync()
+                                    }
+                                }
                             )
                         }
                     }

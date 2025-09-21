@@ -340,8 +340,10 @@ class SyncRepository(
                             date = firestoreWorkout.date,
                             durationSeconds = firestoreWorkout.durationSeconds
                         )
-                        dao.updateWorkout(updatedWorkout)
-                        updatedWorkout
+                        // Ensure we persist the firestoreId on the existing local row
+                        val withFsId = updatedWorkout.copy(firestoreId = document.id)
+                        dao.updateWorkout(withFsId)
+                        withFsId
                     } else {
                         Log.d(TAG, "Creating new workout for date: ${firestoreWorkout.date}")
                         // Create new workout
@@ -376,16 +378,36 @@ class SyncRepository(
                 if (firestoreExercise != null) {
                     val localWorkoutId = workoutMap[firestoreExercise.workoutId]
                     if (localWorkoutId != null) {
-                        Log.d(TAG, "Creating exercise: ${firestoreExercise.name} for workout $localWorkoutId")
-                        val newExercise = ExerciseEntity(
-                            workoutId = localWorkoutId,
-                            name = firestoreExercise.name,
-                            firestoreId = document.id
-                        )
-                        val insertedId = dao.insertExercise(newExercise)
-                        // Persist firestoreId to inserted row
-                        dao.updateExercise(newExercise.copy(id = insertedId, firestoreId = document.id))
-                        exerciseMap[document.id] = insertedId
+                        Log.d(TAG, "Upserting exercise: ${firestoreExercise.name} for workout $localWorkoutId (fsId=${document.id})")
+
+                        // Try to find local exercise by firestoreId first
+                        var localExercise: ExerciseEntity? = dao.getExerciseByFirestoreId(document.id)
+
+                        // If not found, try by localId + localWorkoutId mapping
+                        if (localExercise == null && firestoreExercise.localId > 0L) {
+                            localExercise = dao.getExerciseByLocalId(firestoreExercise.localId, localWorkoutId)
+                        }
+
+                        if (localExercise != null) {
+                            // Update existing
+                            val updated = localExercise.copy(
+                                name = firestoreExercise.name,
+                                firestoreId = document.id,
+                                workoutId = localWorkoutId
+                            )
+                            dao.updateExercise(updated)
+                            exerciseMap[document.id] = updated.id
+                        } else {
+                            // Insert new
+                            val newExercise = ExerciseEntity(
+                                workoutId = localWorkoutId,
+                                name = firestoreExercise.name,
+                                firestoreId = document.id
+                            )
+                            val insertedId = dao.insertExercise(newExercise)
+                            dao.updateExercise(newExercise.copy(id = insertedId, firestoreId = document.id))
+                            exerciseMap[document.id] = insertedId
+                        }
                     } else {
                         Log.w(TAG, "Skipping exercise ${firestoreExercise.name} - no local workout found for ${firestoreExercise.workoutId}")
                     }
@@ -406,15 +428,34 @@ class SyncRepository(
                 if (firestoreSet != null) {
                     val localExerciseId = exerciseMap[firestoreSet.exerciseId]
                     if (localExerciseId != null) {
-                        Log.d(TAG, "Creating set: ${firestoreSet.reps} reps x ${firestoreSet.weight} for exercise $localExerciseId")
-                        val newSet = SetEntity(
-                            exerciseId = localExerciseId,
-                            reps = firestoreSet.reps,
-                            weight = firestoreSet.weight,
-                            firestoreId = document.id
-                        )
-                        val insertedSetId = dao.insertSet(newSet)
-                        dao.updateSet(newSet.copy(id = insertedSetId, firestoreId = document.id))
+                        Log.d(TAG, "Upserting set: ${firestoreSet.reps} reps x ${firestoreSet.weight} for exercise $localExerciseId (fsId=${document.id})")
+
+                        // Try to find local set by firestoreId first
+                        var localSet: SetEntity? = dao.getSetByFirestoreId(document.id)
+
+                        // If not found, try by localId + localExerciseId
+                        if (localSet == null && firestoreSet.localId > 0L) {
+                            localSet = dao.getSetByLocalId(firestoreSet.localId, localExerciseId)
+                        }
+
+                        if (localSet != null) {
+                            val updatedSet = localSet.copy(
+                                reps = firestoreSet.reps,
+                                weight = firestoreSet.weight,
+                                firestoreId = document.id,
+                                exerciseId = localExerciseId
+                            )
+                            dao.updateSet(updatedSet)
+                        } else {
+                            val newSet = SetEntity(
+                                exerciseId = localExerciseId,
+                                reps = firestoreSet.reps,
+                                weight = firestoreSet.weight,
+                                firestoreId = document.id
+                            )
+                            val insertedSetId = dao.insertSet(newSet)
+                            dao.updateSet(newSet.copy(id = insertedSetId, firestoreId = document.id))
+                        }
                     } else {
                         Log.w(TAG, "Skipping set - no local exercise found for ${firestoreSet.exerciseId}")
                     }
@@ -489,6 +530,13 @@ class SyncRepository(
                     Log.w(TAG, "(syncWorkout) Failed to read back workout doc $workoutFirestoreId", e)
                 }
 
+            // Persist workout firestoreId locally
+            try {
+                dao.updateWorkout(workout.copy(firestoreId = workoutFirestoreId))
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist workout firestoreId locally for ${workout.id}", e)
+            }
+
             // Also upload exercises and sets for this workout
             val workoutWith = dao.getWorkoutWithExercises(workout.id)
             if (workoutWith != null) {
@@ -520,6 +568,13 @@ class SyncRepository(
                     exerciseDocRef.set(firestoreExercise).await()
                     val exerciseFirestoreId = exerciseDocRef.id
 
+                    // Persist exercise firestoreId locally
+                    try {
+                        dao.updateExercise(exercise.copy(firestoreId = exerciseFirestoreId))
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to persist exercise firestoreId locally for ${exercise.id}", e)
+                    }
+
                     // Upsert sets for this exercise
                     for (set in exerciseWithSets.sets) {
                         val firestoreSet = FirestoreSet(
@@ -546,6 +601,14 @@ class SyncRepository(
                         }
 
                         setDocRef.set(firestoreSet).await()
+                        val setFsId = setDocRef.id
+
+                        // Persist set firestoreId locally
+                        try {
+                            dao.updateSet(set.copy(firestoreId = setFsId))
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to persist set firestoreId locally for ${set.id}", e)
+                        }
                     }
                 }
             }

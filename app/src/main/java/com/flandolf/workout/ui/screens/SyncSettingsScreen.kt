@@ -23,7 +23,8 @@ fun SyncSettingsScreen(
     uiState: SyncUiState,
     syncViewModel: SyncViewModel,
     showAuthDialog: Boolean,
-    onDismissAuthDialog: () -> Unit
+    onDismissAuthDialog: () -> Unit,
+    onManualSync: (() -> Unit)? = null
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -98,7 +99,7 @@ fun SyncSettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             OutlinedButton(
-                                onClick = { syncViewModel.performSync() },
+                                onClick = { onManualSync?.invoke() ?: syncViewModel.performSync() },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -107,7 +108,7 @@ fun SyncSettingsScreen(
                             }
                             
                             OutlinedButton(
-                                onClick = { syncViewModel.syncDown() },
+                                onClick = { onManualSync?.invoke() ?: syncViewModel.syncDown() },
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
