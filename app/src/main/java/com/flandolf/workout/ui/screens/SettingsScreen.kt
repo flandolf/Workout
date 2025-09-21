@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,6 +28,8 @@ import com.flandolf.workout.ui.viewmodel.SyncViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 fun SettingsScreen(
     onExportCsv: () -> Unit,
+    onImportStrongCsv: () -> Unit,
+    onImportWorkoutCsv: () -> Unit,
     onResetAll: (() -> Unit)? = null,
     syncViewModel: SyncViewModel? = null,
     onManualSync: (() -> Unit)? = null
@@ -43,7 +46,7 @@ fun SettingsScreen(
         }
     ) { innerPadding ->
         LazyColumn (
-            modifier = Modifier.padding(innerPadding).padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()
+            modifier = Modifier.padding(innerPadding).padding(horizontal = 16.dp, vertical = 8.dp).padding(bottom=120.dp).fillMaxWidth()
         ) {
             item {
                 if (syncViewModel != null && syncUiState != null) {
@@ -70,10 +73,6 @@ fun SettingsScreen(
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             },
-                            modifier = Modifier.clickable {
-                                // Navigation to sync settings would go here
-                                // For now, we'll show sync status inline
-                            }
                         )
                     }
 
@@ -116,6 +115,44 @@ fun SettingsScreen(
                             )
                         },
                         modifier = Modifier.clickable { onExportCsv() }
+                    )
+                }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    ListItem(
+                        headlineContent = { Text("Import Strong Data", fontSize = 18.sp) },
+                        supportingContent = {
+                            Text("Import workouts from Strong App. This will add the workouts to your existing data without creating duplicates.")
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        modifier = Modifier.clickable { onImportStrongCsv() }
+                    )
+                }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    ListItem(
+                        headlineContent = { Text("Import Workout Data", fontSize = 18.sp) },
+                        supportingContent = {
+                            Text("Import workouts from this app. This will add the workouts to your existing data without creating duplicates.")
+                        },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        modifier = Modifier.clickable { onImportWorkoutCsv() }
                     )
                 }
             }

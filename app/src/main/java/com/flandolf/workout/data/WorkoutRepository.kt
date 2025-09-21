@@ -17,25 +17,17 @@ class WorkoutRepository(private val context: Context) {
     suspend fun startWorkout(): Long {
         val id = dao.insertWorkout(Workout())
         android.util.Log.d("WorkoutRepository", "Started workout local id=$id")
-        
-        // Trigger sync for the new workout
-        try {
-            val workout = dao.getWorkoutWithExercises(id)?.workout
-            if (workout != null) {
-                syncRepository.syncWorkout(workout)
-            }
-        } catch (e: Exception) {
-            // Sync failed, but continue with local operation
-            android.util.Log.w("WorkoutRepository", "Failed to sync new workout", e)
-        }
-        
+
+        // Removed automatic sync at workout start to avoid constant syncing.
         return id
     }
 
     suspend fun endWorkout(id: Long, durationSeconds: Long) {
         val existingWith = dao.getWorkoutWithExercises(id)
         val existing = existingWith?.workout
-        android.util.Log.d("WorkoutRepository", "Ending workout local id=$id, exists=${existing != null}")
+        android.util.Log.d(
+            "WorkoutRepository", "Ending workout local id=$id, exists=${existing != null}"
+        )
         if (existing != null) {
             val hasSets = existingWith.exercises.any { ex -> ex.sets.isNotEmpty() }
             android.util.Log.d("WorkoutRepository", "Workout $id hasSets=$hasSets")
@@ -63,12 +55,11 @@ class WorkoutRepository(private val context: Context) {
 
     suspend fun getWorkout(id: Long): WorkoutWithExercises? = dao.getWorkoutWithExercises(id)
 
-    suspend fun getLatestWorkout(): WorkoutWithExercises? = dao.getLatestWorkoutWithExercises()
-
     suspend fun getDistinctExerciseNames(): List<String> = dao.getDistinctExerciseNames()
 
-    suspend fun getBestSetFromLastWorkout(exerciseName: String, currentWorkoutId: Long): SetEntity? = 
-        dao.getBestSetFromLastWorkout(exerciseName, currentWorkoutId)
+    suspend fun getBestSetFromLastWorkout(
+        exerciseName: String, currentWorkoutId: Long
+    ): SetEntity? = dao.getBestSetFromLastWorkout(exerciseName, currentWorkoutId)
 
     /**
      * Exports all workout data to a CSV file with comprehensive information including:
@@ -99,15 +90,13 @@ class WorkoutRepository(private val context: Context) {
                         val volume = s.reps * s.weight
                         val notes = "" // Could be extended to include notes in the future
 
-                        writer.append(escapeCsv(date)).append(',')
-                            .append(escapeCsv(time)).append(',')
-                            .append(durationSeconds.toString()).append(',')
+                        writer.append(escapeCsv(date)).append(',').append(escapeCsv(time))
+                            .append(',').append(durationSeconds.toString()).append(',')
                             .append(escapeCsv(durationText)).append(',')
                             .append(escapeCsv(ex.exercise.name)).append(',')
-                            .append(setIndex.toString()).append(',')
-                            .append(s.reps.toString()).append(',')
-                            .append(String.format("%.2f", s.weight)).append(',')
-                            .append(String.format("%.2f", volume)).append(',')
+                            .append(setIndex.toString()).append(',').append(s.reps.toString())
+                            .append(',').append(String.format(Locale.US, "%.2f", s.weight)).append(',')
+                            .append(String.format(Locale.US, "%.2f", volume)).append(',')
                             .append(escapeCsv(notes)).append('\n')
                         setIndex++
                     }
@@ -153,7 +142,7 @@ class WorkoutRepository(private val context: Context) {
             android.util.Log.e("WorkoutRepository", "Failed to reset local data", e)
         }
     }
-    
+
     /**
      * Initialize sync functionality
      */
@@ -164,7 +153,7 @@ class WorkoutRepository(private val context: Context) {
             android.util.Log.w("WorkoutRepository", "Failed to initialize sync", e)
         }
     }
-    
+
     /**
      * Perform manual sync
      */
@@ -175,7 +164,7 @@ class WorkoutRepository(private val context: Context) {
             android.util.Log.w("WorkoutRepository", "Failed to perform sync", e)
         }
     }
-    
+
     /**
      * Sync down from remote database only (download remote changes to local)
      */
@@ -185,5 +174,316 @@ class WorkoutRepository(private val context: Context) {
         } catch (e: Exception) {
             android.util.Log.w("WorkoutRepository", "Failed to sync down", e)
         }
+    }
+
+    /**
+     * Import workout data from CSV file with validation rules
+     */
+    suspend fun importStrongCsv(inputStream: java.io.InputStream): Int =
+        withContext(Dispatchers.IO) {
+            // Column positions (0-based index)
+            val timeColumn = 1
+            val durationColumn = 3
+            val exerciseNameColumn = 4
+            val setTypeColumn = 5
+            val weightColumn = 6
+            val repsColumn = 7
+
+            // Skip types
+            val skipTypes = listOf("Rest Timer", "Note")
+
+            fun isRowValid(row: List<String>): Boolean {
+                return row.size > repsColumn // At least 8 fields
+            }
+
+            fun shouldSkipRow(row: List<String>): Boolean {
+                if (!isRowValid(row)) return true
+                val setType = row.getOrNull(setTypeColumn)?.trim() ?: ""
+                return setType in skipTypes
+            }
+
+            var importedWorkouts = 0
+            val workoutMap = mutableMapOf<String, MutableMap<String, Any>>()
+
+            inputStream.bufferedReader().use { reader ->
+                val lines = reader.readLines()
+                if (lines.isEmpty()) return@withContext 0
+
+                // Skip header
+                for (i in 1 until lines.size) {
+                    val line = lines[i].trim()
+                    if (line.isEmpty()) continue
+
+                    val row = parseCsvLine(line, ";")
+                    if (shouldSkipRow(row)) continue
+
+                    try {
+                        val workoutNumber = row[0].trim().replace("\"", "")
+                        val dateStr = row[timeColumn].trim().replace("\"", "")
+                        val durationStr =
+                            row.getOrNull(durationColumn)?.trim()?.replace("\"", "") ?: "0"
+                        val exerciseName = row[exerciseNameColumn].trim().replace("\"", "")
+                        val weightStr = row[weightColumn].trim().replace("\"", "")
+                        val repsStr = row[repsColumn].trim().replace("\"", "")
+
+                        if (exerciseName.isBlank()) continue
+
+                        val weight = weightStr.toFloatOrNull() ?: 0f
+                        val reps = repsStr.toIntOrNull() ?: 0
+                        val duration = durationStr.toLongOrNull() ?: 0L
+
+                        if (reps <= 0) continue
+
+                        // Parse date - handle various formats
+                        val workoutDate = parseCsvDate(dateStr)
+                        val workoutKey = "${workoutNumber}_${workoutDate}"
+
+                        // Get or create workout
+                        val workoutData = workoutMap.getOrPut(workoutKey) {
+                            mutableMapOf(
+                                "date" to workoutDate,
+                                "duration" to duration,
+                                "exercises" to mutableMapOf<String, MutableList<Pair<Int, Float>>>()
+                            )
+                        }
+
+                        // Update duration if this row has a longer duration (in case of inconsistencies)
+                        val currentDuration = workoutData["duration"] as Long
+                        if (duration > currentDuration) {
+                            workoutData["duration"] = duration
+                        }
+
+                        @Suppress("UNCHECKED_CAST") val exercises =
+                            workoutData["exercises"] as MutableMap<String, MutableList<Pair<Int, Float>>>
+                        val sets = exercises.getOrPut(exerciseName) { mutableListOf() }
+                        sets.add(Pair(reps, weight))
+
+                    } catch (e: Exception) {
+                        android.util.Log.w("WorkoutRepository", "Failed to parse CSV row: $line", e)
+                        // Continue with next row
+                    }
+                }
+            }
+
+            // Import workouts into database
+            for ((_, workoutData) in workoutMap) {
+                try {
+                    val date = workoutData["date"] as Long
+                    val duration = workoutData["duration"] as Long
+
+                    @Suppress("UNCHECKED_CAST") val exercises =
+                        workoutData["exercises"] as Map<String, List<Pair<Int, Float>>>
+
+                    if (exercises.isEmpty()) continue
+
+                    // Create workout with duration
+                    val workout = Workout(date = date, durationSeconds = duration)
+                    val workoutId = dao.insertWorkout(workout)
+
+                    // Add exercises and sets
+                    for ((exerciseName, sets) in exercises) {
+                        if (sets.isEmpty()) continue
+
+                        val exercise = ExerciseEntity(workoutId = workoutId, name = exerciseName)
+                        val exerciseId = dao.insertExercise(exercise)
+
+                        for ((reps, weight) in sets) {
+                            val set =
+                                SetEntity(exerciseId = exerciseId, reps = reps, weight = weight)
+                            dao.insertSet(set)
+                        }
+                    }
+
+                    importedWorkouts++
+
+                } catch (e: Exception) {
+                    android.util.Log.w("WorkoutRepository", "Failed to import workout", e)
+                }
+            }
+
+            // After importing, trigger a one-off full sync (upload/download) to ensure cloud matches imports.
+            try {
+                syncRepository.performFullSync()
+            } catch (e: Exception) {
+                android.util.Log.w("WorkoutRepository", "One-off sync after import failed", e)
+            }
+
+            importedWorkouts
+        }
+
+    /**
+     * Import workout data from a simpler CSV format
+     * Date,Time,Workout Duration (seconds),Workout Duration (formatted),
+     * Exercise Name,Set Number,Reps,Weight (kg),Volume (kg),Notes
+     */
+    suspend fun importWorkoutCsv(inputStream: java.io.InputStream): Int =
+        withContext(Dispatchers.IO) {
+            val dateColumn = 0
+            val timeColumn = 1
+            val durationColumn = 2
+            val exerciseNameColumn = 4
+            val repsColumn = 6
+            val weightColumn = 7
+
+            var importedWorkouts = 0
+            val workoutMap = mutableMapOf<String, MutableMap<String, Any>>()
+
+            inputStream.bufferedReader().use { reader ->
+                val lines = reader.readLines()
+                if (lines.isEmpty()) return@withContext 0
+
+                // Skip header if present (detect if first line contains "Date")
+                var startIndex = 0
+                if (lines[0].startsWith("Date", ignoreCase = true)) {
+                    startIndex = 1
+                }
+
+                for (i in startIndex until lines.size) {
+                    val line = lines[i].trim()
+                    if (line.isEmpty()) continue
+
+                    val row = parseCsvLine(line)
+                    if (row.size <= weightColumn) continue
+
+                    try {
+                        val dateStr = row[dateColumn].trim().replace("\"", "")
+                        val timeStr = row[timeColumn].trim().replace("\"", "")
+                        val durationStr = row[durationColumn].trim().replace("\"", "0")
+                        val exerciseName = row[exerciseNameColumn].trim().replace("\"", "")
+                        val repsStr = row[repsColumn].trim().replace("\"", "")
+                        val weightStr = row[weightColumn].trim().replace("\"", "")
+
+                        if (exerciseName.isBlank()) continue
+
+                        val weight = weightStr.toFloatOrNull() ?: 0f
+                        val reps = repsStr.toIntOrNull() ?: 0
+                        val duration = durationStr.toLongOrNull() ?: 0L
+
+                        if (reps <= 0) continue
+
+                        // Parse combined date + time into epoch millis
+                        val workoutDate = parseCsvDate("$dateStr $timeStr")
+                        val workoutKey = "${dateStr}_${timeStr}"
+
+                        val workoutData = workoutMap.getOrPut(workoutKey) {
+                            mutableMapOf(
+                                "date" to workoutDate,
+                                "duration" to duration,
+                                "exercises" to mutableMapOf<String, MutableList<Pair<Int, Float>>>()
+                            )
+                        }
+
+                        val currentDuration = workoutData["duration"] as Long
+                        if (duration > currentDuration) {
+                            workoutData["duration"] = duration
+                        }
+
+                        @Suppress("UNCHECKED_CAST") val exercises =
+                            workoutData["exercises"] as MutableMap<String, MutableList<Pair<Int, Float>>>
+                        val sets = exercises.getOrPut(exerciseName) { mutableListOf() }
+                        sets.add(Pair(reps, weight))
+
+                    } catch (e: Exception) {
+                        android.util.Log.w("WorkoutRepository", "Failed to parse CSV row: $line", e)
+                    }
+                }
+            }
+
+            // Insert into DB
+            for ((_, workoutData) in workoutMap) {
+                try {
+                    val date = workoutData["date"] as Long
+                    val duration = workoutData["duration"] as Long
+
+                    @Suppress("UNCHECKED_CAST") val exercises =
+                        workoutData["exercises"] as Map<String, List<Pair<Int, Float>>>
+
+                    if (exercises.isEmpty()) continue
+
+                    val workout = Workout(date = date, durationSeconds = duration)
+                    val workoutId = dao.insertWorkout(workout)
+
+                    for ((exerciseName, sets) in exercises) {
+                        if (sets.isEmpty()) continue
+                        val exercise = ExerciseEntity(workoutId = workoutId, name = exerciseName)
+                        val exerciseId = dao.insertExercise(exercise)
+
+                        for ((reps, weight) in sets) {
+                            val set =
+                                SetEntity(exerciseId = exerciseId, reps = reps, weight = weight)
+                            dao.insertSet(set)
+                        }
+                    }
+
+                    importedWorkouts++
+                } catch (e: Exception) {
+                    android.util.Log.w("WorkoutRepository", "Failed to import workout", e)
+                }
+            }
+
+            // After importing, trigger a one-off full sync (upload/download) to ensure cloud matches imports.
+            try {
+                syncRepository.performFullSync()
+            } catch (e: Exception) {
+                android.util.Log.w("WorkoutRepository", "One-off sync after import failed", e)
+            }
+
+            importedWorkouts
+        }
+
+
+    private fun parseCsvLine(line: String, delimiter: String = ","): List<String> {
+        val result = mutableListOf<String>()
+        val current = StringBuilder()
+        var inQuotes = false
+        var i = 0
+
+        while (i < line.length) {
+            val char = line[i]
+            when {
+                char == '"' && !inQuotes -> inQuotes = true
+                char == '"' && inQuotes -> {
+                    if (i + 1 < line.length && line[i + 1] == '"') {
+                        // Escaped quote
+                        current.append('"')
+                        i++ // Skip next quote
+                    } else {
+                        inQuotes = false
+                    }
+                }
+
+                char == delimiter.toCharArray()[0] && !inQuotes -> {
+                    result.add(current.toString())
+                    current.clear()
+                }
+
+                else -> current.append(char)
+            }
+            i++
+        }
+        result.add(current.toString())
+        return result
+    }
+
+    private fun parseCsvDate(dateStr: String): Long {
+        val formats = listOf(
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()),
+            SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
+            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
+            SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()),
+            SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()),
+            SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
+        )
+
+        for (format in formats) {
+            try {
+                return format.parse(dateStr)?.time ?: System.currentTimeMillis()
+            } catch (_: Exception) {
+                // Try next format
+            }
+        }
+
+        // If all formats fail, use current time
+        return System.currentTimeMillis()
     }
 }

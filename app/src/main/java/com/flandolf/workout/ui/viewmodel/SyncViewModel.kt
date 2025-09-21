@@ -39,17 +39,19 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }
-        
-        // Initialize sync when authenticated
+    }
+
+    /**
+     * Manually initialize sync repository (starts listeners / initial sync).
+     * Call this only when you want sync to run (e.g., after import or when
+     * finishing workflows that should push data to the cloud).
+     */
+    fun initializeSync() {
         viewModelScope.launch {
-            authRepository.authState.collect { state ->
-                if (state == AuthState.AUTHENTICATED) {
-                    workoutRepository.initializeSync()
-                }
-            }
+            workoutRepository.initializeSync()
         }
     }
-    
+
     // Anonymous sign-in removed. Use email/password or external providers.
     
     /**
@@ -200,12 +202,32 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
      * Get current user email
      */
     fun getCurrentUserEmail(): String? = authRepository.getCurrentUserEmail()
-    
+
     /**
-     * Check if user is anonymous
+     * Nuke all Firestore data for the current user (DESTRUCTIVE OPERATION)
      */
-    // Anonymous sign-in removed; always return false
-    fun isAnonymousUser(): Boolean = false
+    fun nukeFirestoreData() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                message = null,
+                errorMessage = null
+            )
+
+            try {
+                syncRepository.nukeFirestoreData()
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    message = "All cloud data deleted successfully"
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Failed to delete cloud data: ${e.message}"
+                )
+            }
+        }
+    }
 
 }
 

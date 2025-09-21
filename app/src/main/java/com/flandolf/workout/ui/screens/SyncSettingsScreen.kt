@@ -128,6 +128,21 @@ fun SyncSettingsScreen(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text("Sign Out")
                         }
+                        Button(
+                            onClick = {
+                                // Show confirmation dialog before nuking data
+                                syncViewModel.nukeFirestoreData()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error,
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Nuke Cloud Data")
+                        }
                     }
                 }
             }

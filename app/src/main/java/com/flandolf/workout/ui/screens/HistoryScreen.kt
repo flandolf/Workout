@@ -55,6 +55,7 @@ fun HistoryScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp)
+                .padding(bottom = 80.dp)
         ) {
             if (workouts.isEmpty()) {
                 Box(

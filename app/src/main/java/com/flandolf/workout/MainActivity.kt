@@ -1,10 +1,12 @@
 package com.flandolf.workout
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -62,8 +64,7 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     bottomBar = { BottomNavigationBar(navController) },
-                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
-                ) {
+                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) }) {
                     NavHost(
                         navController = navController,
                         startDestination = "workout",
@@ -108,25 +109,32 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("history") {
                             val workouts = historyVm.workouts.collectAsState()
-                                HistoryScreen(workouts = workouts.value, viewModel = historyVm)
+                            HistoryScreen(workouts = workouts.value, viewModel = historyVm)
 
-                                // If there are no local workouts, suggest syncing down when appropriate
-                                LaunchedEffect(workouts.value.size, syncUiState.authState, syncUiState.syncStatus.isOnline) {
-                                    if (workouts.value.isEmpty()) {
-                                        if (syncUiState.authState == com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
-                                            if (syncUiState.syncStatus.isOnline) {
-                                                val res = snackbarHostState.showSnackbar("No local workouts. Restore from cloud?", actionLabel = "Restore")
-                                                if (res == SnackbarResult.ActionPerformed) {
-                                                    syncVm.syncDown()
-                                                }
-                                            } else {
-                                                snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
+                            // If there are no local workouts, suggest syncing down when appropriate
+                            LaunchedEffect(
+                                workouts.value.size,
+                                syncUiState.authState,
+                                syncUiState.syncStatus.isOnline
+                            ) {
+                                if (workouts.value.isEmpty()) {
+                                    if (syncUiState.authState == com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
+                                        if (syncUiState.syncStatus.isOnline) {
+                                            val res = snackbarHostState.showSnackbar(
+                                                "No local workouts. Restore from cloud?",
+                                                actionLabel = "Restore"
+                                            )
+                                            if (res == SnackbarResult.ActionPerformed) {
+                                                syncVm.syncDown()
                                             }
                                         } else {
-                                            snackbarHostState.showSnackbar("No local workouts. Sign in to restore cloud data.")
+                                            snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
                                         }
+                                    } else {
+                                        snackbarHostState.showSnackbar("No local workouts. Sign in to restore cloud data.")
                                     }
                                 }
+                            }
                         }
                         composable("progress") {
                             val workouts = historyVm.workouts.collectAsState()
@@ -137,23 +145,30 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("exercise_detail/$exerciseName")
                                 })
 
-                                LaunchedEffect(workouts.value.size, syncUiState.authState, syncUiState.syncStatus.isOnline) {
-                                    if (workouts.value.isEmpty()) {
-                                        // Reuse same messaging as history
-                                        if (syncUiState.authState == com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
-                                            if (syncUiState.syncStatus.isOnline) {
-                                                val res = snackbarHostState.showSnackbar("No local workouts. Restore from cloud?", actionLabel = "Restore")
-                                                if (res == SnackbarResult.ActionPerformed) {
-                                                    syncVm.syncDown()
-                                                }
-                                            } else {
-                                                snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
+                            LaunchedEffect(
+                                workouts.value.size,
+                                syncUiState.authState,
+                                syncUiState.syncStatus.isOnline
+                            ) {
+                                if (workouts.value.isEmpty()) {
+                                    // Reuse same messaging as history
+                                    if (syncUiState.authState == com.flandolf.workout.data.sync.AuthState.AUTHENTICATED) {
+                                        if (syncUiState.syncStatus.isOnline) {
+                                            val res = snackbarHostState.showSnackbar(
+                                                "No local workouts. Restore from cloud?",
+                                                actionLabel = "Restore"
+                                            )
+                                            if (res == SnackbarResult.ActionPerformed) {
+                                                syncVm.syncDown()
                                             }
                                         } else {
-                                            snackbarHostState.showSnackbar("No local workouts. Sign in to restore cloud data.")
+                                            snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
                                         }
+                                    } else {
+                                        snackbarHostState.showSnackbar("No local workouts. Sign in to restore cloud data.")
                                     }
                                 }
+                            }
                         }
                         composable("exercise_detail/{exerciseName}") { backStackEntry ->
                             val exerciseName =
@@ -177,6 +192,8 @@ class MainActivity : ComponentActivity() {
                         composable("settings") {
                             SettingsScreen(
                                 onExportCsv = { exportCsv() },
+                                onImportStrongCsv = { onImportStrongCsv() },
+                                onImportWorkoutCsv = { onImportWorkoutCsv() },
                                 onResetAll = {
                                     lifecycleScope.launch {
                                         val repo = com.flandolf.workout.data.WorkoutRepository(
@@ -188,7 +205,6 @@ class MainActivity : ComponentActivity() {
                                             historyVm.loadWorkouts()
                                         } catch (e: Exception) {
                                             e.printStackTrace()
-                                            // Surface error to user via snackbar
                                             coroutineScope.launch {
                                                 snackbarHostState.showSnackbar("Reset failed: ${e.localizedMessage ?: "Unknown"}")
                                             }
@@ -204,7 +220,10 @@ class MainActivity : ComponentActivity() {
                                         }
                                     } else if (!syncUiState.syncStatus.isOnline) {
                                         coroutineScope.launch {
-                                            val res = snackbarHostState.showSnackbar("Offline: will retry when online", actionLabel = "Retry")
+                                            val res = snackbarHostState.showSnackbar(
+                                                "Offline: will retry when online",
+                                                actionLabel = "Retry"
+                                            )
                                             if (res == SnackbarResult.ActionPerformed) {
                                                 syncVm.performSync()
                                             }
@@ -212,8 +231,7 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         syncVm.performSync()
                                     }
-                                }
-                            )
+                                })
                         }
                     }
                 }
@@ -247,23 +265,23 @@ class MainActivity : ComponentActivity() {
 
                     // Create share intent
                     val shareIntent =
-                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        Intent(Intent.ACTION_SEND).apply {
                             type = "text/csv"
                             putExtra(
-                                android.content.Intent.EXTRA_STREAM,
+                                Intent.EXTRA_STREAM,
                                 androidx.core.content.FileProvider.getUriForFile(
                                     this@MainActivity,
                                     "${applicationContext.packageName}.fileprovider",
                                     exportedFile
                                 )
                             )
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, "Workout Data Export")
-                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            putExtra(Intent.EXTRA_SUBJECT, "Workout Data Export")
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
 
                     // Show share dialog
                     startActivity(
-                        android.content.Intent.createChooser(
+                        Intent.createChooser(
                             shareIntent, "Share CSV Export"
                         )
                     )
@@ -280,5 +298,120 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun onImportStrongCsv() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "text/*"
+        }
+        importStrong.launch(intent)
+    }
+
+    private fun onImportWorkoutCsv() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "text/*"
+        }
+        importWorkout.launch(intent)
+
+    }
+
+    var importWorkout =
+        registerForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val uri = result.data?.data
+                if (uri != null) {
+                    lifecycleScope.launch {
+                        try {
+                            val inputStream = contentResolver.openInputStream(uri)
+                            if (inputStream != null) {
+                                val repo =
+                                    com.flandolf.workout.data.WorkoutRepository(applicationContext)
+                                val importedCount = repo.importWorkoutCsv(inputStream)
+                                inputStream.close()
+
+                                // Refresh data in view models
+                                workoutVm.refreshCurrentWorkout()
+                                historyVm.loadWorkouts()
+
+                                runOnUiThread {
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "Import successful: $importedCount workouts imported",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } else {
+                                runOnUiThread {
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "Import failed: Could not read file",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            runOnUiThread {
+                                android.widget.Toast.makeText(
+                                    this@MainActivity,
+                                    "Import failed: ${e.localizedMessage ?: "Unknown error"}",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    var importStrong =
+        registerForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val uri = result.data?.data
+                if (uri != null) {
+                    lifecycleScope.launch {
+                        try {
+                            val inputStream = contentResolver.openInputStream(uri)
+                            if (inputStream != null) {
+                                val repo =
+                                    com.flandolf.workout.data.WorkoutRepository(applicationContext)
+                                val importedCount = repo.importStrongCsv(inputStream)
+                                inputStream.close()
+
+                                // Refresh data in view models
+                                workoutVm.refreshCurrentWorkout()
+                                historyVm.loadWorkouts()
+
+                                runOnUiThread {
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "Import successful: $importedCount workouts imported",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } else {
+                                runOnUiThread {
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "Import failed: Could not read file",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            runOnUiThread {
+                                android.widget.Toast.makeText(
+                                    this@MainActivity,
+                                    "Import failed: ${e.localizedMessage ?: "Unknown error"}",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
 }
