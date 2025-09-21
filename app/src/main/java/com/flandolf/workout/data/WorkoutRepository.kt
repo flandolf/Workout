@@ -15,7 +15,8 @@ class WorkoutRepository(private val context: Context) {
     val syncRepository by lazy { SyncRepository(context) }
 
     suspend fun startWorkout(): Long {
-        val id = dao.insertWorkout(Workout())
+        val currentTime = System.currentTimeMillis()
+        val id = dao.insertWorkout(Workout(startTime = currentTime))
         android.util.Log.d("WorkoutRepository", "Started workout local id=$id")
 
         // Removed automatic sync at workout start to avoid constant syncing.

@@ -38,6 +38,7 @@ fun HistoryScreen(
         viewModel?.loadWorkouts()
     }
     val df = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
+    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     // State for delete confirmation dialog
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -120,6 +121,11 @@ fun HistoryScreen(
                                             df.format(Date(w.workout.date)),
                                             style = MaterialTheme.typography.titleLarge,
                                             fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            "Started at ${timeFormat.format(Date(w.workout.startTime))}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
                                             "${w.exercises.size} exercises",
