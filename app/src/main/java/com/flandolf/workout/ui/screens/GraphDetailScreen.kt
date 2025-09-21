@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
+import com.flandolf.workout.data.formatWeight
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +45,7 @@ fun GraphDetailScreen(
             }
     }
 
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Weight", "Volume", "Reps", "1RM")
 
     Column(
@@ -146,8 +148,8 @@ fun GraphDetailScreen(
                                     ((current - first) / first * 100).toInt()
                                 } else 0
 
-                                StatRow("Current Max", "${String.format("%.1f", current)} kg")
-                                StatRow("Personal Best", "${String.format("%.1f", best)} kg")
+                                StatRow("Current Max", "${formatWeight(current, true)} kg")
+                                StatRow("Personal Best", "${formatWeight(best, true)} kg")
                                 StatRow("Improvement", "$improvement%")
                             }
 
@@ -156,9 +158,9 @@ fun GraphDetailScreen(
                                 val best = workoutData.maxOf { it.totalVolume }
                                 val avg = workoutData.map { it.totalVolume }.average()
 
-                                StatRow("Current Volume", "${String.format("%.1f", current)} kg")
-                                StatRow("Best Volume", "${String.format("%.1f", best)} kg")
-                                StatRow("Average Volume", "${String.format("%.1f", avg)} kg")
+                                StatRow("Current Volume", "${formatWeight(current, true)} kg")
+                                StatRow("Best Volume", "${formatWeight(best, true)} kg")
+                                StatRow("Average Volume", "${String.format(Locale.US, "%.1f", avg)} kg")
                             }
 
                             2 -> { // Reps
@@ -179,8 +181,8 @@ fun GraphDetailScreen(
                                     if (first > 0) ((current - first) / first * 100).toInt() else 0
                                 } else 0
 
-                                StatRow("Current 1RM", "${String.format("%.1f", current)} kg")
-                                StatRow("Best 1RM", "${String.format("%.1f", best)} kg")
+                                StatRow("Current 1RM", "${formatWeight(current, true)} kg")
+                                StatRow("Best 1RM", "${formatWeight(best, true)} kg")
                                 StatRow("Improvement", "$improvement%")
                             }
                         }

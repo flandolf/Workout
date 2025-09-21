@@ -22,11 +22,13 @@ import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import androidx.lifecycle.lifecycleScope
 import com.flandolf.workout.ui.components.BottomNavigationBar
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
+import com.flandolf.workout.ui.viewmodel.SyncViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val workoutVm: WorkoutViewModel by viewModels()
     private val historyVm: HistoryViewModel by viewModels()
+    private val syncVm: SyncViewModel by viewModels()
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,7 +40,7 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    bottomBar = { BottomNavigationBar(navController) }) { innerPadding ->
+                    bottomBar = { BottomNavigationBar(navController) }) {
                     NavHost(
                         navController = navController,
                         startDestination = "workout",
@@ -114,20 +116,24 @@ class MainActivity : ComponentActivity() {
                                 onBackClick = { navController.popBackStack() })
                         }
                         composable("settings") {
-                            SettingsScreen(onExportCsv = { exportCsv() }, onResetAll = {
-                                lifecycleScope.launch {
-                                    val repo = com.flandolf.workout.data.WorkoutRepository(
-                                        applicationContext
-                                    )
-                                    try {
-                                        repo.resetAllData()
-                                        workoutVm.refreshCurrentWorkout()
-                                        historyVm.loadWorkouts()
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
+                            SettingsScreen(
+                                onExportCsv = { exportCsv() }, 
+                                onResetAll = {
+                                    lifecycleScope.launch {
+                                        val repo = com.flandolf.workout.data.WorkoutRepository(
+                                            applicationContext
+                                        )
+                                        try {
+                                            repo.resetAllData()
+                                            workoutVm.refreshCurrentWorkout()
+                                            historyVm.loadWorkouts()
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                        }
                                     }
-                                }
-                            })
+                                },
+                                syncViewModel = syncVm
+                            )
                         }
                     }
                 }

@@ -17,11 +17,17 @@ interface WorkoutDao {
     @Insert
     suspend fun insertExercise(exercise: ExerciseEntity): Long
 
+    @Update
+    suspend fun updateExercise(exercise: ExerciseEntity)
+
     @Delete
     suspend fun deleteExercise(exercise: ExerciseEntity)
 
     @Insert
     suspend fun insertSet(set: SetEntity): Long
+
+    @Update
+    suspend fun updateSet(set: SetEntity)
 
     @Transaction
     @Query("SELECT * FROM workouts ORDER BY date DESC")
@@ -30,6 +36,9 @@ interface WorkoutDao {
     @Transaction
     @Query("SELECT * FROM workouts WHERE id = :id")
     suspend fun getWorkoutWithExercises(id: Long): WorkoutWithExercises?
+
+    @Query("SELECT * FROM workouts WHERE date = :date LIMIT 1")
+    suspend fun getWorkoutByDate(date: Long): Workout?
 
     @Transaction
     @Query("SELECT * FROM workouts ORDER BY date DESC LIMIT 1")

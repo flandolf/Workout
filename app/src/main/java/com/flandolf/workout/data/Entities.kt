@@ -6,7 +6,9 @@ import androidx.room.*
 data class Workout(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: Long = System.currentTimeMillis(),
-    val durationSeconds: Long = 0
+    val durationSeconds: Long = 0,
+    // Firestore document ID mapping for sync
+    val firestoreId: String? = null
 )
 
 @Entity(
@@ -18,7 +20,11 @@ data class Workout(
     )], indices = [Index("workoutId")]
 )
 data class ExerciseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0, val workoutId: Long, val name: String
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val workoutId: Long,
+    val name: String,
+    // Firestore document ID mapping for sync
+    val firestoreId: String? = null
 )
 
 @Entity(
@@ -33,7 +39,9 @@ data class SetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val exerciseId: Long,
     val reps: Int,
-    val weight: Float
+    val weight: Float,
+    // Firestore document ID mapping for sync
+    val firestoreId: String? = null
 )
 
 data class ExerciseWithSets(
