@@ -84,6 +84,17 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private val _previousBestSets = MutableStateFlow<Map<String, SetEntity>>(emptyMap())
     val previousBestSets: StateFlow<Map<String, SetEntity>> = _previousBestSets
 
+    // Add sync status for toast notifications
+    private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+    val syncStatus: StateFlow<SyncStatus> = _syncStatus
+
+    sealed class SyncStatus {
+        object Idle : SyncStatus()
+        object Syncing : SyncStatus()
+        object Success : SyncStatus()
+        data class Error(val message: String) : SyncStatus()
+    }
+
     init {
         restoreWorkoutState()
     }
@@ -127,19 +138,33 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun endWorkout() {
-        viewModelScope.launch {
-            val id = _currentWorkoutId.value
-            if (id != null) {
-                repo.endWorkout(id, _elapsedSeconds.value)
-                _currentWorkoutId.value = null
-                _elapsedSeconds.value = 0L
-                timerJob?.cancel()
-                timerJob = null
-                _isTimerRunning.value = false
-                _currentWorkout.value = null
-                clearSavedState()
+        val id = _currentWorkoutId.value
+        if (id != null) {
+            // Clear UI state immediately for instant response
+            val duration = _elapsedSeconds.value
+            _currentWorkoutId.value = null
+            _elapsedSeconds.value = 0L
+            timerJob?.cancel()
+            timerJob = null
+            _isTimerRunning.value = false
+            _currentWorkout.value = null
+            clearSavedState()
+
+            // Sync in background
+            viewModelScope.launch {
+                try {
+                    _syncStatus.value = SyncStatus.Syncing
+                    repo.endWorkout(id, duration)
+                    _syncStatus.value = SyncStatus.Success
+                } catch (e: Exception) {
+                    _syncStatus.value = SyncStatus.Error(e.message ?: "Sync failed")
+                }
             }
         }
+    }
+
+    fun clearSyncStatus() {
+        _syncStatus.value = SyncStatus.Idle
     }
 
     /**

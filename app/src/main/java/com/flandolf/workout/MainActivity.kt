@@ -119,7 +119,8 @@ class MainActivity : ComponentActivity() {
                                 exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
                                 isTimerRunning = isTimerRunning.value,
                                 vm = workoutVm,
-                                previousBestSets = previousBestSets.value
+                                previousBestSets = previousBestSets.value,
+                                onShowSnackbar = { msg -> snackbarHostState.showSnackbar(msg) }
                             )
                         }
                         composable("history") {

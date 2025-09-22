@@ -1,6 +1,7 @@
 package com.flandolf.workout.ui.screens
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -44,7 +45,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -53,12 +53,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusDirection
@@ -81,7 +82,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
 
 @SuppressLint("DefaultLocale")
@@ -102,7 +103,8 @@ fun WorkoutScreen(
     onDeleteExercise: (exerciseId: Long) -> Unit,
     isTimerRunning: Boolean,
     vm: WorkoutViewModel,
-    previousBestSets: Map<String, SetEntity> = emptyMap()
+    previousBestSets: Map<String, SetEntity> = emptyMap(),
+    onShowSnackbar: suspend (String) -> Unit, // new parameter to use root snackbar host
 ) {
     // Toggle add set input for each exercise
     val addSetVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
@@ -114,102 +116,146 @@ fun WorkoutScreen(
     var addExerciseVisible by remember { mutableStateOf(false) }
     var newExerciseName by remember { mutableStateOf("") }
     var showDiscardDialog by remember { mutableStateOf(false) }
-    var showIncompleteDialog by remember { mutableStateOf(false) }
-
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val showCircularProgress = remember { mutableStateOf(false) }
 
+
+    // Observe sync status for toast notifications
+    val syncStatus by vm.syncStatus.collectAsState()
+
+    // Handle sync status changes
+    LaunchedEffect(syncStatus) {
+        Log.d("WorkoutScreen", "Sync status: $syncStatus")
+        when (syncStatus) {
+            is WorkoutViewModel.SyncStatus.Success -> {
+                // Call the provided suspend lambda to show snackbar at root level
+                onShowSnackbar("Workout synced successfully")
+                vm.clearSyncStatus()
+            }
+
+            is WorkoutViewModel.SyncStatus.Error -> {
+                onShowSnackbar("Workout sync error: ${(syncStatus as WorkoutViewModel.SyncStatus.Error).message}")
+                vm.clearSyncStatus()
+            }
+
+            is WorkoutViewModel.SyncStatus.Syncing -> {
+                showCircularProgress.value = true
+                delay(800)
+                showCircularProgress.value = false
+            }
+
+            WorkoutViewModel.SyncStatus.Idle -> {
+                showCircularProgress.value = false
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(title = {
-                Text(
-                    text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (isTimerRunning) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }, actions = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            if (isTimerRunning) {
-                                onPauseTick()
-                            } else {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isTimerRunning) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }, navigationIcon = {
+                    if (showCircularProgress.value) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier
+                                .padding(start = 16.dp)
+                                .size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+
+                actions = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val addVisible = addExerciseVisible
+                        val rot by animateFloatAsState(if (addVisible) 45f else 0f)
+                        FilledTonalButton(
+                            onClick = {
                                 if (vm.currentWorkoutId.value == null) {
                                     vm.startWorkout()
-                                } else {
-                                    onStartTick()
                                 }
+                                addExerciseVisible = !addExerciseVisible
+                                if (!addExerciseVisible) {
+                                    newExerciseName = ""
+                                }
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+
                             }
-                        },
-                        modifier = Modifier.height(40.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            if (isTimerRunning) "Pause" else "Start",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = if (addVisible) "Hide" else "Add Exercise",
+                                modifier = Modifier.rotate(rot)
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                if (isTimerRunning) {
+                                    onPauseTick()
+                                } else {
+                                    if (vm.currentWorkoutId.value == null) {
+                                        vm.startWorkout()
+                                    } else {
+                                        onStartTick()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.height(40.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
 
-                    // Discard button
-                    OutlinedButton(
-                        onClick = { showDiscardDialog = true },
-                        modifier = Modifier.height(40.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Discard Workout",
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Discard", style = MaterialTheme.typography.bodySmall)
-                    }
+                        // End workout button: check for incomplete sets before allowing
+                        val hasIncompleteSets = remember(currentExercises) {
+                            currentExercises.any { ex ->
+                                ex.sets.isEmpty() || ex.sets.any { s -> s.reps <= 0 }
+                            }
+                        }
 
-                    // End workout button: check for incomplete sets before allowing
-                    val hasIncompleteSets = remember(currentExercises) {
-                        currentExercises.any { ex ->
-                            ex.sets.isEmpty() || ex.sets.any { s -> s.reps <= 0 }
+                        Button(
+                            onClick = {
+                                if (hasIncompleteSets) {
+                                    showDiscardDialog = true
+                                } else {
+                                    onEndWorkout()
+                                }
+                            },
+                            modifier = Modifier.height(40.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "End Workout",
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
 
-                    Button(
-                        onClick = {
-                            if (hasIncompleteSets) {
-                                showIncompleteDialog = true
-                            } else {
-                                onEndWorkout()
-                            }
-                        },
-                        modifier = Modifier.height(40.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "End Workout",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("End", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                }
-
-            })
-        }) { innerPadding ->
+                })
+        },
+        // Removed inner snackbarHost to rely on root host
+    ) { innerPadding ->
 
         Column(
             modifier = Modifier
@@ -217,45 +263,6 @@ fun WorkoutScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 0.dp)
         ) {
-
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp)
-            ) {
-                Text(
-                    "Exercises",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                val addVisible = addExerciseVisible
-                val rot by animateFloatAsState(if (addVisible) 45f else 0f)
-                FilledTonalButton(
-                    onClick = {
-                        if (vm.currentWorkoutId.value == null) {
-                            vm.startWorkout()
-                        }
-                        addExerciseVisible = !addExerciseVisible
-                        if (!addExerciseVisible) {
-                            newExerciseName = ""
-                        }
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-
-                    }, contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Add,
-                        contentDescription = if (addVisible) "Hide" else "Add Exercise",
-                        modifier = Modifier.rotate(rot)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (addVisible) "Cancel" else "Add Exercise")
-                }
-            }
 
             AnimatedVisibility(visible = addExerciseVisible) {
                 Column {
@@ -342,7 +349,11 @@ fun WorkoutScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 // Always render exercises sorted by position, then id
                 val sortedExercises = remember(currentExercises) {
-                    currentExercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+                    currentExercises.sortedWith(
+                        compareBy(
+                            { it.exercise.position },
+                            { it.exercise.id })
+                    )
                 }
                 LazyColumn(
                     state = listState,
@@ -390,7 +401,10 @@ fun WorkoutScreen(
                                                 onClick = {
                                                     addSetVisibleMap[ex.exercise.id] = !isVisible
                                                 },
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                                contentPadding = PaddingValues(
+                                                    horizontal = 12.dp,
+                                                    vertical = 6.dp
+                                                )
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Add,
@@ -400,11 +414,23 @@ fun WorkoutScreen(
                                             }
                                             Spacer(Modifier.width(8.dp))
                                             // Reorder controls
-                                            IconButton(onClick = { vm.moveExerciseUp(ex.exercise.id) }, enabled = idx > 0) {
-                                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up")
+                                            IconButton(
+                                                onClick = { vm.moveExerciseUp(ex.exercise.id) },
+                                                enabled = idx > 0
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.KeyboardArrowUp,
+                                                    contentDescription = "Move up"
+                                                )
                                             }
-                                            IconButton(onClick = { vm.moveExerciseDown(ex.exercise.id) }, enabled = idx < sortedExercises.lastIndex) {
-                                                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down")
+                                            IconButton(
+                                                onClick = { vm.moveExerciseDown(ex.exercise.id) },
+                                                enabled = idx < sortedExercises.lastIndex
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.KeyboardArrowDown,
+                                                    contentDescription = "Move down"
+                                                )
                                             }
                                             Spacer(Modifier.width(8.dp))
                                             IconButton(onClick = {
@@ -460,7 +486,11 @@ fun WorkoutScreen(
 
                                     Spacer(modifier = Modifier.height(8.dp))
                                     if (ex.sets.isNotEmpty()) {
-                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                                alpha = 0.6f
+                                            )
+                                        )
                                     }
                                     Column(modifier = Modifier.fillMaxWidth()) {
                                         // Add-set inputs placed above the existing sets list for improved UX
@@ -561,7 +591,8 @@ fun WorkoutScreen(
                                                 FilledTonalButton(
                                                     onClick = {
                                                         val reps = repsText.toIntOrNull() ?: 0
-                                                        val weight = weightText.toFloatOrNull() ?: 0f
+                                                        val weight =
+                                                            weightText.toFloatOrNull() ?: 0f
                                                         if (reps > 0) {
                                                             onAddSet(ex.exercise.id, reps, weight)
                                                             repsText = ""
@@ -569,9 +600,16 @@ fun WorkoutScreen(
                                                             addSetVisibleMap[ex.exercise.id] = false
                                                         }
                                                     },
-                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+                                                    contentPadding = PaddingValues(
+                                                        horizontal = 12.dp,
+                                                        vertical = 10.dp
+                                                    )
                                                 ) {
-                                                    Icon(Icons.Default.Add, contentDescription = "Add set", modifier = Modifier.size(16.dp))
+                                                    Icon(
+                                                        Icons.Default.Add,
+                                                        contentDescription = "Add set",
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
                                                     Spacer(Modifier.width(6.dp))
                                                     Text("Add set")
                                                 }
@@ -581,14 +619,18 @@ fun WorkoutScreen(
 
                                         if (ex.sets.isNotEmpty()) {
                                             ex.sets.forEachIndexed { i, s ->
-                                                val editing = editSetMap[ex.exercise.id to i] == true
+                                                val editing =
+                                                    editSetMap[ex.exercise.id to i] == true
                                                 // visibility state per set (defaults to true)
-                                                val setVisible = setVisibleMap[ex.exercise.id to s.id] ?: true
+                                                val setVisible =
+                                                    setVisibleMap[ex.exercise.id to s.id] ?: true
 
                                                 AnimatedVisibility(
                                                     visible = setVisible,
                                                     enter = fadeIn(tween(220)),
-                                                    exit = fadeOut(tween(220)) + shrinkVertically(tween(220))
+                                                    exit = fadeOut(tween(220)) + shrinkVertically(
+                                                        tween(220)
+                                                    )
                                                 ) {
                                                     if (!editing) {
                                                         Row(
@@ -623,21 +665,27 @@ fun WorkoutScreen(
                                                             }
                                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                                 TextButton(onClick = {
-                                                                    editSetMap[ex.exercise.id to i] = true
+                                                                    editSetMap[ex.exercise.id to i] =
+                                                                        true
                                                                 }) {
                                                                     Text("Edit")
                                                                 }
                                                                 IconButton(
                                                                     onClick = {
                                                                         // animate then delete
-                                                                        setVisibleMap[ex.exercise.id to s.id] = false
+                                                                        setVisibleMap[ex.exercise.id to s.id] =
+                                                                            false
                                                                         val capturedIndex = i
                                                                         coroutineScope.launch {
                                                                             delay(260)
-                                                                            onDeleteSet(ex.exercise.id, capturedIndex)
+                                                                            onDeleteSet(
+                                                                                ex.exercise.id,
+                                                                                capturedIndex
+                                                                            )
                                                                             setVisibleMap.remove(ex.exercise.id to s.id)
                                                                         }
-                                                                    }, modifier = Modifier.size(28.dp)
+                                                                    },
+                                                                    modifier = Modifier.size(28.dp)
                                                                 ) {
                                                                     Icon(
                                                                         imageVector = Icons.Default.Delete,
@@ -649,14 +697,22 @@ fun WorkoutScreen(
                                                         }
                                                         if (i < ex.sets.lastIndex) {
                                                             Spacer(Modifier.height(8.dp))
-                                                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                                                            HorizontalDivider(
+                                                                color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                                                    alpha = 0.2f
+                                                                )
+                                                            )
                                                             Spacer(Modifier.height(8.dp))
                                                         }
                                                     } else {
                                                         // Reinitialize edit fields each time editing opens by using
                                                         // the editing boolean as the remember key. This ensures the
                                                         // fields are prefilled with the current set values.
-                                                        var editReps by remember(editing) { mutableStateOf(s.reps.toString()) }
+                                                        var editReps by remember(editing) {
+                                                            mutableStateOf(
+                                                                s.reps.toString()
+                                                            )
+                                                        }
                                                         var editWeight by remember(editing) {
                                                             mutableStateOf(
                                                                 s.weight.toString()
@@ -691,7 +747,9 @@ fun WorkoutScreen(
                                                                     .weight(1f)
                                                                     .heightIn(min = 56.dp)
                                                                     .padding(vertical = 4.dp)
-                                                                    .focusRequester(editFocusRequester),
+                                                                    .focusRequester(
+                                                                        editFocusRequester
+                                                                    ),
                                                                 singleLine = true,
                                                                 keyboardOptions = KeyboardOptions(
                                                                     keyboardType = KeyboardType.Decimal,
@@ -718,7 +776,8 @@ fun WorkoutScreen(
 
                                                             Spacer(modifier = Modifier.width(8.dp))
                                                             TextButton(onClick = {
-                                                                val reps = editReps.toIntOrNull() ?: 0
+                                                                val reps =
+                                                                    editReps.toIntOrNull() ?: 0
                                                                 val weight =
                                                                     editWeight.toFloatOrNull() ?: 0f
                                                                 if (reps > 0) {
@@ -733,7 +792,11 @@ fun WorkoutScreen(
                                                             }) {
                                                                 Text("Save")
                                                             }
-                                                            TextButton(onClick = { editSetMap.remove(ex.exercise.id to i) }) {
+                                                            TextButton(onClick = {
+                                                                editSetMap.remove(
+                                                                    ex.exercise.id to i
+                                                                )
+                                                            }) {
                                                                 Text("Cancel")
                                                             }
                                                         }
@@ -756,35 +819,24 @@ fun WorkoutScreen(
     if (showDiscardDialog) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
-            title = { Text("Discard workout") },
-            text = { Text("Are you sure you want to discard this workout? This will delete it permanently.") },
+            title = { Text("Discard Workout") },
+            text = { Text("You may have incomplete sets.\nAre you sure you want to discard this workout? This will delete it permanently.") },
             confirmButton = {
-                Button(onClick = {
-                    showDiscardDialog = false
-                    // perform discard via ViewModel and then navigate back
-                    vm.discardWorkout()
-                    onEndWorkout()
-                }, colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                )) {
-                    Text("Discard", color = androidx.compose.ui.graphics.Color.White)
+                Button(
+                    onClick = {
+                        showDiscardDialog = false
+                        vm.discardWorkout()
+                        onEndWorkout()
+                    }, colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                ) {
+                    Text("Discard")
                 }
             },
             dismissButton = {
                 Button(onClick = { showDiscardDialog = false }) { Text("Cancel") }
-            }
-        )
-    }
-
-    // Incomplete sets dialog
-    if (showIncompleteDialog) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showIncompleteDialog = false },
-            title = { Text("Incomplete sets") },
-            text = { Text("Some sets have missing reps or weight. Please complete or remove them before ending the workout.") },
-            confirmButton = {
-                Button(onClick = { showIncompleteDialog = false }) { Text("OK") }
             }
         )
     }
