@@ -444,6 +444,7 @@ class SyncRepository(
                     val newWorkout = Workout(
                         date = fsWorkout.date,
                         durationSeconds = fsWorkout.durationSeconds,
+                        startTime = fsWorkout.date,
                         firestoreId = document.id
                     )
                     val insertedId = dao.insertWorkout(newWorkout)
@@ -453,7 +454,7 @@ class SyncRepository(
                 }
 
                 // Only rebuild exercises/sets if the remote has content (avoid wiping on legacy docs)
-                if (!fsWorkout.exercises.isNullOrEmpty()) {
+                if (fsWorkout.exercises.isNotEmpty()) {
                     try {
                         dao.deleteSetsForWorkout(localWorkout.id)
                         dao.deleteExercisesForWorkout(localWorkout.id)

@@ -225,52 +225,71 @@ class WorkoutRepository(private val context: Context) {
                 val lines = reader.readLines()
                 if (lines.isEmpty()) return@withContext 0
 
-                // Skip header
-                for (i in 1 until lines.size) {
+                // Detect header presence (some exports include a header row). If the first line
+                // contains common header tokens, skip it; otherwise start at line 0.
+                var startIndex = 0
+                val firstLine = lines.firstOrNull() ?: ""
+                if (firstLine.contains("Date", ignoreCase = true) || firstLine.contains("Time", ignoreCase = true) || firstLine.contains("Exercise", ignoreCase = true)) {
+                    startIndex = 1
+                }
+
+                for (i in startIndex until lines.size) {
                     val line = lines[i].trim()
                     if (line.isEmpty()) continue
 
-                    val row = parseCsvLine(line, ";")
-                    if (shouldSkipRow(row)) continue
+                    // Robust delimiter detection: try semicolon and comma and prefer the parse
+                    // that yields the expected number of columns (or the larger column count).
+                    val rowSemicolon = parseCsvLine(line, ";")
+                    val rowComma = parseCsvLine(line, ",")
+                    val row = when {
+                        rowSemicolon.size > repsColumn -> rowSemicolon
+                        rowComma.size > repsColumn -> rowComma
+                        rowSemicolon.size >= rowComma.size -> rowSemicolon
+                        else -> rowComma
+                    }
+                    android.util.Log.d("WorkoutRepository", "Detected delimiter for line ${i}: ${if (row === rowSemicolon) ";" else ","} (cols=${row.size})")
+                     if (shouldSkipRow(row)) continue
 
-                    try {
-                        val workoutNumber = row[0].trim().replace("\"", "")
-                        val dateStr = row[timeColumn].trim().replace("\"", "")
-                        val durationStr =
-                            row.getOrNull(durationColumn)?.trim()?.replace("\"", "") ?: "0"
-                        val exerciseName = row[exerciseNameColumn].trim().replace("\"", "")
-                        val weightStr = row[weightColumn].trim().replace("\"", "")
-                        val repsStr = row[repsColumn].trim().replace("\"", "")
+                     try {
+                         val workoutNumber = row[0].trim().replace("\"", "")
+                         val dateStr = row[timeColumn].trim().replace("\"", "")
+                         android.util.Log.d("WorkoutRepository", "Parsed CSV date string: '$dateStr'")
+                         val durationStr =
+                             row.getOrNull(durationColumn)?.trim()?.replace("\"", "") ?: "0"
+                         val exerciseName = row[exerciseNameColumn].trim().replace("\"", "")
+                         val weightStr = row[weightColumn].trim().replace("\"", "")
+                         val repsStr = row[repsColumn].trim().replace("\"", "")
 
-                        if (exerciseName.isBlank()) continue
+                         if (exerciseName.isBlank()) continue
 
-                        val weight = weightStr.toFloatOrNull() ?: 0f
-                        val reps = repsStr.toIntOrNull() ?: 0
-                        val duration = durationStr.toLongOrNull() ?: 0L
+                         val weight = weightStr.toFloatOrNull() ?: 0f
+                         val reps = repsStr.toIntOrNull() ?: 0
+                         val duration = durationStr.toLongOrNull() ?: 0L
 
-                        if (reps <= 0) continue
+                         if (reps <= 0) continue
 
-                        // Parse date - handle various formats
-                        val workoutDate = parseCsvDate(dateStr)
-                        val workoutKey = "${workoutNumber}_${workoutDate}"
+                         // Parse date - handle various formats
+                         val workoutDate = parseCsvDate(dateStr)
+                         android.util.Log.d("WorkoutRepository", "Parsed CSV date -> epoch: ${'$'}workoutDate")
+                         val workoutKey = "${workoutNumber}_${workoutDate}"
 
-                        // Get or create workout
-                        val workoutData = workoutMap.getOrPut(workoutKey) {
-                            mutableMapOf(
-                                "date" to workoutDate,
-                                "duration" to duration,
-                                "exercises" to mutableMapOf<String, MutableList<Pair<Int, Float>>>()
-                            )
-                        }
+                         // Get or create workout
+                         val workoutData = workoutMap.getOrPut(workoutKey) {
+                             mutableMapOf(
+                                 "date" to workoutDate,
+                                 "duration" to duration,
+                                 "exercises" to mutableMapOf<String, MutableList<Pair<Int, Float>>>()
+                             )
+                         }
 
-                        // Update duration if this row has a longer duration (in case of inconsistencies)
-                        val currentDuration = workoutData["duration"] as Long
-                        if (duration > currentDuration) {
-                            workoutData["duration"] = duration
-                        }
+                         // Update duration if this row has a longer duration (in case of inconsistencies)
+                         val currentDuration = workoutData["duration"] as Long
+                         if (duration > currentDuration) {
+                             workoutData["duration"] = duration
+                         }
 
-                        @Suppress("UNCHECKED_CAST") val exercises =
-                            workoutData["exercises"] as MutableMap<String, MutableList<Pair<Int, Float>>>
+                         @Suppress("UNCHECKED_CAST") val exercises =
+                             workoutData["exercises"] as MutableMap<String, MutableList<Pair<Int, Float>>>
                         val sets = exercises.getOrPut(exerciseName) { mutableListOf() }
                         sets.add(Pair(reps, weight))
 
@@ -293,8 +312,10 @@ class WorkoutRepository(private val context: Context) {
                     if (exercises.isEmpty()) continue
 
                     // Create workout with duration
-                    val workout = Workout(date = date, durationSeconds = duration)
+                    val workout = Workout(date = date, durationSeconds = duration, startTime = date)
                     val workoutId = dao.insertWorkout(workout)
+                    // Log inserted workout details for verification (human-readable + epoch)
+                    android.util.Log.d("WorkoutRepository", "Inserted workout id=$workoutId date=${Date(date)} (epoch=$date)")
 
                     // Add exercises and sets
                     for ((exerciseName, sets) in exercises) {
@@ -416,7 +437,7 @@ class WorkoutRepository(private val context: Context) {
 
                     if (exercises.isEmpty()) continue
 
-                    val workout = Workout(date = date, durationSeconds = duration)
+                    val workout = Workout(date = date, durationSeconds = duration, startTime = date)
                     val workoutId = dao.insertWorkout(workout)
 
                     for ((exerciseName, sets) in exercises) {
@@ -482,12 +503,63 @@ class WorkoutRepository(private val context: Context) {
     }
 
     private fun parseCsvDate(dateStr: String): Long {
+        // First, try java.time parsing for ISO and timezone-aware values (best-effort).
+        try {
+            // Try OffsetDateTime (handles offsets like +01:00 and Z)
+            val odt = java.time.OffsetDateTime.parse(dateStr)
+            return odt.toInstant().toEpochMilli()
+        } catch (_: Exception) {
+            // ignore and continue
+        }
+
+        try {
+            // Try common ISO local date-time (handles both 'T' and space separators)
+            val isoCandidates = listOf(
+                java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+            )
+            for (fmt in isoCandidates) {
+                try {
+                    val ldt = java.time.LocalDateTime.parse(dateStr, fmt)
+                    val zdt = ldt.atZone(java.time.ZoneId.systemDefault())
+                    return zdt.toInstant().toEpochMilli()
+                } catch (_: Exception) {
+                    // try next
+                }
+            }
+        } catch (_: Exception) {
+            // ignore and continue to other patterns
+        }
+
+        // Try other common patterns with java.time (day-first, month-first with time)
+        val javaTimePatterns = listOf(
+            "dd/MM/yyyy HH:mm:ss",
+            "MM/dd/yyyy HH:mm:ss",
+            "dd-MM-yyyy HH:mm:ss",
+            "yyyy/MM/dd HH:mm:ss"
+        )
+        for (p in javaTimePatterns) {
+            try {
+                val fmt = java.time.format.DateTimeFormatter.ofPattern(p)
+                val ldt = java.time.LocalDateTime.parse(dateStr, fmt)
+                val zdt = ldt.atZone(java.time.ZoneId.systemDefault())
+                return zdt.toInstant().toEpochMilli()
+            } catch (_: Exception) {
+                // next
+            }
+        }
+
+        // Fallback to legacy SimpleDateFormat list (as before) for broader compatibility
         val formats = listOf(
             SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()),
             SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()),
+            SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()),
             SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()),
+            SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.getDefault()),
             SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()),
+            SimpleDateFormat("dd-MM-yyyy HH:mm:ss", Locale.getDefault()),
             SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()),
+            SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault()),
             SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
         )
 

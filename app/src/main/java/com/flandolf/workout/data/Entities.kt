@@ -6,7 +6,7 @@ import androidx.room.*
 data class Workout(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: Long = System.currentTimeMillis(),
-    val startTime: Long = System.currentTimeMillis(),
+    val startTime: Long,
     val durationSeconds: Long = 0,
     // Firestore document ID mapping for sync
     val firestoreId: String? = null
