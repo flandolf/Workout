@@ -308,46 +308,34 @@ class MainActivity : ComponentActivity() {
                 val repo = WorkoutRepository(applicationContext)
                 val exportedFile = repo.exportCsv(file)
 
-                // Show success message and offer to share
-                runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "CSV exported to Downloads: $fileName",
-                        Toast.LENGTH_LONG
-                    ).show()
+                Toast.makeText(
+                    this@MainActivity,
+                    "CSV exported to Downloads: $fileName",
+                    Toast.LENGTH_LONG
+                ).show()
 
-                    // Create share intent
-                    val shareIntent =
-                        Intent(Intent.ACTION_SEND).apply {
-                            type = "text/csv"
-                            putExtra(
-                                Intent.EXTRA_STREAM,
-                                FileProvider.getUriForFile(
-                                    this@MainActivity,
-                                    "${applicationContext.packageName}.fileprovider",
-                                    exportedFile
-                                )
-                            )
-                            putExtra(Intent.EXTRA_SUBJECT, "Workout Data Export")
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-
-                    // Show share dialog
-                    startActivity(
-                        Intent.createChooser(
-                            shareIntent, "Share CSV Export"
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/csv"
+                    putExtra(
+                        Intent.EXTRA_STREAM,
+                        FileProvider.getUriForFile(
+                            this@MainActivity,
+                            "${applicationContext.packageName}.fileprovider",
+                            exportedFile
                         )
                     )
+                    putExtra(Intent.EXTRA_SUBJECT, "Workout Data Export")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
+
+                startActivity(Intent.createChooser(shareIntent, "Share CSV Export"))
             } catch (e: Exception) {
                 e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Export failed: ${e.localizedMessage ?: "Unknown error"}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+                Toast.makeText(
+                    this@MainActivity,
+                    "Export failed: ${e.localizedMessage ?: "Unknown error"}",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }

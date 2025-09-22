@@ -82,6 +82,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
 
@@ -223,9 +224,11 @@ fun WorkoutScreen(
                         }
 
                         // End workout button: check for incomplete sets before allowing
-                        val hasIncompleteSets = remember(currentExercises) {
-                            currentExercises.any { ex ->
-                                ex.sets.isEmpty() || ex.sets.any { s -> s.reps <= 0 }
+                        val hasIncompleteSets by remember(currentExercises) {
+                            derivedStateOf {
+                                currentExercises.any { ex ->
+                                    ex.sets.isEmpty() || ex.sets.any { s -> s.reps <= 0 }
+                                }
                             }
                         }
 
@@ -270,9 +273,10 @@ fun WorkoutScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val commonExercises = CommonExercises().exercises
-                        val combinedSuggestions =
+                        val commonExercises = remember { CommonExercises().exercises }
+                        val combinedSuggestions = remember(exerciseNameSuggestions) {
                             (commonExercises + exerciseNameSuggestions).distinct()
+                        }
                         var showSuggestions by remember { mutableStateOf(false) }
 
                         Box(modifier = Modifier.weight(1f)) {
@@ -348,12 +352,14 @@ fun WorkoutScreen(
                 val listState = rememberLazyListState()
                 Spacer(modifier = Modifier.height(8.dp))
                 // Always render exercises sorted by position, then id
-                val sortedExercises = remember(currentExercises) {
-                    currentExercises.sortedWith(
-                        compareBy(
-                            { it.exercise.position },
-                            { it.exercise.id })
-                    )
+                val sortedExercises by remember(currentExercises) {
+                    derivedStateOf {
+                        currentExercises.sortedWith(
+                            compareBy(
+                                { it.exercise.position },
+                                { it.exercise.id })
+                        )
+                    }
                 }
                 LazyColumn(
                     state = listState,
@@ -499,10 +505,10 @@ fun WorkoutScreen(
                                             val prefillReps = lastSet?.reps?.toString() ?: ""
                                             val prefillWeight = lastSet?.weight?.toString() ?: ""
 
-                                            var repsText by remember("reps_${ex.exercise.id}") {
+                                            var repsText by remember(ex.exercise.id) {
                                                 mutableStateOf("")
                                             }
-                                            var weightText by remember("weight_${ex.exercise.id}") {
+                                            var weightText by remember(ex.exercise.id) {
                                                 mutableStateOf("")
                                             }
 

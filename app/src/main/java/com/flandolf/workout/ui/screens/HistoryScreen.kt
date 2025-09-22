@@ -39,8 +39,8 @@ fun HistoryScreen(
     LaunchedEffect(Unit) {
         viewModel?.loadWorkouts()
     }
-    val df = SimpleDateFormat("dd/MM/yy", Locale.getDefault())
-    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val df = remember { SimpleDateFormat("dd/MM/yy", Locale.getDefault()) }
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     // State for delete confirmation dialog
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -148,8 +148,10 @@ fun HistoryScreen(
 
                                 // Exercises list (respect saved exercise order)
                                 Column(modifier = Modifier.fillMaxWidth()) {
-                                    val sortedExercises = remember(w.exercises) {
-                                        w.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+                                    val sortedExercises by remember(w.exercises) {
+                                        derivedStateOf {
+                                            w.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+                                        }
                                     }
                                     for (ex in sortedExercises) {
                                         val best = ex.sets.maxWithOrNull(

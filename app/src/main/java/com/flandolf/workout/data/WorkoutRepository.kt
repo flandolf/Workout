@@ -80,7 +80,7 @@ class WorkoutRepository(private val context: Context) {
      * - Weight, reps, and calculated volume for each set
      * - Proper CSV escaping for special characters
      */
-    suspend fun exportCsv(file: File): File {
+    suspend fun exportCsv(file: File): File = withContext(Dispatchers.IO) {
         val workouts = getAllWorkouts()
         FileWriter(file).use { writer ->
             // Enhanced CSV header with more useful information
@@ -114,7 +114,7 @@ class WorkoutRepository(private val context: Context) {
                 }
             }
         }
-        return file
+        file
     }
 
     private fun escapeCsv(value: String): String {

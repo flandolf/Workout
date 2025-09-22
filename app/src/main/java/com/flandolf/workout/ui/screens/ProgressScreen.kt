@@ -33,29 +33,31 @@ fun ProgressScreen(
     }
 
     // Aggregate total reps, sets, and weight lifted per exercise name
-    val totals = remember(workouts) {
-        val map = mutableMapOf<String, Triple<Int, Int, Float>>() // name -> (reps, sets, kg)
-        var totalKgLifted = 0f
-        var totalReps = 0
+    val totals by remember(workouts) {
+        derivedStateOf {
+            val map = mutableMapOf<String, Triple<Int, Int, Float>>() // name -> (reps, sets, kg)
+            var totalKgLifted = 0f
+            var totalReps = 0
 
-        for (w in workouts) {
-            for (ex in w.exercises) {
-                val (oldReps, oldSets, oldKg) = map.getOrDefault(ex.exercise.name, Triple(0, 0, 0f))
-                var exerciseReps = 0
-                var exerciseKg = 0f
+            for (w in workouts) {
+                for (ex in w.exercises) {
+                    val (oldReps, oldSets, oldKg) = map.getOrDefault(ex.exercise.name, Triple(0, 0, 0f))
+                    var exerciseReps = 0
+                    var exerciseKg = 0f
 
-                for (s in ex.sets) {
-                    exerciseReps += s.reps
-                    exerciseKg += s.reps * s.weight
+                    for (s in ex.sets) {
+                        exerciseReps += s.reps
+                        exerciseKg += s.reps * s.weight
+                    }
+
+                    map[ex.exercise.name] =
+                        Triple(oldReps + exerciseReps, oldSets + ex.sets.size, oldKg + exerciseKg)
+                    totalReps += exerciseReps
+                    totalKgLifted += exerciseKg
                 }
-
-                map[ex.exercise.name] =
-                    Triple(oldReps + exerciseReps, oldSets + ex.sets.size, oldKg + exerciseKg)
-                totalReps += exerciseReps
-                totalKgLifted += exerciseKg
             }
+            map to Pair(totalKgLifted, totalReps)
         }
-        map to Pair(totalKgLifted, totalReps)
     }
 
     val (exerciseTotals, lifetimeStats) = totals
@@ -196,7 +198,8 @@ fun ProgressScreen(
                 }
 
                 // Workouts per Week Chart
-                val workoutsPerWeek = remember(workouts) {
+                val workoutsPerWeek by remember(workouts) {
+                    derivedStateOf {
                     val calendar = Calendar.getInstance()
                     val weekMap = mutableMapOf<String, Int>()
 
@@ -216,7 +219,8 @@ fun ProgressScreen(
                         .sortedBy { it.key }
                         .map { it.key.takeLast(3) to it.value.toFloat() } // Just show W01, W02, etc.
 
-                    sortedWeeks
+                        sortedWeeks
+                    }
                 }
 
                 if (workoutsPerWeek.isNotEmpty()) {
