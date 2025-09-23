@@ -37,8 +37,12 @@ import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.EditWorkoutViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.FlowPreview
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, FlowPreview::class)
 @Composable
 fun EditWorkoutScreen(
     workout: List<ExerciseWithSets>,
@@ -106,23 +110,88 @@ fun EditWorkoutScreen(
             AnimatedVisibility(visible = addExerciseVisible) {
                 Column(Modifier.fillMaxWidth()) {
                     val commonExercises = CommonExercises().exercises
-                    var suggestions by remember { mutableStateOf<List<String>>(emptyList()) }
 
+                    // Cache suggestions from the DB once and keep them in a state container.
+                    val suggestionsState = remember { mutableStateOf<List<String>>(emptyList()) }
                     LaunchedEffect(Unit) {
+                        // load suggestions once; vm will call back with the list
                         vm.loadExerciseNameSuggestions { fromDb ->
-                            suggestions = (commonExercises + fromDb).distinct()
+                            // merge once and keep stable order; distinct to avoid duplicates
+                            suggestionsState.value = (commonExercises + fromDb).distinct()
                         }
                     }
 
+                    // --- Debounced filtering to avoid dropdown flicker while typing ---
+                    // Precompute lowercase pairs to avoid repeated lowercasing of suggestions while typing.
+                    val combinedSuggestionsList = remember(suggestionsState.value) {
+                        (commonExercises + suggestionsState.value).distinct()
+                    }
+                    val combinedLowercase = remember(combinedSuggestionsList) {
+                        combinedSuggestionsList.map { it to it.lowercase() }
+                    }
+
+                    // A small mutable list that will be populated by the debounced collector.
+                    val filteredSuggestionsState = remember { mutableStateListOf<String>() }
+
+                    // Local control for whether the dropdown should be visible.
                     var showDropdown by remember { mutableStateOf(false) }
+
+                    // Debounce input and update filteredSuggestionsState after the user pauses typing.
+                    LaunchedEffect(combinedLowercase) {
+                        snapshotFlow { newExerciseName.trim() }
+                            .debounce(250)
+                            .collectLatest { query ->
+                                filteredSuggestionsState.clear()
+                                if (query.length < 2) {
+                                    showDropdown = false
+                                    return@collectLatest
+                                }
+                                val term = query.lowercase()
+                                var added = 0
+                                for ((orig, low) in combinedLowercase) {
+                                    if (low.contains(term)) {
+                                        filteredSuggestionsState.add(orig)
+                                        added++
+                                        if (added >= 6) break
+                                    }
+                                }
+                                // Only show the dropdown if the query we filtered for still matches
+                                // the current input. Add a short confirmation delay to avoid
+                                // reopening the dropdown when the user continues typing quickly
+                                // after the debounce interval.
+                                val current = newExerciseName.trim()
+                                if (current == query) {
+                                    // Double-check stability: wait a short moment and make sure
+                                    // the input hasn't changed before showing. This prevents
+                                    // brief flashes/pops while the user types.
+                                    kotlinx.coroutines.delay(100)
+                                    if (newExerciseName.trim() == query) {
+                                        showDropdown = filteredSuggestionsState.isNotEmpty()
+                                    } else {
+                                        showDropdown = false
+                                    }
+                                } else {
+                                    // User continued typing since the debounced value was captured.
+                                    // Defer showing until the next debounce cycle completes.
+                                    showDropdown = false
+                                }
+                            }
+                    }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(modifier = Modifier.weight(1f)) {
                             OutlinedTextField(
                                 value = newExerciseName,
                                 onValueChange = {
+                                    // Update typed text immediately and hide the dropdown right away to
+                                    // avoid it popping open while the user is still typing. The
+                                    // debounced collector will repopulate and open it after the
+                                    // user pauses for the debounce duration.
                                     newExerciseName = it
-                                    showDropdown = it.trim().length >= 2
+                                    // Immediately hide any visible dropdown for a smoother typing UX
+                                    showDropdown = false
+                                    // Clear stale results; the debounced collector will fill this when ready
+                                    filteredSuggestionsState.clear()
                                 },
                                 label = { Text("Exercise name") },
                                 singleLine = true,
@@ -130,12 +199,13 @@ fun EditWorkoutScreen(
                             )
 
                             DropdownMenu(
-                                expanded = showDropdown && suggestions.any { it.contains(newExerciseName, true) },
+                                expanded = showDropdown && filteredSuggestionsState.isNotEmpty(),
                                 onDismissRequest = { showDropdown = false },
                                 modifier = Modifier.fillMaxWidth(),
                                 properties = PopupProperties(focusable = false)
                             ) {
-                                suggestions.filter { it.contains(newExerciseName, true) }.forEach { s ->
+                                // Render the precomputed, debounced list
+                                filteredSuggestionsState.forEach { s ->
                                     DropdownMenuItem(text = { Text(s) }, onClick = {
                                         newExerciseName = s
                                         showDropdown = false
