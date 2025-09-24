@@ -19,3 +19,16 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Project-specific ProGuard/R8 rules
+
+# Keep Firestore model classes used for serialization/deserialization
+-keep class com.flandolf.workout.data.sync.FSSet { *; }
+-keep class com.flandolf.workout.data.sync.FSExercise { *; }
+-keep class com.flandolf.workout.data.sync.FirestoreWorkout { *; }
+
+# Keep annotations (e.g., @DocumentId, @ServerTimestamp)
+-keepattributes *Annotation*
+
+# Optional: Keep Kotlin metadata (helps with reflection on data classes)
+-keepclassmembers class kotlin.Metadata { *; }
