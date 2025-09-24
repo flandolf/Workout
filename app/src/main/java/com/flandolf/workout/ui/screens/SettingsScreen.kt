@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,7 +63,8 @@ fun SettingsScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .padding(bottom = 80.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
         ) {
             item {
                 if (syncViewModel != null && syncUiState != null) {
@@ -70,31 +72,7 @@ fun SettingsScreen(
                         text = "Cloud Sync",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .padding(bottom = 8.dp)
                     )
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        ListItem(
-                            headlineContent = { Text("Sync Settings", fontSize = 18.sp) },
-                            supportingContent = {
-                                Text("Manage cloud synchronization and backup for your workout data across devices.")
-                            },
-                            leadingContent = {
-                                Icon(
-                                    imageVector = Icons.Default.CloudSync,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Inline sync settings
                     SyncSettingsScreen(
                         syncUiState,
                         syncViewModel,
@@ -102,8 +80,6 @@ fun SettingsScreen(
                         { syncViewModel.hideAuthDialog() },
                         onManualSync
                     )
-
-                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
             item {
@@ -111,104 +87,47 @@ fun SettingsScreen(
                     text = "General",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .padding(bottom = 8.dp)
                 )
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    ListItem(
-                        headlineContent = { Text("Export Workout Data", fontSize = 18.sp) },
-                        supportingContent = {
-                            Text("Export all workouts as CSV file with detailed set information, volume calculations, and timestamps. File will be saved to Downloads and shared for easy access.")
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        modifier = Modifier.clickable { onExportCsv() }
-                    )
-                }
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    ListItem(
-                        headlineContent = { Text("Import Strong Data", fontSize = 18.sp) },
-                        supportingContent = {
-                            Text("Import workouts from Strong App. This will add the workouts to your existing data without creating duplicates.")
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Upload,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        modifier = Modifier.clickable { onImportStrongCsv() }
-                    )
-                }
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    ListItem(
-                        headlineContent = { Text("Import Workout Data", fontSize = 18.sp) },
-                        supportingContent = {
-                            Text("Import workouts from this app. This will add the workouts to your existing data without creating duplicates.")
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Upload,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        modifier = Modifier.clickable { onImportWorkoutCsv() }
-                    )
-                }
             }
             item {
+                SettingsCard(
+                    action = onExportCsv,
+                    icon = Icons.Default.Download,
+                    title = "Export Workout Data",
+                    description = "Export all your workout data to a CSV file. This can be imported back into the app later."
+                )
+            }
+            item {
+                SettingsCard(
+                    action = onImportStrongCsv,
+                    icon = Icons.Default.Upload,
+                    title = "Import from Strong App",
+                    description = "Import workouts from the Strong app using a CSV export from Strong. This will add the workouts to your existing data without creating duplicates."
+                )
+            }
+            item {
+                SettingsCard(
+                    action = onImportWorkoutCsv,
+                    icon = Icons.Default.Upload,
+                    title = "Import from Workout App",
+                    description = "Import workouts from the Workout app using a CSV export from Workout. This will add the workouts to your existing data without creating duplicates."
+                )
+            }
+            item{
                 Text(
                     text = "Danger Zone",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .padding(bottom = 8.dp)
+                    color = MaterialTheme.colorScheme.error
                 )
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                ) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                "Reset All Data",
-                                fontSize = 18.sp,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                "This will permanently delete all your workouts and exercises from this device. Cloud data will remain if you're signed in.",
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        },
-                        modifier = Modifier.clickable { showResetDialog.value = true }
-                    )
-                }
+            }
+            item {
+                SettingsCard(
+                    action = { showResetDialog.value = true },
+                    icon = Icons.Default.Delete,
+                    title = "Reset All Data",
+                    description = "Permanently delete all workout data from this device. This action cannot be undone.",
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
 
@@ -241,5 +160,34 @@ fun SettingsScreen(
                 }
             )
         }
+    }
+}
+
+@Composable
+fun SettingsCard(
+    action: () -> Unit,
+    icon: ImageVector,
+    title: String,
+    description: String,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        ListItem(
+            headlineContent = { Text(title, fontSize = 18.sp) },
+            supportingContent = {
+                Text(description)
+            },
+            leadingContent = {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color
+                )
+            },
+            modifier = Modifier.clickable { action() }
+        )
     }
 }

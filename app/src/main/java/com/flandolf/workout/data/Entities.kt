@@ -52,6 +52,16 @@ data class SetEntity(
     val firestoreId: String? = null
 )
 
+@Entity(tableName = "templates", indices = [Index(value = ["firestoreId"], unique = true)])
+data class Templates(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val date: Long = System.currentTimeMillis(),
+    val startTime: Long,
+    val durationSeconds: Long = 0,
+    val firestoreId: String? = null
+)
+
 data class ExerciseWithSets(
     @Embedded val exercise: ExerciseEntity,
     @Relation(parentColumn = "id", entityColumn = "exerciseId") val sets: List<SetEntity>

@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Workout::class, ExerciseEntity::class, SetEntity::class], version = 5)
+@Database(entities = [Workout::class, ExerciseEntity::class, SetEntity::class], version = 6)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao
 
@@ -27,11 +27,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // add templates table
+                db.execSQL("CREATE TABLE IF NOT EXISTS `templates` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `date` INTEGER NOT NULL, `startTime` INTEGER NOT NULL, `firestoreId` TEXT)")
+                // add index to templates.firestoreId
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_templates_firestoreId` ON `templates` (`firestoreId`)")
+            }
+        }
+
         fun getInstance(context: Context, allowMainThread: Boolean = false): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val builder = Room.databaseBuilder(
                     context.applicationContext, AppDatabase::class.java, "workout_db"
-                ).addMigrations(MIGRATION_3_4, MIGRATION_4_5)
+                ).addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 val instance = if (allowMainThread) builder.allowMainThreadQueries()
                     .build() else builder.build()
                 INSTANCE = instance
