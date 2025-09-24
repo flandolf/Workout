@@ -15,9 +15,7 @@ android {
         applicationId = "com.flandolf.workout"
         minSdk = 34
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.1"
-
+        versionName = "1.55"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

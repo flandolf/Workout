@@ -52,14 +52,19 @@ data class SetEntity(
     val firestoreId: String? = null
 )
 
-@Entity(tableName = "templates", indices = [Index(value = ["firestoreId"], unique = true)])
-data class Templates(
+@Entity(tableName = "templates", indices = [Index(value = ["id"], unique = true)])
+data class Template(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val date: Long = System.currentTimeMillis(),
-    val startTime: Long,
-    val durationSeconds: Long = 0,
-    val firestoreId: String? = null
+)
+
+data class TemplateWithExercises(
+    @Embedded val template: Template,
+    @Relation(
+        entity = ExerciseEntity::class,
+        parentColumn = "id",
+        entityColumn = "workoutId"
+    ) val exercises: List<ExerciseWithSets>
 )
 
 data class ExerciseWithSets(

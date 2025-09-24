@@ -5,6 +5,7 @@ import android.util.Log
 import com.flandolf.workout.data.AppDatabase
 import com.flandolf.workout.data.ExerciseEntity
 import com.flandolf.workout.data.SetEntity
+import com.flandolf.workout.data.Template
 import com.flandolf.workout.data.Workout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -62,7 +63,7 @@ class SyncRepository(
     /**
      * Initialize sync repository; does not auto-run full sync to honor on-demand syncing.
      */
-    suspend fun initialize() {
+    fun initialize() {
         if (isInitialized) return
 
         try {
@@ -336,6 +337,13 @@ class SyncRepository(
     }
 
     /**
+     * Sync Template
+     */
+    suspend fun syncTemplate(template: Template) {
+        // No-op for now; templates not yet supported in Firestore sync
+    }
+
+    /**
      * Delete all Firestore data for the current user (DESTRUCTIVE OPERATION)
      */
     suspend fun nukeFirestoreData() {
@@ -374,26 +382,6 @@ class SyncRepository(
             )
             throw e
         }
-    }
-
-    /**
-     * Setup real-time listeners for live sync
-     */
-    private fun setupRealtimeListeners() {
-        val userId = getCurrentUserId()
-        if (userId.isEmpty()) return
-
-        firestore.collection(COLLECTION_WORKOUTS)
-            .whereEqualTo("userId", userId)
-            .addSnapshotListener { _, e ->
-                if (e != null) {
-                    Log.w(TAG, "Listen failed for workouts", e)
-                    return@addSnapshotListener
-                }
-                Log.d(TAG, "Received real-time workout updates")
-            }
-
-        Log.d(TAG, "Real-time listeners setup complete")
     }
 
     /**

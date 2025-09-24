@@ -37,11 +37,13 @@ import com.flandolf.workout.ui.screens.GraphDetailScreen
 import com.flandolf.workout.ui.screens.HistoryScreen
 import com.flandolf.workout.ui.screens.ProgressScreen
 import com.flandolf.workout.ui.screens.SettingsScreen
+import com.flandolf.workout.ui.screens.TemplateScreen
 import com.flandolf.workout.ui.screens.WorkoutScreen
 import com.flandolf.workout.ui.theme.WorkoutTheme
 import com.flandolf.workout.ui.viewmodel.EditWorkoutViewModel
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import com.flandolf.workout.ui.viewmodel.SyncViewModel
+import com.flandolf.workout.ui.viewmodel.TemplateViewModel
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.launch
 import java.io.File
@@ -54,6 +56,7 @@ class MainActivity : ComponentActivity() {
     private val historyVm: HistoryViewModel by viewModels()
     private val syncVm: SyncViewModel by viewModels()
     private val editVm: EditWorkoutViewModel by viewModels()
+    private val templateVm: TemplateViewModel by viewModels()
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -251,6 +254,11 @@ class MainActivity : ComponentActivity() {
                                     editVm.deleteSet(exId, setIndex)
                                 },
                                 vm = editVm
+                            )
+                        }
+                        composable("templates") {
+                            TemplateScreen(
+                                vm = templateVm,
                             )
                         }
                         composable("settings") {

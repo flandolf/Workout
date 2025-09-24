@@ -1,14 +1,10 @@
 package com.flandolf.workout.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Upload
@@ -113,7 +109,7 @@ fun SettingsScreen(
                     description = "Import workouts from the Workout app using a CSV export from Workout. This will add the workouts to your existing data without creating duplicates."
                 )
             }
-            item{
+            item {
                 Text(
                     text = "Danger Zone",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),

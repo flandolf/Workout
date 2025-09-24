@@ -1,8 +1,9 @@
 package com.flandolf.workout.ui.components
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -19,10 +20,11 @@ data class NavigationItem(
 )
 
 val navigationItems = listOf(
-    NavigationItem("workout", Icons.Filled.FitnessCenter, "Workout"),
+    NavigationItem("workout", Icons.Filled.Add, "Workout"),
     NavigationItem("history", Icons.Filled.History, "History"),
     NavigationItem("progress", Icons.Filled.BarChart, "Progress"),
-    NavigationItem("settings", Icons.Filled.Settings, "Settings")
+    NavigationItem("templates", Icons.Filled.AutoAwesome, "Templates"),
+    NavigationItem("settings", Icons.Filled.Settings, "Settings"),
 )
 
 @Composable
