@@ -67,7 +67,8 @@ fun ExerciseDetailScreen(
                 val workoutReps = exercise.sets.sumOf { it.reps }
                 // Use float math for volume: reps * weight (weight is Float). Avoid converting to Int
                 // which truncates decimal weight and causes the mismatch.
-                val workoutVolume = exercise.sets.sumOf { (it.reps * it.weight).toDouble() }.toFloat()
+                val workoutVolume =
+                    exercise.sets.sumOf { (it.reps * it.weight).toDouble() }.toFloat()
                 val workoutBestWeight = exercise.sets.maxOf { it.weight }
                 val workoutBestReps = exercise.sets.maxOf { it.reps }
 

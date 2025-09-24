@@ -24,19 +24,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.flandolf.workout.ui.screens.*
-import com.flandolf.workout.ui.theme.WorkoutTheme
-import com.flandolf.workout.ui.viewmodel.HistoryViewModel
-import androidx.lifecycle.lifecycleScope
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.sync.AuthState
 import com.flandolf.workout.ui.components.BottomNavigationBar
-import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
-import com.flandolf.workout.ui.viewmodel.SyncViewModel
+import com.flandolf.workout.ui.screens.EditWorkoutScreen
+import com.flandolf.workout.ui.screens.ExerciseDetailScreen
+import com.flandolf.workout.ui.screens.GraphDetailScreen
+import com.flandolf.workout.ui.screens.HistoryScreen
+import com.flandolf.workout.ui.screens.ProgressScreen
+import com.flandolf.workout.ui.screens.SettingsScreen
+import com.flandolf.workout.ui.screens.WorkoutScreen
+import com.flandolf.workout.ui.theme.WorkoutTheme
 import com.flandolf.workout.ui.viewmodel.EditWorkoutViewModel
+import com.flandolf.workout.ui.viewmodel.HistoryViewModel
+import com.flandolf.workout.ui.viewmodel.SyncViewModel
+import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -114,7 +120,12 @@ class MainActivity : ComponentActivity() {
                                         exerciseId, reps, weight
                                     )
                                 },
-                                onDeleteSet = { exerciseId, setIndex -> workoutVm.deleteSet(exerciseId, setIndex) },
+                                onDeleteSet = { exerciseId, setIndex ->
+                                    workoutVm.deleteSet(
+                                        exerciseId,
+                                        setIndex
+                                    )
+                                },
                                 onDeleteExercise = { workoutVm.deleteExercise(it) },
                                 exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
                                 isTimerRunning = isTimerRunning.value,

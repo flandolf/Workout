@@ -1,6 +1,11 @@
 package com.flandolf.workout.data
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
 
 @Dao
 interface WorkoutDao {
@@ -63,7 +68,8 @@ interface WorkoutDao {
     @Query("SELECT DISTINCT name FROM exercises ORDER BY name")
     suspend fun getDistinctExerciseNames(): List<String>
 
-    @Query("""
+    @Query(
+        """
         SELECT s.* FROM sets s 
         INNER JOIN exercises e ON s.exerciseId = e.id 
         INNER JOIN workouts w ON e.workoutId = w.id 
@@ -71,7 +77,8 @@ interface WorkoutDao {
         AND w.id != :currentWorkoutId
         ORDER BY w.date DESC, (s.weight * s.reps) DESC 
         LIMIT 1
-    """)
+    """
+    )
     suspend fun getBestSetFromLastWorkout(exerciseName: String, currentWorkoutId: Long): SetEntity?
 
     // New helpers for sync-down rebuild from nested FS doc

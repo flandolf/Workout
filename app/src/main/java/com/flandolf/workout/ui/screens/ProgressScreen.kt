@@ -1,24 +1,46 @@
 package com.flandolf.workout.ui.screens
 
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
 import com.flandolf.workout.data.formatWeight
-import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import com.flandolf.workout.ui.components.BarChart
-import java.util.*
+import com.flandolf.workout.ui.viewmodel.HistoryViewModel
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,7 +63,10 @@ fun ProgressScreen(
 
             for (w in workouts) {
                 for (ex in w.exercises) {
-                    val (oldReps, oldSets, oldKg) = map.getOrDefault(ex.exercise.name, Triple(0, 0, 0f))
+                    val (oldReps, oldSets, oldKg) = map.getOrDefault(
+                        ex.exercise.name,
+                        Triple(0, 0, 0f)
+                    )
                     var exerciseReps = 0
                     var exerciseKg = 0f
 
@@ -200,24 +225,24 @@ fun ProgressScreen(
                 // Workouts per Week Chart
                 val workoutsPerWeek by remember(workouts) {
                     derivedStateOf {
-                    val calendar = Calendar.getInstance()
-                    val weekMap = mutableMapOf<String, Int>()
+                        val calendar = Calendar.getInstance()
+                        val weekMap = mutableMapOf<String, Int>()
 
-                    workouts.forEach { workout ->
-                        calendar.timeInMillis = workout.workout.date
-                        val weekOfYear = calendar.get(Calendar.WEEK_OF_YEAR)
-                        val year = calendar.get(Calendar.YEAR)
-                        val weekKey = "$year-W${weekOfYear.toString().padStart(2, '0')}"
+                        workouts.forEach { workout ->
+                            calendar.timeInMillis = workout.workout.date
+                            val weekOfYear = calendar.get(Calendar.WEEK_OF_YEAR)
+                            val year = calendar.get(Calendar.YEAR)
+                            val weekKey = "$year-W${weekOfYear.toString().padStart(2, '0')}"
 
-                        weekMap[weekKey] = weekMap.getOrDefault(weekKey, 0) + 1
-                    }
+                            weekMap[weekKey] = weekMap.getOrDefault(weekKey, 0) + 1
+                        }
 
-                    // Get last 8 weeks
-                    val sortedWeeks = weekMap.entries
-                        .sortedByDescending { it.key }
-                        .take(8)
-                        .sortedBy { it.key }
-                        .map { it.key.takeLast(3) to it.value.toFloat() } // Just show W01, W02, etc.
+                        // Get last 8 weeks
+                        val sortedWeeks = weekMap.entries
+                            .sortedByDescending { it.key }
+                            .take(8)
+                            .sortedBy { it.key }
+                            .map { it.key.takeLast(3) to it.value.toFloat() } // Just show W01, W02, etc.
 
                         sortedWeeks
                     }

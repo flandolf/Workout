@@ -81,7 +81,8 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
     fun moveExerciseUp(exerciseId: Long) {
         viewModelScope.launch {
             val w = _workout.value ?: return@launch
-            val sorted = w.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+            val sorted =
+                w.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
 
             // Normalize positions to be sequential
             var changed = false
@@ -92,7 +93,11 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
             val refreshed = if (changed) workoutId?.let { repo.getWorkout(it) } else w
-            val list = refreshed?.exercises?.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id })) ?: return@launch
+            val list = refreshed?.exercises?.sortedWith(
+                compareBy(
+                    { it.exercise.position },
+                    { it.exercise.id })
+            ) ?: return@launch
 
             val index = list.indexOfFirst { it.exercise.id == exerciseId }
             if (index > 0) {
@@ -110,7 +115,8 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
     fun moveExerciseDown(exerciseId: Long) {
         viewModelScope.launch {
             val w = _workout.value ?: return@launch
-            val sorted = w.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+            val sorted =
+                w.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
 
             // Normalize positions to be sequential
             var changed = false
@@ -121,7 +127,11 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
             val refreshed = if (changed) workoutId?.let { repo.getWorkout(it) } else w
-            val list = refreshed?.exercises?.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id })) ?: return@launch
+            val list = refreshed?.exercises?.sortedWith(
+                compareBy(
+                    { it.exercise.position },
+                    { it.exercise.id })
+            ) ?: return@launch
 
             val index = list.indexOfFirst { it.exercise.id == exerciseId }
             if (index >= 0 && index < list.lastIndex) {

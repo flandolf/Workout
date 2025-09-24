@@ -3,10 +3,10 @@ package com.flandolf.workout.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.sync.AuthRepository
 import com.flandolf.workout.data.sync.AuthState
 import com.flandolf.workout.data.sync.SyncStatus
-import com.flandolf.workout.data.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -38,7 +38,8 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 // Determine whether a sync is currently in progress. The repository uses
                 // a sentinel value (-1) for pendingUploads/pendingDownloads to indicate
                 // an ongoing sync.
-                val isSyncingNow = syncStatus.pendingUploads == -1 || syncStatus.pendingDownloads == -1
+                val isSyncingNow =
+                    syncStatus.pendingUploads == -1 || syncStatus.pendingDownloads == -1
 
                 // Preserve previous start time if a sync was already running; otherwise
                 // set start time when sync begins and reset to 0 when it ends.

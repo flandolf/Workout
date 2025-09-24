@@ -2,12 +2,13 @@ package com.flandolf.workout.data
 
 import android.content.Context
 import com.flandolf.workout.data.sync.SyncRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
-import java.util.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import java.util.Date
+import java.util.Locale
 
 class WorkoutRepository(private val context: Context) {
     private val db by lazy { AppDatabase.getInstance(context) }
@@ -47,7 +48,13 @@ class WorkoutRepository(private val context: Context) {
     suspend fun addExercise(workoutId: Long, name: String): Long {
         val maxPos = dao.getMaxPositionForWorkout(workoutId)
         val nextPos = maxPos + 1
-        return dao.insertExercise(ExerciseEntity(workoutId = workoutId, name = name, position = nextPos))
+        return dao.insertExercise(
+            ExerciseEntity(
+                workoutId = workoutId,
+                name = name,
+                position = nextPos
+            )
+        )
     }
 
     suspend fun updateExercise(exercise: ExerciseEntity) {
@@ -106,7 +113,8 @@ class WorkoutRepository(private val context: Context) {
                             .append(escapeCsv(durationText)).append(',')
                             .append(escapeCsv(ex.exercise.name)).append(',')
                             .append(setIndex.toString()).append(',').append(s.reps.toString())
-                            .append(',').append(String.format(Locale.US, "%.2f", s.weight)).append(',')
+                            .append(',').append(String.format(Locale.US, "%.2f", s.weight))
+                            .append(',')
                             .append(String.format(Locale.US, "%.2f", volume)).append(',')
                             .append(escapeCsv(notes)).append('\n')
                         setIndex++
@@ -229,7 +237,11 @@ class WorkoutRepository(private val context: Context) {
                 // contains common header tokens, skip it; otherwise start at line 0.
                 var startIndex = 0
                 val firstLine = lines.firstOrNull() ?: ""
-                if (firstLine.contains("Date", ignoreCase = true) || firstLine.contains("Time", ignoreCase = true) || firstLine.contains("Exercise", ignoreCase = true)) {
+                if (firstLine.contains("Date", ignoreCase = true) || firstLine.contains(
+                        "Time",
+                        ignoreCase = true
+                    ) || firstLine.contains("Exercise", ignoreCase = true)
+                ) {
                     startIndex = 1
                 }
 
@@ -247,49 +259,58 @@ class WorkoutRepository(private val context: Context) {
                         rowSemicolon.size >= rowComma.size -> rowSemicolon
                         else -> rowComma
                     }
-                    android.util.Log.d("WorkoutRepository", "Detected delimiter for line ${i}: ${if (row === rowSemicolon) ";" else ","} (cols=${row.size})")
-                     if (shouldSkipRow(row)) continue
+                    android.util.Log.d(
+                        "WorkoutRepository",
+                        "Detected delimiter for line ${i}: ${if (row === rowSemicolon) ";" else ","} (cols=${row.size})"
+                    )
+                    if (shouldSkipRow(row)) continue
 
-                     try {
-                         val workoutNumber = row[0].trim().replace("\"", "")
-                         val dateStr = row[timeColumn].trim().replace("\"", "")
-                         android.util.Log.d("WorkoutRepository", "Parsed CSV date string: '$dateStr'")
-                         val durationStr =
-                             row.getOrNull(durationColumn)?.trim()?.replace("\"", "") ?: "0"
-                         val exerciseName = row[exerciseNameColumn].trim().replace("\"", "")
-                         val weightStr = row[weightColumn].trim().replace("\"", "")
-                         val repsStr = row[repsColumn].trim().replace("\"", "")
+                    try {
+                        val workoutNumber = row[0].trim().replace("\"", "")
+                        val dateStr = row[timeColumn].trim().replace("\"", "")
+                        android.util.Log.d(
+                            "WorkoutRepository",
+                            "Parsed CSV date string: '$dateStr'"
+                        )
+                        val durationStr =
+                            row.getOrNull(durationColumn)?.trim()?.replace("\"", "") ?: "0"
+                        val exerciseName = row[exerciseNameColumn].trim().replace("\"", "")
+                        val weightStr = row[weightColumn].trim().replace("\"", "")
+                        val repsStr = row[repsColumn].trim().replace("\"", "")
 
-                         if (exerciseName.isBlank()) continue
+                        if (exerciseName.isBlank()) continue
 
-                         val weight = weightStr.toFloatOrNull() ?: 0f
-                         val reps = repsStr.toIntOrNull() ?: 0
-                         val duration = durationStr.toLongOrNull() ?: 0L
+                        val weight = weightStr.toFloatOrNull() ?: 0f
+                        val reps = repsStr.toIntOrNull() ?: 0
+                        val duration = durationStr.toLongOrNull() ?: 0L
 
-                         if (reps <= 0) continue
+                        if (reps <= 0) continue
 
-                         // Parse date - handle various formats
-                         val workoutDate = parseCsvDate(dateStr)
-                         android.util.Log.d("WorkoutRepository", "Parsed CSV date -> epoch: ${'$'}workoutDate")
-                         val workoutKey = "${workoutNumber}_${workoutDate}"
+                        // Parse date - handle various formats
+                        val workoutDate = parseCsvDate(dateStr)
+                        android.util.Log.d(
+                            "WorkoutRepository",
+                            "Parsed CSV date -> epoch: ${'$'}workoutDate"
+                        )
+                        val workoutKey = "${workoutNumber}_${workoutDate}"
 
-                         // Get or create workout
-                         val workoutData = workoutMap.getOrPut(workoutKey) {
-                             mutableMapOf(
-                                 "date" to workoutDate,
-                                 "duration" to duration,
-                                 "exercises" to mutableMapOf<String, MutableList<Pair<Int, Float>>>()
-                             )
-                         }
+                        // Get or create workout
+                        val workoutData = workoutMap.getOrPut(workoutKey) {
+                            mutableMapOf(
+                                "date" to workoutDate,
+                                "duration" to duration,
+                                "exercises" to mutableMapOf<String, MutableList<Pair<Int, Float>>>()
+                            )
+                        }
 
-                         // Update duration if this row has a longer duration (in case of inconsistencies)
-                         val currentDuration = workoutData["duration"] as Long
-                         if (duration > currentDuration) {
-                             workoutData["duration"] = duration
-                         }
+                        // Update duration if this row has a longer duration (in case of inconsistencies)
+                        val currentDuration = workoutData["duration"] as Long
+                        if (duration > currentDuration) {
+                            workoutData["duration"] = duration
+                        }
 
-                         @Suppress("UNCHECKED_CAST") val exercises =
-                             workoutData["exercises"] as MutableMap<String, MutableList<Pair<Int, Float>>>
+                        @Suppress("UNCHECKED_CAST") val exercises =
+                            workoutData["exercises"] as MutableMap<String, MutableList<Pair<Int, Float>>>
                         val sets = exercises.getOrPut(exerciseName) { mutableListOf() }
                         sets.add(Pair(reps, weight))
 
@@ -315,7 +336,10 @@ class WorkoutRepository(private val context: Context) {
                     val workout = Workout(date = date, durationSeconds = duration, startTime = date)
                     val workoutId = dao.insertWorkout(workout)
                     // Log inserted workout details for verification (human-readable + epoch)
-                    android.util.Log.d("WorkoutRepository", "Inserted workout id=$workoutId date=${Date(date)} (epoch=$date)")
+                    android.util.Log.d(
+                        "WorkoutRepository",
+                        "Inserted workout id=$workoutId date=${Date(date)} (epoch=$date)"
+                    )
 
                     // Add exercises and sets
                     for ((exerciseName, sets) in exercises) {

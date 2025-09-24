@@ -6,7 +6,6 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.flandolf.workout.data.ExerciseEntity
 import com.flandolf.workout.data.SetEntity
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.WorkoutWithExercises
@@ -17,7 +16,7 @@ import kotlinx.coroutines.launch
 class WorkoutViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = WorkoutRepository(application.applicationContext)
     private val prefs: SharedPreferences =
-            application.getSharedPreferences("workout_prefs", Context.MODE_PRIVATE)
+        application.getSharedPreferences("workout_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private const val KEY_CURRENT_WORKOUT_ID = "current_workout_id"
@@ -129,12 +128,12 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         timerJob?.cancel()
         _isTimerRunning.value = true
         timerJob =
-                viewModelScope.launch {
-                    while (true) {
-                        kotlinx.coroutines.delay(1000L)
-                        _elapsedSeconds.value = _elapsedSeconds.value + 1
-                    }
+            viewModelScope.launch {
+                while (true) {
+                    kotlinx.coroutines.delay(1000L)
+                    _elapsedSeconds.value = _elapsedSeconds.value + 1
                 }
+            }
     }
 
     fun endWorkout() {
@@ -240,7 +239,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 val previousSets = mutableMapOf<String, SetEntity>()
                 for (exercise in currentWorkout.exercises) {
                     val previousBestSet =
-                            repo.getBestSetFromLastWorkout(exercise.exercise.name, currentWorkoutId)
+                        repo.getBestSetFromLastWorkout(exercise.exercise.name, currentWorkoutId)
                     if (previousBestSet != null) {
                         previousSets[exercise.exercise.name] = previousBestSet
                     }
@@ -292,7 +291,11 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     fun moveExerciseUp(exerciseId: Long) {
         viewModelScope.launch {
             val workout = _currentWorkout.value ?: return@launch
-            val sorted = workout.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+            val sorted = workout.exercises.sortedWith(
+                compareBy(
+                    { it.exercise.position },
+                    { it.exercise.id })
+            )
 
             // Normalize positions to be unique and sequential
             var changed = false
@@ -302,8 +305,13 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                     repo.updateExercise(ex.exercise.copy(position = idx))
                 }
             }
-            val refreshed = if (changed) _currentWorkoutId.value?.let { repo.getWorkout(it) } else workout
-            val list = refreshed?.exercises?.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id })) ?: return@launch
+            val refreshed =
+                if (changed) _currentWorkoutId.value?.let { repo.getWorkout(it) } else workout
+            val list = refreshed?.exercises?.sortedWith(
+                compareBy(
+                    { it.exercise.position },
+                    { it.exercise.id })
+            ) ?: return@launch
 
             val index = list.indexOfFirst { it.exercise.id == exerciseId }
             if (index > 0) {
@@ -321,7 +329,11 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     fun moveExerciseDown(exerciseId: Long) {
         viewModelScope.launch {
             val workout = _currentWorkout.value ?: return@launch
-            val sorted = workout.exercises.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id }))
+            val sorted = workout.exercises.sortedWith(
+                compareBy(
+                    { it.exercise.position },
+                    { it.exercise.id })
+            )
 
             // Normalize positions to be unique and sequential
             var changed = false
@@ -331,8 +343,13 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                     repo.updateExercise(ex.exercise.copy(position = idx))
                 }
             }
-            val refreshed = if (changed) _currentWorkoutId.value?.let { repo.getWorkout(it) } else workout
-            val list = refreshed?.exercises?.sortedWith(compareBy({ it.exercise.position }, { it.exercise.id })) ?: return@launch
+            val refreshed =
+                if (changed) _currentWorkoutId.value?.let { repo.getWorkout(it) } else workout
+            val list = refreshed?.exercises?.sortedWith(
+                compareBy(
+                    { it.exercise.position },
+                    { it.exercise.id })
+            ) ?: return@launch
 
             val index = list.indexOfFirst { it.exercise.id == exerciseId }
             if (index >= 0 && index < list.lastIndex) {

@@ -2,7 +2,10 @@ package com.flandolf.workout.data.sync
 
 import android.content.Context
 import android.util.Log
-import com.flandolf.workout.data.*
+import com.flandolf.workout.data.AppDatabase
+import com.flandolf.workout.data.ExerciseEntity
+import com.flandolf.workout.data.SetEntity
+import com.flandolf.workout.data.Workout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -63,7 +66,11 @@ class SyncRepository(
         if (isInitialized) return
 
         try {
-            val currentlyOnline = try { networkMonitor.isOnline.value } catch (_: Exception) { false }
+            val currentlyOnline = try {
+                networkMonitor.isOnline.value
+            } catch (_: Exception) {
+                false
+            }
             _syncStatus.value = _syncStatus.value.copy(isOnline = currentlyOnline)
 
             isInitialized = true
@@ -208,11 +215,19 @@ class SyncRepository(
                 val fsExercises = workoutWithExercises.exercises.map { exWithSets ->
                     FSExercise(
                         name = exWithSets.exercise.name,
-                        sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                        sets = exWithSets.sets.map { s ->
+                            FSSet(
+                                weight = s.weight.toDouble(),
+                                reps = s.reps
+                            )
+                        }
                     )
                 }
                 val totalSets = workoutWithExercises.exercises.sumOf { it.sets.size }
-                Log.d(TAG, "Uploading workout ${workout.id}: exercises=${fsExercises.size}, sets=${totalSets}")
+                Log.d(
+                    TAG,
+                    "Uploading workout ${workout.id}: exercises=${fsExercises.size}, sets=${totalSets}"
+                )
 
                 val fsWorkout = FirestoreWorkout(
                     localId = workout.id,
@@ -277,11 +292,19 @@ class SyncRepository(
             val fsExercises = workoutWith?.exercises?.map { exWithSets ->
                 FSExercise(
                     name = exWithSets.exercise.name,
-                    sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                    sets = exWithSets.sets.map { s ->
+                        FSSet(
+                            weight = s.weight.toDouble(),
+                            reps = s.reps
+                        )
+                    }
                 )
             } ?: emptyList()
             val totalSetsForSingle = workoutWith?.exercises?.sumOf { it.sets.size } ?: 0
-            Log.d(TAG, "Uploading single workout ${workout.id}: exercises=${fsExercises.size}, sets=${totalSetsForSingle}")
+            Log.d(
+                TAG,
+                "Uploading single workout ${workout.id}: exercises=${fsExercises.size}, sets=${totalSetsForSingle}"
+            )
 
             val fsWorkout = FirestoreWorkout(
                 localId = workout.id,
@@ -292,7 +315,8 @@ class SyncRepository(
                 version = 2L
             )
 
-            val workoutFsId = workout.firestoreId?.takeIf { it.isNotBlank() } ?: workoutDocId(userId, workout.id)
+            val workoutFsId =
+                workout.firestoreId?.takeIf { it.isNotBlank() } ?: workoutDocId(userId, workout.id)
             val workoutDocRef = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId)
 
             firestore.runBatch { b ->
@@ -424,12 +448,23 @@ class SyncRepository(
 
             for (document in workoutsSnapshot.documents) {
                 val fsWorkout = document.toObject<FirestoreWorkout>() ?: continue
-                Log.d(TAG, "Downloaded workout doc ${document.id}: exercises=${fsWorkout.exercises.size}")
+                Log.d(
+                    TAG,
+                    "Downloaded workout doc ${document.id}: exercises=${fsWorkout.exercises.size}"
+                )
 
                 val existingWorkout = if (fsWorkout.localId > 0) {
-                    try { dao.getWorkoutWithExercises(fsWorkout.localId)?.workout } catch (_: Exception) { null }
+                    try {
+                        dao.getWorkoutWithExercises(fsWorkout.localId)?.workout
+                    } catch (_: Exception) {
+                        null
+                    }
                 } else {
-                    try { dao.getWorkoutByDate(fsWorkout.date) } catch (_: Exception) { null }
+                    try {
+                        dao.getWorkoutByDate(fsWorkout.date)
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
 
                 val localWorkout = if (existingWorkout != null) {
@@ -460,16 +495,30 @@ class SyncRepository(
                         dao.deleteExercisesForWorkout(localWorkout.id)
 
                         for (ex in fsWorkout.exercises) {
-                            val exId = dao.insertExercise(ExerciseEntity(workoutId = localWorkout.id, name = ex.name))
+                            val exId = dao.insertExercise(
+                                ExerciseEntity(
+                                    workoutId = localWorkout.id,
+                                    name = ex.name
+                                )
+                            )
                             for (s in ex.sets) {
-                                dao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight.toFloat()))
+                                dao.insertSet(
+                                    SetEntity(
+                                        exerciseId = exId,
+                                        reps = s.reps,
+                                        weight = s.weight.toFloat()
+                                    )
+                                )
                             }
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to rebuild exercises for workout ${localWorkout.id}", e)
                     }
                 } else {
-                    Log.d(TAG, "Skipping exercise rebuild for workout ${localWorkout.id}: remote has empty/missing exercises")
+                    Log.d(
+                        TAG,
+                        "Skipping exercise rebuild for workout ${localWorkout.id}: remote has empty/missing exercises"
+                    )
                 }
             }
 

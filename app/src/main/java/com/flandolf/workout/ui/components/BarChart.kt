@@ -135,7 +135,8 @@ fun BarChart(
 
             // Draw value label on top of bar
             val prevValue = if (index > 0) dataPoints[index - 1].second else Float.NaN
-            val shouldShowValue = showValues && value > 0f && (index == 0 || kotlin.math.abs(value - prevValue) > epsilon)
+            val shouldShowValue =
+                showValues && value > 0f && (index == 0 || kotlin.math.abs(value - prevValue) > epsilon)
 
             if (shouldShowValue) {
                 val valueLabel = valueFormatter(value)

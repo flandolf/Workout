@@ -183,7 +183,8 @@ fun ProgressGraph(
             var textY = if (aboveY - textLayout.size.height < padding) belowY else aboveY
 
             // Decide whether to show label: value change
-            val valueChanged = if (index == 0) true else kotlin.math.abs(value - dataPoints[index - 1].second) > labelEpsilon
+            val valueChanged =
+                if (index == 0) true else kotlin.math.abs(value - dataPoints[index - 1].second) > labelEpsilon
             var shouldShowLabel = valueChanged
 
             // Prevent labels from crowding horizontally/vertically; always allow first and last
@@ -193,8 +194,10 @@ fun ProgressGraph(
 
             if (shouldShowLabel) {
                 // if horizontally too close to last label and on same vertical side, try flipping
-                val tooCloseX = lastLabelX != Float.NEGATIVE_INFINITY && kotlin.math.abs(labelCenterX - lastLabelX) < overlapThresholdX
-                val sameSideY = lastLabelY != Float.NEGATIVE_INFINITY && kotlin.math.abs(textY - lastLabelY) < overlapThresholdY
+                val tooCloseX =
+                    lastLabelX != Float.NEGATIVE_INFINITY && kotlin.math.abs(labelCenterX - lastLabelX) < overlapThresholdX
+                val sameSideY =
+                    lastLabelY != Float.NEGATIVE_INFINITY && kotlin.math.abs(textY - lastLabelY) < overlapThresholdY
 
                 if (tooCloseX && sameSideY && index != dataPoints.lastIndex) {
                     // attempt flip vertical side
@@ -238,7 +241,8 @@ fun ProgressGraph(
                     color = surface.copy(alpha = 0.88f),
                     topLeft = Offset(x - textLayout.size.width / 2 - 4, textY - 2),
                     size = androidx.compose.ui.geometry.Size(
-                        (textLayout.size.width + 8).toFloat(), (textLayout.size.height + 4).toFloat()
+                        (textLayout.size.width + 8).toFloat(),
+                        (textLayout.size.height + 4).toFloat()
                     ),
                     cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
                 )
