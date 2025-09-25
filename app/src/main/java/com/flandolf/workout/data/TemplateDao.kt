@@ -18,6 +18,7 @@ interface TemplateDao {
 
     @Delete
     suspend fun deleteTemplate(template: Template)
+
     @Insert
     suspend fun insertExercise(exercise: ExerciseEntity): Long
 

@@ -14,7 +14,6 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Email
@@ -29,7 +28,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -248,13 +246,12 @@ fun SyncSettingsScreen(
                             fontWeight = FontWeight.Bold
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
                     SyncStatusRow(
                         "Connection",
                         if (uiState.syncStatus.isOnline) "Online" else "Offline"
                     )
+                    SyncStatusRow("Local Workouts", "${uiState.localWorkoutCount}")
+                    SyncStatusRow("Server Workouts", "${uiState.remoteWorkoutCount}")
 
                     if (uiState.syncStatus.lastSyncTime > 0) {
                         val lastSync = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())

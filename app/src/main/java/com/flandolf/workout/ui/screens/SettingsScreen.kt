@@ -51,7 +51,7 @@ fun SettingsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Settings", fontWeight = FontWeight.Bold) })
+            TopAppBar(title = { Text("Settings", fontWeight = FontWeight.SemiBold) })
         }
     ) { innerPadding ->
         LazyColumn(
@@ -64,11 +64,6 @@ fun SettingsScreen(
         ) {
             item {
                 if (syncViewModel != null && syncUiState != null) {
-                    Text(
-                        text = "Cloud Sync",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
                     SyncSettingsScreen(
                         syncUiState,
                         syncViewModel,

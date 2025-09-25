@@ -75,6 +75,45 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 if (authState == AuthState.UNAUTHENTICATED) {
                     requestedInitialize = false
                 }
+
+                // When authenticated, refresh local/remote counts asynchronously
+                if (authState == AuthState.AUTHENTICATED) {
+                    viewModelScope.launch {
+                        try {
+                            val localCount = workoutRepository.getLocalWorkoutCount()
+                            val remoteCount = syncRepository.getRemoteWorkoutCount()
+                            _uiState.value = _uiState.value.copy(
+                                localWorkoutCount = localCount,
+                                remoteWorkoutCount = remoteCount
+                            )
+                        } catch (e: Exception) {
+                            _uiState.value = _uiState.value.copy(
+                                errorMessage = "Failed to fetch counts: ${'$'}{e.message}"
+                            )
+                        }
+                    }
+                } else {
+                    // Clear counts when unauthenticated
+                    _uiState.value =
+                        _uiState.value.copy(localWorkoutCount = 0, remoteWorkoutCount = 0)
+                }
+            }
+        }
+    }
+
+    /**
+     * Refresh counts on demand
+     */
+    fun refreshCounts() {
+        viewModelScope.launch {
+            try {
+                val local = workoutRepository.getLocalWorkoutCount()
+                val remote = syncRepository.getRemoteWorkoutCount()
+                _uiState.value =
+                    _uiState.value.copy(localWorkoutCount = local, remoteWorkoutCount = remote)
+            } catch (e: Exception) {
+                _uiState.value =
+                    _uiState.value.copy(errorMessage = "Failed to refresh counts: ${'$'}{e.message}")
             }
         }
     }
@@ -183,6 +222,8 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     fun performSync() {
         viewModelScope.launch {
             workoutRepository.performSync()
+            // After manual sync, refresh counts
+            refreshCounts()
         }
     }
 
@@ -253,5 +294,9 @@ data class SyncUiState(
 
     // New: indicate sync in progress and when it started (ms since epoch)
     val isSyncing: Boolean = false,
-    val syncStartTime: Long = 0L
+    val syncStartTime: Long = 0L,
+
+    // New: counts of workouts
+    val localWorkoutCount: Int = 0,
+    val remoteWorkoutCount: Int = 0
 )

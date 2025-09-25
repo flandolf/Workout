@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -61,7 +62,8 @@ import java.util.Locale
 @Composable
 fun HistoryScreen(
     workouts: List<WorkoutWithExercises>, viewModel: HistoryViewModel? = null,
-    onEditWorkout: (Long) -> Unit = {}
+    onEditWorkout: (Long) -> Unit = {},
+    onConvertToTemplate: (WorkoutWithExercises) -> Unit = {}
 ) {
     LaunchedEffect(Unit) {
         viewModel?.loadWorkouts()
@@ -298,6 +300,16 @@ fun HistoryScreen(
                                     }
 
                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                        IconButton(
+                                            onClick = { onConvertToTemplate(w) },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Add,
+                                                contentDescription = "Save workout as template",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                         IconButton(
                                             onClick = { onEditWorkout(w.workout.id) },
                                             modifier = Modifier.size(36.dp)

@@ -28,9 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
@@ -54,6 +51,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -284,9 +282,7 @@ fun WorkoutScreen(
 
                 })
         },
-        // Removed inner snackbarHost to rely on root host
     ) { innerPadding ->
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -401,20 +397,22 @@ fun WorkoutScreen(
                     }
                 }
             }
-
-            // If there is no active workout, show templates grid
             if (currentWorkoutId == null) {
                 Spacer(modifier = Modifier.height(8.dp))
-                // Use LazyVerticalGrid to present templates in 2 columns
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
+                LazyColumn(
                     contentPadding = PaddingValues(bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(templates) { tpl ->
-                        Card(
+                    item {
+                        Text(
+                            "Templates",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                    }
+                    itemsIndexed(templates, key = { _, tpl -> tpl.template.id }) { _, tpl ->
+                        OutlinedCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(140.dp)
@@ -439,12 +437,17 @@ fun WorkoutScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
 
+                                HorizontalDivider()
+
                                 // Show exercises as a vertical list with ellipsis. Limit to 3 items and show a +N more indicator.
                                 val exerciseCount = tpl.exercises.size
                                 val maxShown = 3
                                 val toShow = tpl.exercises.take(maxShown)
 
-                                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     toShow.forEach { item ->
                                         Text(
                                             text = item.exercise.name,

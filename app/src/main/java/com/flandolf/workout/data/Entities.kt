@@ -18,7 +18,8 @@ data class Workout(
 )
 
 @Entity(
-    tableName = "exercises", foreignKeys = [
+    tableName = "exercises",
+    foreignKeys = [
         ForeignKey(
             entity = Workout::class,
             parentColumns = ["id"],
@@ -31,7 +32,11 @@ data class Workout(
             childColumns = ["templateId"],
             onDelete = ForeignKey.CASCADE
         )
-    ], indices = [Index("workoutId"), Index("templateId"), Index(value = ["firestoreId"], unique = true)]
+    ],
+    indices = [Index("workoutId"), Index("templateId"), Index(
+        value = ["firestoreId"],
+        unique = true
+    )]
 )
 data class ExerciseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

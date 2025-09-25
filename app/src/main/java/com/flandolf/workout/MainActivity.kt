@@ -147,10 +147,29 @@ class MainActivity : ComponentActivity() {
                             val workouts = historyVm.workouts.collectAsState()
                             HistoryScreen(
                                 workouts = workouts.value,
-                                viewModel = historyVm
-                            ) { workoutId ->
-                                navController.navigate("edit_workout/$workoutId")
-                            }
+                                viewModel = historyVm,
+                                onEditWorkout = { workoutId ->
+                                    navController.navigate("edit_workout/$workoutId")
+                                },
+                                onConvertToTemplate = { workoutWithExercises ->
+                                    coroutineScope.launch {
+                                        val dateStr = SimpleDateFormat(
+                                            "yyyy-MM-dd",
+                                            Locale.getDefault()
+                                        ).format(Date(workoutWithExercises.workout.date))
+                                        val templateName = "Workout $dateStr"
+                                        val exerciseNames = workoutWithExercises.exercises
+                                            .sortedBy { it.exercise.position }
+                                            .map { it.exercise.name }
+                                        val templateId = templateVm.createTemplateFromWorkout(
+                                            templateName,
+                                            exerciseNames
+                                        )
+                                        snackbarHostState.showSnackbar("Template created")
+                                        navController.navigate("edit_template/$templateId")
+                                    }
+                                }
+                            )
 
                             // If there are no local workouts, suggest syncing down when appropriate
                             LaunchedEffect(
@@ -270,8 +289,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(
                             "edit_template/{templateId}"
-                        ) {
-                                backStackEntry ->
+                        ) { backStackEntry ->
                             val templateIdStr =
                                 backStackEntry.arguments?.getString("templateId")
                             val templateId = templateIdStr?.toLongOrNull() ?: -1L

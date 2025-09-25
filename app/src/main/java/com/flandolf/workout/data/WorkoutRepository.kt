@@ -492,6 +492,15 @@ class WorkoutRepository(private val context: Context) {
             importedWorkouts
         }
 
+    // New helper to get local workout count
+    suspend fun getLocalWorkoutCount(): Int = withContext(Dispatchers.IO) {
+        try {
+            dao.getWorkoutCount()
+        } catch (e: Exception) {
+            android.util.Log.w("WorkoutRepository", "Failed to get local workout count", e)
+            0
+        }
+    }
 
     private fun parseCsvLine(line: String, delimiter: String = ","): List<String> {
         val result = mutableListOf<String>()

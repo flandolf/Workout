@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,11 +12,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -25,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.flandolf.workout.ui.viewmodel.TemplateViewModel
@@ -44,29 +48,26 @@ fun TemplateScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Templates") },
+                title = { Text("Templates", fontWeight = FontWeight.SemiBold) },
                 actions = {
                     IconButton(
-                        onClick = {
-                            // Navigate to Add/Edit Template screen. Use 0 for a new template (no ID to load).
-                            navController.navigate("edit_template/0")
-                        }
+                        onClick = { navController.navigate("edit_template/0") },
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .align(Alignment.CenterVertically)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Template"
-                        )
+                        Icon(Icons.Default.Add, contentDescription = "Add template")
                     }
                 }
             )
-        }
+        },
     ) { contentPadding ->
         Column(
             modifier = Modifier
                 .padding(contentPadding)
                 .padding(16.dp)
                 .fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (templates.isEmpty()) {
                 Column(
@@ -74,17 +75,30 @@ fun TemplateScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        modifier = Modifier.padding(bottom = 16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Text(
-                        text = "No templates",
-                        style = MaterialTheme.typography.bodyLarge,
+                        text = "No templates yet",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Create your first workout template to get started",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
-                LazyColumn {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     items(templates.size) { index ->
                         val tpl = templates[index]
-                        Card(
+                        OutlinedCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
@@ -94,13 +108,20 @@ fun TemplateScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = tpl.template.name.ifBlank { "Untitled template" },
                                         style = MaterialTheme.typography.titleMedium,
                                         color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Spacer(
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                    HorizontalDivider()
+                                    Spacer(
+                                        modifier = Modifier.padding(vertical = 4.dp)
                                     )
                                     val exerciseCount = tpl.exercises.size
                                     val preview = tpl.exercises.take(3).joinToString(
@@ -110,8 +131,8 @@ fun TemplateScreen(
                                     Text(
                                         text = when {
                                             exerciseCount == 0 -> "No exercises"
-                                            preview.isBlank() -> "$exerciseCount exercise(s)"
-                                            else -> "$exerciseCount exercise(s): $preview${if (exerciseCount > 3) "…" else ""}"
+                                            preview.isBlank() -> "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""}"
+                                            else -> "$exerciseCount exercise${if (exerciseCount != 1) "s" else ""}: $preview${if (exerciseCount > 3) "…" else ""}"
                                         },
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -122,7 +143,10 @@ fun TemplateScreen(
                                         vm.deleteTemplate(tpl.template.id)
                                     }
                                 }) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Open delete options")
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Delete template"
+                                    )
                                 }
                             }
                         }

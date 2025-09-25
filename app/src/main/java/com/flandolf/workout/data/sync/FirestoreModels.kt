@@ -1,9 +1,9 @@
 package com.flandolf.workout.data.sync
 
+import androidx.annotation.Keep
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
-import androidx.annotation.Keep
 
 /**
  * Firestore models for single-document-per-workout with nested exercises/sets

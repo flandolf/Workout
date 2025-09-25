@@ -91,4 +91,8 @@ interface WorkoutDao {
     @Query("SELECT COALESCE(MAX(position), -1) FROM exercises WHERE workoutId = :workoutId")
     suspend fun getMaxPositionForWorkout(workoutId: Long): Int
 
+    // New helper to count local workouts
+    @Query("SELECT COUNT(*) FROM workouts")
+    suspend fun getWorkoutCount(): Int
+
 }

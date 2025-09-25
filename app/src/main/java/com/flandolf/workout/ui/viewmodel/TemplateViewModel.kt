@@ -3,13 +3,15 @@ package com.flandolf.workout.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.flandolf.workout.data.TemplateRepository
 import com.flandolf.workout.data.Template
+import com.flandolf.workout.data.TemplateRepository
 import com.flandolf.workout.data.TemplateWithExercises
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class TemplateViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = TemplateRepository(application.applicationContext)
@@ -34,11 +36,6 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
 
     // Expose reactive Flow for templates list
     fun templatesFlow(): Flow<List<TemplateWithExercises>> = repo.getAllTemplatesWithExercises()
-
-    suspend fun getAllTemplatesWithExercises() = repo.getAllTemplatesWithExercises()
-
-    // Insert a simple template (no exercises)
-    suspend fun insertTemplate(template: Template): Long = repo.insertTemplate(template)
 
     // Persist a change to the template's name
     fun updateTemplateName(newName: String) {
@@ -120,7 +117,8 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         val id = templateId ?: return
         viewModelScope.launch {
             val currentTemplate = _template.value ?: repo.getTemplate(id) ?: return@launch
-            val ex = currentTemplate.exercises.find { it.exercise.id == exerciseId } ?: return@launch
+            val ex =
+                currentTemplate.exercises.find { it.exercise.id == exerciseId } ?: return@launch
             if (setIndex !in ex.sets.indices) return@launch
             val setId = ex.sets[setIndex].id
             repo.updateSet(setId, reps, weight)
@@ -132,7 +130,8 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         val id = templateId ?: return
         viewModelScope.launch {
             val currentTemplate = _template.value ?: repo.getTemplate(id) ?: return@launch
-            val ex = currentTemplate.exercises.find { it.exercise.id == exerciseId } ?: return@launch
+            val ex =
+                currentTemplate.exercises.find { it.exercise.id == exerciseId } ?: return@launch
             if (setIndex !in ex.sets.indices) return@launch
             val setId = ex.sets[setIndex].id
             repo.deleteSetById(setId)
@@ -170,4 +169,17 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    // --- New helper to create a template along with ordered exercises (used when converting a workout) ---
+    suspend fun createTemplateFromWorkout(name: String, exerciseNamesInOrder: List<String>): Long =
+        withContext(Dispatchers.IO) {
+            val id = repo.insertTemplate(Template(name = name))
+            exerciseNamesInOrder.forEachIndexed { index, exName ->
+                repo.addExerciseToTemplate(id, exName, position = index)
+            }
+            // Load created template into state
+            val loaded = repo.getTemplate(id)
+            templateId = id
+            _template.value = loaded
+            id
+        }
 }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -61,6 +62,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -139,17 +142,34 @@ fun AddTemplateScreen(
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             ) {
+                // Use a local-only text state and only commit to the ViewModel on IME Done or focus lost
+                val focusManager = LocalFocusManager.current
+                val nameFocusRequester = remember { FocusRequester() }
+
                 OutlinedTextField(
                     value = templateName,
-                    onValueChange = {
-                        templateName = it
-                        vm.updateTemplateName(it)
-                    },
+                    onValueChange = { templateName = it },
                     label = { Text("Template name") },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(nameFocusRequester)
+                        .onFocusChanged { focusState ->
+                            // When focus is lost, commit the change if it's different from the model
+                            if (!focusState.isFocused) {
+                                val currentName = currentTemplate?.template?.name ?: ""
+                                if (templateName != currentName) {
+                                    vm.updateTemplateName(templateName)
+                                }
+                            }
+                        },
                     shape = MaterialTheme.shapes.medium,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        vm.updateTemplateName(templateName)
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    })
                 )
             }
 
@@ -254,19 +274,26 @@ fun AddTemplateScreen(
                             OutlinedTextField(
                                 value = newExerciseName,
                                 onValueChange = {
-                                    // Update typed text immediately and hide the dropdown right away to
-                                    // avoid it popping open while the user is still typing. The
-                                    // debounced collector will repopulate and open it after the
-                                    // user pauses for the debounced duration.
                                     newExerciseName = it
-                                    // Immediately hide any visible dropdown for a smoother typing UX
                                     showDropdown = false
-                                    // Clear stale results; the debounced collector will fill this when ready
                                     filteredSuggestionsState.clear()
                                 },
                                 label = { Text("Exercise name") },
                                 singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium,
+                                trailingIcon = {
+                                    IconButton(onClick = {
+                                        val name = newExerciseName.trim()
+                                        if (name.isNotBlank()) {
+                                            onAddExercise(name)
+                                            newExerciseName = ""
+                                            addExerciseVisible = false
+                                        }
+                                    }, modifier = Modifier.height(56.dp)) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add")
+                                    }
+                                }
                             )
 
                             DropdownMenu(
@@ -287,19 +314,6 @@ fun AddTemplateScreen(
                                 }
                             }
                         }
-                        Spacer(Modifier.width(8.dp))
-                        Button(onClick = {
-                            val name = newExerciseName.trim()
-                            if (name.isNotBlank()) {
-                                onAddExercise(name)
-                                newExerciseName = ""
-                                addExerciseVisible = false
-                            }
-                        }, modifier = Modifier.height(56.dp)) {
-                            Icon(Icons.Default.Add, contentDescription = "Add")
-                            Spacer(Modifier.width(6.dp))
-                            Text("Add")
-                        }
                     }
                 }
             }
@@ -312,7 +326,6 @@ fun AddTemplateScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 88.dp)
             ) {
-
                 itemsIndexed(sortedExercises, key = { _, ex -> ex.exercise.id }) { idx, ex ->
                     val exVisible = exerciseVisibleMap[ex.exercise.id] ?: true
                     AnimatedVisibility(
