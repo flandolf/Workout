@@ -182,4 +182,37 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
             _template.value = loaded
             id
         }
+
+    suspend fun getCurrentTemplateId(): Long? = templateId
+
+    fun finalizeAndSyncTemplate(latestName: String? = null) {
+        viewModelScope.launch {
+            val id = templateId ?: return@launch
+            // Apply latest name if provided and different
+            if (latestName != null) {
+                val current = repo.getTemplate(id)
+                if (current != null && current.template.name != latestName) {
+                    repo.updateTemplate(current.template.copy(name = latestName))
+                    _template.value = repo.getTemplate(id)
+                }
+            }
+            val snapshot = repo.getTemplate(id) ?: return@launch
+            val isEmpty = snapshot.template.name.isBlank() && snapshot.exercises.isEmpty()
+            if (isEmpty) {
+                repo.deleteTemplateById(id)
+                templateId = null
+                _template.value = null
+                return@launch
+            }
+            // Sync if authenticated
+            try {
+                repo.syncRepository.initialize()
+                if (repo.syncRepository.isUserAuthenticated()) {
+                    repo.syncRepository.syncTemplateById(id)
+                }
+            } catch (_: Exception) {
+                // Ignore sync errors here; UI can display via sync screen later
+            }
+        }
+    }
 }

@@ -60,6 +60,17 @@ fun SyncSettingsScreen(
     onDismissAuthDialog: () -> Unit,
     onManualSync: (() -> Unit)? = null
 ) {
+    // Refresh counts immediately on first composition
+    LaunchedEffect(Unit) {
+        syncViewModel.refreshCounts()
+    }
+    // Also refresh when auth state transitions to AUTHENTICATED (e.g., navigating back later)
+    LaunchedEffect(uiState.authState) {
+        if (uiState.authState == AuthState.AUTHENTICATED) {
+            syncViewModel.refreshCounts()
+        }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -252,6 +263,8 @@ fun SyncSettingsScreen(
                     )
                     SyncStatusRow("Local Workouts", "${uiState.localWorkoutCount}")
                     SyncStatusRow("Server Workouts", "${uiState.remoteWorkoutCount}")
+                    SyncStatusRow("Local Templates", "${uiState.localTemplateCount}")
+                    SyncStatusRow("Server Templates", "${uiState.remoteTemplateCount}")
 
                     if (uiState.syncStatus.lastSyncTime > 0) {
                         val lastSync = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())

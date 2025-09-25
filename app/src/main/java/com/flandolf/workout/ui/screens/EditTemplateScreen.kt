@@ -114,8 +114,9 @@ fun AddTemplateScreen(
     val setVisibleMap = remember { mutableStateMapOf<Pair<Long, Int>, Boolean>() }
     val coroutineScope = rememberCoroutineScope()
 
-    // Handle system back to ensure the caller's onBack (which discards empty templates) runs
+    // Handle system back: finalize and sync template (upload if non-empty) then navigate
     BackHandler {
+        vm.finalizeAndSyncTemplate(templateName)
         onBack()
     }
 
@@ -123,7 +124,10 @@ fun AddTemplateScreen(
         TopAppBar(
             title = { Text("Edit Template", fontWeight = FontWeight.SemiBold) },
             navigationIcon = {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = {
+                    vm.finalizeAndSyncTemplate(templateName)
+                    onBack()
+                }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
             }

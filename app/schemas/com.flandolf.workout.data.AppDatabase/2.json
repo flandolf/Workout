@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "fb56bd1e100d9a061238b075162fba48",
+    "identityHash": "c1d6d8ccf7639e1dab5b5dc205095576",
     "entities": [
       {
         "tableName": "workouts",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` INTEGER NOT NULL, `startTime` INTEGER NOT NULL, `durationSeconds` INTEGER NOT NULL, `firebaseId` TEXT, `firestoreId` TEXT NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `date` INTEGER NOT NULL, `startTime` INTEGER NOT NULL, `durationSeconds` INTEGER NOT NULL, `firestoreId` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -33,15 +33,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "firebaseId",
-            "columnName": "firebaseId",
-            "affinity": "TEXT"
-          },
-          {
             "fieldPath": "firestoreId",
             "columnName": "firestoreId",
-            "affinity": "TEXT",
-            "notNull": true
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -52,19 +46,19 @@
         },
         "indices": [
           {
-            "name": "index_workouts_firebaseId",
+            "name": "index_workouts_firestoreId",
             "unique": true,
             "columnNames": [
-              "firebaseId"
+              "firestoreId"
             ],
             "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_workouts_firebaseId` ON `${TABLE_NAME}` (`firebaseId`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_workouts_firestoreId` ON `${TABLE_NAME}` (`firestoreId`)"
           }
         ]
       },
       {
         "tableName": "exercises",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `workoutId` INTEGER, `templateId` INTEGER, `name` TEXT NOT NULL, `position` INTEGER NOT NULL, `firebaseId` TEXT, FOREIGN KEY(`workoutId`) REFERENCES `workouts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`templateId`) REFERENCES `templates`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `workoutId` INTEGER, `templateId` INTEGER, `name` TEXT NOT NULL, `position` INTEGER NOT NULL, `firestoreId` TEXT, FOREIGN KEY(`workoutId`) REFERENCES `workouts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`templateId`) REFERENCES `templates`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -95,8 +89,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "firebaseId",
-            "columnName": "firebaseId",
+            "fieldPath": "firestoreId",
+            "columnName": "firestoreId",
             "affinity": "TEXT"
           }
         ],
@@ -126,13 +120,13 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_exercises_templateId` ON `${TABLE_NAME}` (`templateId`)"
           },
           {
-            "name": "index_exercises_firebaseId",
+            "name": "index_exercises_firestoreId",
             "unique": true,
             "columnNames": [
-              "firebaseId"
+              "firestoreId"
             ],
             "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_exercises_firebaseId` ON `${TABLE_NAME}` (`firebaseId`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_exercises_firestoreId` ON `${TABLE_NAME}` (`firestoreId`)"
           }
         ],
         "foreignKeys": [
@@ -162,7 +156,7 @@
       },
       {
         "tableName": "sets",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `exerciseId` INTEGER NOT NULL, `reps` INTEGER NOT NULL, `weight` REAL NOT NULL, `firebaseId` TEXT, FOREIGN KEY(`exerciseId`) REFERENCES `exercises`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `exerciseId` INTEGER NOT NULL, `reps` INTEGER NOT NULL, `weight` REAL NOT NULL, `firestoreId` TEXT, FOREIGN KEY(`exerciseId`) REFERENCES `exercises`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -189,8 +183,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "firebaseId",
-            "columnName": "firebaseId",
+            "fieldPath": "firestoreId",
+            "columnName": "firestoreId",
             "affinity": "TEXT"
           }
         ],
@@ -211,13 +205,13 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_sets_exerciseId` ON `${TABLE_NAME}` (`exerciseId`)"
           },
           {
-            "name": "index_sets_firebaseId",
+            "name": "index_sets_firestoreId",
             "unique": true,
             "columnNames": [
-              "firebaseId"
+              "firestoreId"
             ],
             "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_sets_firebaseId` ON `${TABLE_NAME}` (`firebaseId`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_sets_firestoreId` ON `${TABLE_NAME}` (`firestoreId`)"
           }
         ],
         "foreignKeys": [
@@ -236,7 +230,7 @@
       },
       {
         "tableName": "templates",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `firebaseId` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `firestoreId` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -251,8 +245,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "firebaseId",
-            "columnName": "firebaseId",
+            "fieldPath": "firestoreId",
+            "columnName": "firestoreId",
             "affinity": "TEXT"
           }
         ],
@@ -273,20 +267,20 @@
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_templates_id` ON `${TABLE_NAME}` (`id`)"
           },
           {
-            "name": "index_templates_firebaseId",
+            "name": "index_templates_firestoreId",
             "unique": true,
             "columnNames": [
-              "firebaseId"
+              "firestoreId"
             ],
             "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_templates_firebaseId` ON `${TABLE_NAME}` (`firebaseId`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_templates_firestoreId` ON `${TABLE_NAME}` (`firestoreId`)"
           }
         ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fb56bd1e100d9a061238b075162fba48')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c1d6d8ccf7639e1dab5b5dc205095576')"
     ]
   }
 }

@@ -77,10 +77,21 @@ class TemplateRepository(private val context: Context) {
         dao.getTemplateWithExercises(id)
     }
 
-    // Delete a template row by id
+    // Delete a template row by id (and remote if synced)
     suspend fun deleteTemplateById(id: Long) = withContext(Dispatchers.IO) {
         val t = dao.getTemplateById(id)
-        if (t != null) dao.deleteTemplate(t)
+        if (t != null) {
+            val fsId = t.firestoreId
+            dao.deleteTemplate(t)
+            if (!fsId.isNullOrBlank()) {
+                try {
+                    syncRepository.initialize()
+                    syncRepository.deleteTemplateFromFirestore(id, fsId)
+                } catch (e: Exception) {
+                    android.util.Log.w("TemplateRepository", "Failed remote delete for template $id", e)
+                }
+            }
+        }
     }
 
     // Swap positions of two exercises within a template
@@ -293,5 +304,9 @@ class TemplateRepository(private val context: Context) {
         }
         result.add(current.toString())
         return result
+    }
+
+    suspend fun getLocalTemplateCount(): Int {
+        return dao.getTemplateCount()
     }
 }

@@ -3,6 +3,7 @@ package com.flandolf.workout.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.flandolf.workout.data.TemplateRepository
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.sync.AuthRepository
 import com.flandolf.workout.data.sync.AuthState
@@ -16,6 +17,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository()
     private val workoutRepository = WorkoutRepository(application.applicationContext)
     private val syncRepository = workoutRepository.syncRepository
+    private val templateRepository = TemplateRepository(application.applicationContext)
 
     private val _uiState = MutableStateFlow(SyncUiState())
     val uiState: StateFlow<SyncUiState> = _uiState
@@ -82,20 +84,24 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                         try {
                             val localCount = workoutRepository.getLocalWorkoutCount()
                             val remoteCount = syncRepository.getRemoteWorkoutCount()
+                            val remoteTemplateCount = syncRepository.getRemoteTemplateCount()
+                            val localTemplateCount = templateRepository.getLocalTemplateCount()
                             _uiState.value = _uiState.value.copy(
                                 localWorkoutCount = localCount,
-                                remoteWorkoutCount = remoteCount
+                                remoteWorkoutCount = remoteCount,
+                                localTemplateCount = localTemplateCount,
+                                remoteTemplateCount = remoteTemplateCount
                             )
                         } catch (e: Exception) {
                             _uiState.value = _uiState.value.copy(
-                                errorMessage = "Failed to fetch counts: ${'$'}{e.message}"
+                                errorMessage = "Failed to fetch counts: ${e.message}"
                             )
                         }
                     }
                 } else {
                     // Clear counts when unauthenticated
                     _uiState.value =
-                        _uiState.value.copy(localWorkoutCount = 0, remoteWorkoutCount = 0)
+                        _uiState.value.copy(localWorkoutCount = 0, remoteWorkoutCount = 0, localTemplateCount = 0, remoteTemplateCount = 0)
                 }
             }
         }
@@ -109,11 +115,13 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val local = workoutRepository.getLocalWorkoutCount()
                 val remote = syncRepository.getRemoteWorkoutCount()
+                val localTemplateCount = templateRepository.getLocalTemplateCount()
+                val remoteTemplateCount = syncRepository.getRemoteTemplateCount()
                 _uiState.value =
-                    _uiState.value.copy(localWorkoutCount = local, remoteWorkoutCount = remote)
+                    _uiState.value.copy(localWorkoutCount = local, remoteWorkoutCount = remote, localTemplateCount = localTemplateCount, remoteTemplateCount = remoteTemplateCount)
             } catch (e: Exception) {
                 _uiState.value =
-                    _uiState.value.copy(errorMessage = "Failed to refresh counts: ${'$'}{e.message}")
+                    _uiState.value.copy(errorMessage = "Failed to refresh counts: ${e.message}")
             }
         }
     }
@@ -276,7 +284,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Failed to delete cloud data: ${'$'}{e.message}"
+                    errorMessage = "Failed to delete cloud data: ${e.message}"
                 )
             }
         }
@@ -298,5 +306,8 @@ data class SyncUiState(
 
     // New: counts of workouts
     val localWorkoutCount: Int = 0,
-    val remoteWorkoutCount: Int = 0
+    val remoteWorkoutCount: Int = 0,
+
+    val localTemplateCount: Int = 0,
+    val remoteTemplateCount: Int = 0
 )

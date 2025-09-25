@@ -65,6 +65,39 @@ data class FirestoreWorkout(
 }
 
 /**
+ * Root document stored under templates/{templateId}
+ */
+@Keep
+data class FirestoreTemplate(
+    @DocumentId
+    val id: String = "",
+    val localId: Long = 0L,
+    val userId: String = "",
+    val name: String = "",
+    val exercises: List<FSExercise> = emptyList(),
+    val contentHash: String = "",
+    @ServerTimestamp
+    val createdAt: Date? = null,
+    @ServerTimestamp
+    val updatedAt: Date? = null,
+    val isDeleted: Boolean = false,
+    val version: Long = 1L
+) {
+    constructor() : this(
+        id = "",
+        localId = 0L,
+        userId = "",
+        name = "",
+        exercises = emptyList(),
+        contentHash = "",
+        createdAt = null,
+        updatedAt = null,
+        isDeleted = false,
+        version = 1L
+    )
+}
+
+/**
  * Sync status tracking
  */
 @Keep

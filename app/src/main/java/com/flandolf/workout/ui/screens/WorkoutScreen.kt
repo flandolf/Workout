@@ -404,12 +404,14 @@ fun WorkoutScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    item {
-                        Text(
-                            "Templates",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                        )
+                    if (templates.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Templates",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                        }
                     }
                     itemsIndexed(templates, key = { _, tpl -> tpl.template.id }) { _, tpl ->
                         OutlinedCard(

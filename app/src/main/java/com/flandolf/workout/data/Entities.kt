@@ -66,10 +66,15 @@ data class SetEntity(
     val firestoreId: String? = null
 )
 
-@Entity(tableName = "templates", indices = [Index(value = ["id"], unique = true)])
+// Added firestoreId for template syncing
+@Entity(
+    tableName = "templates",
+    indices = [Index(value = ["id"], unique = true), Index(value = ["firestoreId"], unique = true)]
+)
 data class Template(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val firestoreId: String? = null
 )
 
 data class TemplateWithExercises(

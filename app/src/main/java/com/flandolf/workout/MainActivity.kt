@@ -17,6 +17,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -167,8 +168,10 @@ class MainActivity : ComponentActivity() {
                                             templateName,
                                             exerciseNames
                                         )
-                                        snackbarHostState.showSnackbar("Template created")
+                                        // Navigate first so snackbar does not block transition
                                         navController.navigate("edit_template/$templateId")
+                                        // Show snackbar asynchronously (optional delay-free)
+                                        snackbarHostState.showSnackbar("Template created", duration = SnackbarDuration.Short)
                                     }
                                 }
                             )

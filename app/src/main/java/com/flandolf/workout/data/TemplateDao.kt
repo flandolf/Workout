@@ -76,4 +76,12 @@ interface TemplateDao {
 
     @Query("DELETE FROM exercises WHERE templateId = :templateId")
     suspend fun deleteExercisesForTemplate(templateId: Long)
+
+    // Template lookup by firestoreId for sync
+    @Query("SELECT * FROM templates WHERE firestoreId = :firestoreId LIMIT 1")
+    suspend fun getTemplateByFirestoreId(firestoreId: String): Template?
+
+    // Count templates (used in repository)
+    @Query("SELECT COUNT(*) FROM templates")
+    suspend fun getTemplateCount(): Int
 }
