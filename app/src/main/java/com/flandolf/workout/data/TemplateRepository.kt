@@ -6,6 +6,9 @@ import com.flandolf.workout.data.sync.SyncRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.*
 
 class TemplateRepository(private val context: Context) {
     private val db by lazy { AppDatabase.getInstance(context) }
@@ -90,4 +93,205 @@ class TemplateRepository(private val context: Context) {
                 dao.updateExercise(b)
             }
         }
+
+    suspend fun exportTemplatesCsv(outputStream: OutputStream): Unit = withContext(Dispatchers.IO) {
+        val templates = dao.getAllTemplatesWithExercisesSuspend()
+
+        outputStream.bufferedWriter().use { writer ->
+            // Header row
+            writer.appendLine("Template Name,Exercise Name,Set Number,Reps,Weight (kg)")
+
+            for (template in templates) {
+                if (template.exercises.isEmpty()) {
+                    // Ensure template shows up even if it has no exercises yet
+                    writer.append(escapeCsv(template.template.name)).append(',')
+                        .append("") // exercise name
+                        .append(',')
+                        .append("") // set number
+                        .append(',')
+                        .append("") // reps
+                        .append(',')
+                        .append("") // weight
+                        .appendLine()
+                    continue
+                }
+                for (exercise in template.exercises.sortedBy { it.exercise.position }) {
+                    if (exercise.sets.isEmpty()) {
+                        writer.append(escapeCsv(template.template.name)).append(',')
+                            .append(escapeCsv(exercise.exercise.name)).append(',')
+                            .append("") // Set Number
+                            .append(',')
+                            .append("") // Reps
+                            .append(',')
+                            .append("") // Weight
+                            .appendLine()
+                        continue
+                    }
+
+                    var setIndex = 1
+                    for (set in exercise.sets) {
+                        writer.append(escapeCsv(template.template.name)).append(',')
+                            .append(escapeCsv(exercise.exercise.name)).append(',')
+                            .append(setIndex.toString()).append(',')
+                            .append(set.reps.toString()).append(',')
+                            .append(String.format(Locale.US, "%.2f", set.weight))
+                            .appendLine()
+                        setIndex++
+                    }
+                }
+            }
+        }
+    }
+
+    suspend fun importTemplatesCsv(inputStream: InputStream): Int = withContext(Dispatchers.IO) {
+        val templateNameColumn = 0
+        val exerciseNameColumn = 1
+        val repsColumn = 3
+        val weightColumn = 4
+
+        var importedTemplates = 0
+        // Map<TemplateName, Map<ExerciseName, MutableList<Pair<Reps, Weight>>>>
+        val templateMap = mutableMapOf<String, MutableMap<String, MutableList<Pair<Int, Float>>>>()
+        // Track templates that appear with a blank exercise row (template with no exercises)
+        val templatesNoExercises = mutableSetOf<String>()
+
+        inputStream.bufferedReader().use { reader ->
+            val lines = reader.readLines()
+            if (lines.isEmpty()) return@withContext 0
+
+            // Skip header if present
+            var startIndex = 0
+            if (lines[0].startsWith("Template Name", ignoreCase = true)) {
+                startIndex = 1
+            }
+
+            for (i in startIndex until lines.size) {
+                val rawLine = lines[i]
+                val line = rawLine.trim()
+                if (line.isEmpty()) continue
+
+                val row = parseCsvLine(rawLine) // keep original to preserve empty fields
+                if (row.size <= weightColumn) {
+                    // pad if shorter
+                    continue
+                }
+
+                try {
+                    val templateName = row[templateNameColumn].trim().replace("\"", "")
+                    val exerciseName = row[exerciseNameColumn].trim().replace("\"", "")
+                    val repsStr = row[repsColumn].trim().replace("\"", "")
+                    val weightStr = row[weightColumn].trim().replace("\"", "")
+
+                    if (templateName.isBlank()) continue // need a template name at minimum
+
+                    if (exerciseName.isBlank()) {
+                        // Template line indicating template exists (possibly no exercises)
+                        templatesNoExercises.add(templateName)
+                        continue
+                    }
+
+                    // Ensure exercise entry exists even if there are no valid sets (empty reps)
+                    val exercises = templateMap.getOrPut(templateName) { mutableMapOf() }
+                    val sets = exercises.getOrPut(exerciseName) { mutableListOf() }
+
+                    val reps = repsStr.toIntOrNull()
+                    val weight = weightStr.toFloatOrNull()
+                    if (reps != null && reps > 0) {
+                        sets.add(Pair(reps, weight ?: 0f))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("TemplateRepository", "Failed to parse CSV row: $rawLine", e)
+                }
+            }
+        }
+
+        // Union of templates from both collections
+        val allTemplateNames: Set<String> = (templateMap.keys + templatesNoExercises).toSet()
+
+        for (templateName in allTemplateNames) {
+            try {
+                val exercises = templateMap[templateName] ?: emptyMap()
+
+                // Check if template already exists
+                val existingTemplate = dao.getTemplateByName(templateName)
+                val templateId = if (existingTemplate != null) {
+                    // Wipe existing exercises & sets so import is authoritative
+                    val existingExercises = dao.getExercisesForTemplate(existingTemplate.id)
+                    for (ex in existingExercises) {
+                        dao.deleteSetsForExercise(ex.id)
+                    }
+                    dao.deleteExercisesForTemplate(existingTemplate.id)
+                    existingTemplate.id
+                } else {
+                    dao.insertTemplate(Template(name = templateName))
+                }
+
+                // Insert exercises (even when they have zero sets)
+                var position = 0
+                for ((exerciseName, sets) in exercises) {
+                    val exercise = ExerciseEntity(
+                        templateId = templateId,
+                        name = exerciseName,
+                        position = position
+                    )
+                    val exerciseId = dao.insertExercise(exercise)
+                    for ((reps, weight) in sets) {
+                        dao.insertSet(
+                            SetEntity(
+                                exerciseId = exerciseId,
+                                reps = reps,
+                                weight = weight
+                            )
+                        )
+                    }
+                    position++
+                }
+
+                importedTemplates++
+            } catch (e: Exception) {
+                android.util.Log.w("TemplateRepository", "Failed to import template: $templateName", e)
+            }
+        }
+
+        importedTemplates
+    }
+
+    private fun escapeCsv(value: String): String {
+        return if (value.contains(',') || value.contains('"') || value.contains('\n')) {
+            '"' + value.replace("\"", "\"\"") + '"'
+        } else value
+    }
+
+    private fun parseCsvLine(line: String, delimiter: String = ","): List<String> {
+        val result = mutableListOf<String>()
+        val current = StringBuilder()
+        var inQuotes = false
+        var i = 0
+
+        while (i < line.length) {
+            val char = line[i]
+            when {
+                char == '"' && !inQuotes -> inQuotes = true
+                char == '"' && inQuotes -> {
+                    if (i + 1 < line.length && line[i + 1] == '"') {
+                        // Escaped quote
+                        current.append('"')
+                        i++ // Skip next quote
+                    } else {
+                        inQuotes = false
+                    }
+                }
+
+                char == delimiter.toCharArray()[0] && !inQuotes -> {
+                    result.add(current.toString())
+                    current.clear()
+                }
+
+                else -> current.append(char)
+            }
+            i++
+        }
+        result.add(current.toString())
+        return result
+    }
 }

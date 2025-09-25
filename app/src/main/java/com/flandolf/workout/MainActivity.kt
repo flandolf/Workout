@@ -30,6 +30,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.flandolf.workout.data.TemplateRepository
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.sync.AuthState
 import com.flandolf.workout.ui.components.BottomNavigationBar
@@ -366,10 +367,89 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         syncVm.performSync()
                                     }
-                                })
+                                },
+                                onImportTemplateCsv = { importTemplateCsv()
+                                },
+                                onExportTemplateCsv = {
+                                        exportTemplateCsv()
+                                }
+                            )
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun importTemplateCsv() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "text/*"
+        }
+        importTemplate.launch(intent)
+    }
+
+    private fun exportTemplateCsv() {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+            .format(Date())
+        val fileName = "workout_templates_$timestamp.csv"
+
+        lifecycleScope.launch {
+            try {
+                val repo = TemplateRepository(applicationContext)
+
+                // Insert into MediaStore Downloads
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+
+                val resolver = applicationContext.contentResolver
+                val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                val itemUri = resolver.insert(collection, contentValues)
+                    ?: throw IllegalStateException("Failed to create MediaStore record")
+
+                resolver.openOutputStream(itemUri)?.use { outStream ->
+                    repo.exportTemplatesCsv(outStream)
+                } ?: throw IllegalStateException("Failed to open output stream")
+
+                // Mark file as complete
+                contentValues.clear()
+                contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
+                resolver.update(itemUri, contentValues, null, null)
+
+                Toast.makeText(
+                    this@MainActivity,
+                    "Templates exported to Downloads: $fileName",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                // Share intent
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/csv"
+                    putExtra(Intent.EXTRA_STREAM, itemUri)
+                    putExtra(Intent.EXTRA_SUBJECT, "Workout Templates Export")
+                    putExtra(Intent.EXTRA_TITLE, fileName)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+                    clipData = ClipData.newUri(
+                        contentResolver,
+                        fileName,
+                        itemUri
+                    )
+                }
+
+                startActivity(Intent.createChooser(shareIntent, "Share Templates CSV Export"))
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(
+                    this@MainActivity,
+                    "Export failed: ${e.localizedMessage ?: "Unknown error"}",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
@@ -528,6 +608,50 @@ class MainActivity : ComponentActivity() {
                                     Toast.makeText(
                                         this@MainActivity,
                                         "Import successful: $importedCount workouts imported",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            } else {
+                                runOnUiThread {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Import failed: Could not read file",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            runOnUiThread {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Import failed: ${e.localizedMessage ?: "Unknown error"}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    var importTemplate =
+        registerForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                val uri = result.data?.data
+                if (uri != null) {
+                    lifecycleScope.launch {
+                        try {
+                            val inputStream = contentResolver.openInputStream(uri)
+                            if (inputStream != null) {
+                                val repo = TemplateRepository(applicationContext)
+                                val importedCount = repo.importTemplatesCsv(inputStream)
+                                inputStream.close()
+
+                                runOnUiThread {
+                                    Toast.makeText(
+                                        this@MainActivity,
+                                        "Import successful: $importedCount templates imported",
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }

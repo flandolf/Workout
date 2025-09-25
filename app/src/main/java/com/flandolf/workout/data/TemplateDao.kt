@@ -41,6 +41,9 @@ interface TemplateDao {
     @Query("SELECT * FROM templates ORDER BY name ASC")
     fun getAllTemplatesWithExercises(): Flow<List<TemplateWithExercises>>
 
+    @Transaction
+    @Query("SELECT * FROM templates ORDER BY name ASC")
+    suspend fun getAllTemplatesWithExercisesSuspend(): List<TemplateWithExercises>
 
     @Query("SELECT * FROM templates WHERE id = :workoutId LIMIT 1")
     suspend fun getTemplateById(workoutId: Long): Template?
@@ -61,4 +64,16 @@ interface TemplateDao {
 
     @Query("SELECT * FROM sets WHERE id = :id LIMIT 1")
     suspend fun getSetById(id: Int): SetEntity?
+
+    @Query("SELECT * FROM templates WHERE name = :name LIMIT 1")
+    suspend fun getTemplateByName(name: String): Template?
+
+    @Query("SELECT * FROM exercises WHERE templateId = :templateId ORDER BY position ASC")
+    suspend fun getExercisesForTemplate(templateId: Long): List<ExerciseEntity>
+
+    @Query("DELETE FROM sets WHERE exerciseId = :exerciseId")
+    suspend fun deleteSetsForExercise(exerciseId: Long)
+
+    @Query("DELETE FROM exercises WHERE templateId = :templateId")
+    suspend fun deleteExercisesForTemplate(templateId: Long)
 }

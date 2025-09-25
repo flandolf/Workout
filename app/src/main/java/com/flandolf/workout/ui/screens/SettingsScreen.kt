@@ -41,7 +41,9 @@ fun SettingsScreen(
     onImportWorkoutCsv: () -> Unit,
     onResetAll: (() -> Unit)? = null,
     syncViewModel: SyncViewModel? = null,
-    onManualSync: (() -> Unit)? = null
+    onManualSync: (() -> Unit)? = null,
+    onImportTemplateCsv: (() -> Unit)? = null,
+    onExportTemplateCsv: (() -> Unit)? = null
 ) {
     val showResetDialog = remember { mutableStateOf(false) }
 
@@ -75,7 +77,7 @@ fun SettingsScreen(
             }
             item {
                 Text(
-                    text = "General",
+                    text = "Import / Export",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -103,6 +105,26 @@ fun SettingsScreen(
                     title = "Import from Workout App",
                     description = "Import workouts from the Workout app using a CSV export from Workout. This will add the workouts to your existing data without creating duplicates."
                 )
+            }
+            item {
+                if (onImportTemplateCsv != null) {
+                    SettingsCard(
+                        action = onImportTemplateCsv,
+                        icon = Icons.Default.Upload,
+                        title = "Import Templates",
+                        description = "Import workout templates from a CSV file. This will add the templates to your existing data without creating duplicates."
+                    )
+                }
+            }
+            item {
+                if (onExportTemplateCsv != null) {
+                    SettingsCard(
+                        action = onExportTemplateCsv,
+                        icon = Icons.Default.Download,
+                        title = "Export Templates",
+                        description = "Export all your workout templates to a CSV file. This can be imported back into the app later."
+                    )
+                }
             }
             item {
                 Text(
