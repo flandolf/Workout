@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "2b916c773ecc12704c322d186039f674",
+    "identityHash": "fe173f5e2e6fa739f773e7b7f87953c7",
     "entities": [
       {
         "tableName": "workouts",
@@ -58,7 +58,7 @@
       },
       {
         "tableName": "exercises",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `workoutId` INTEGER NOT NULL, `name` TEXT NOT NULL, `position` INTEGER NOT NULL, `firestoreId` TEXT, FOREIGN KEY(`workoutId`) REFERENCES `workouts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `workoutId` INTEGER, `templateId` INTEGER, `name` TEXT NOT NULL, `position` INTEGER NOT NULL, `firestoreId` TEXT, FOREIGN KEY(`workoutId`) REFERENCES `workouts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`templateId`) REFERENCES `templates`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -69,8 +69,12 @@
           {
             "fieldPath": "workoutId",
             "columnName": "workoutId",
-            "affinity": "INTEGER",
-            "notNull": true
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "templateId",
+            "columnName": "templateId",
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "name",
@@ -107,6 +111,15 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_exercises_workoutId` ON `${TABLE_NAME}` (`workoutId`)"
           },
           {
+            "name": "index_exercises_templateId",
+            "unique": false,
+            "columnNames": [
+              "templateId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercises_templateId` ON `${TABLE_NAME}` (`templateId`)"
+          },
+          {
             "name": "index_exercises_firestoreId",
             "unique": true,
             "columnNames": [
@@ -123,6 +136,17 @@
             "onUpdate": "NO ACTION",
             "columns": [
               "workoutId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "templates",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "templateId"
             ],
             "referencedColumns": [
               "id"
@@ -242,7 +266,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2b916c773ecc12704c322d186039f674')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fe173f5e2e6fa739f773e7b7f87953c7')"
     ]
   }
 }

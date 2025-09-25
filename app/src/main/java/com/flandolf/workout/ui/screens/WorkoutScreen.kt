@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
@@ -82,22 +86,26 @@ import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
 import com.flandolf.workout.data.CommonExercises
 import com.flandolf.workout.data.ExerciseWithSets
 import com.flandolf.workout.data.SetEntity
+import com.flandolf.workout.data.TemplateWithExercises
 import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
 @SuppressLint("DefaultLocale")
 @Composable
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, FlowPreview::class)
 fun WorkoutScreen(
     elapsedSeconds: Long,
     currentExercises: List<ExerciseWithSets>,
@@ -115,6 +123,11 @@ fun WorkoutScreen(
     vm: WorkoutViewModel,
     previousBestSets: Map<String, SetEntity> = emptyMap(),
     onShowSnackbar: suspend (String) -> Unit, // new parameter to use root snackbar host
+    // New callback: when a template is tapped in the grid
+    // New callback: start a workout from template
+    onStartFromTemplate: (Long) -> Unit = {},
+    // New: reactive templates flow from TemplateViewModel
+    templatesFlow: Flow<List<TemplateWithExercises>> = kotlinx.coroutines.flow.flowOf()
 ) {
     // Toggle add set input for each exercise
     val addSetVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
@@ -160,6 +173,11 @@ fun WorkoutScreen(
             }
         }
     }
+
+    // collect templates reactively
+    val templates by templatesFlow.collectAsState(initial = emptyList())
+
+    val currentWorkoutId by vm.currentWorkoutId.collectAsState()
 
     Scaffold(
         topBar = {
@@ -382,6 +400,77 @@ fun WorkoutScreen(
                         }
                     }
                 }
+            }
+
+            // If there is no active workout, show templates grid
+            if (currentWorkoutId == null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                // Use LazyVerticalGrid to present templates in 2 columns
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(templates) { tpl ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .clickable {
+                                    onStartFromTemplate(tpl.template.id)
+                                },
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = tpl.template.name.ifBlank { "Untitled template" },
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+
+                                // Show exercises as a vertical list with ellipsis. Limit to 3 items and show a +N more indicator.
+                                val exerciseCount = tpl.exercises.size
+                                val maxShown = 3
+                                val toShow = tpl.exercises.take(maxShown)
+
+                                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    toShow.forEach { item ->
+                                        Text(
+                                            text = item.exercise.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+
+                                    if (exerciseCount > maxShown) {
+                                        Text(
+                                            text = "+${exerciseCount - maxShown} more",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return@Column
+
             }
 
             if (currentExercises.isNotEmpty()) {

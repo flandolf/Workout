@@ -337,13 +337,6 @@ class SyncRepository(
     }
 
     /**
-     * Sync Template
-     */
-    suspend fun syncTemplate(template: Template) {
-        // No-op for now; templates not yet supported in Firestore sync
-    }
-
-    /**
      * Delete all Firestore data for the current user (DESTRUCTIVE OPERATION)
      */
     suspend fun nukeFirestoreData() {

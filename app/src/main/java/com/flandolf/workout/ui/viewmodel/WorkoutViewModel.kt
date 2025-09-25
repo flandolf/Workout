@@ -383,4 +383,17 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun startWorkoutFromTemplate(templateId: Long) {
+        // create workout from template and start timer
+        viewModelScope.launch {
+            val id = repo.startWorkoutFromTemplate(templateId)
+            _currentWorkoutId.value = id
+            _elapsedSeconds.value = 0L
+            _currentWorkout.value = repo.getWorkout(id)
+            loadPreviousBestSets()
+            _isTimerRunning.value = true
+            startTimerJob()
+            saveWorkoutState()
+        }
+    }
 }

@@ -18,18 +18,27 @@ data class Workout(
 )
 
 @Entity(
-    tableName = "exercises", foreignKeys = [ForeignKey(
-        entity = Workout::class,
-        parentColumns = ["id"],
-        childColumns = ["workoutId"],
-        onDelete = ForeignKey.CASCADE
-    )], indices = [Index("workoutId"), Index(value = ["firestoreId"], unique = true)]
+    tableName = "exercises", foreignKeys = [
+        ForeignKey(
+            entity = Workout::class,
+            parentColumns = ["id"],
+            childColumns = ["workoutId"],
+            onDelete = ForeignKey.CASCADE
+        ),
+        ForeignKey(
+            entity = Template::class,
+            parentColumns = ["id"],
+            childColumns = ["templateId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ], indices = [Index("workoutId"), Index("templateId"), Index(value = ["firestoreId"], unique = true)]
 )
 data class ExerciseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val workoutId: Long,
+    val workoutId: Long? = null, // Nullable to allow exercises to belong to either a workout or a template
+    val templateId: Long? = null, // New: links exercise to a template
     val name: String,
-    // Ordering within a workout (lower comes first)
+    // Ordering within a workout or template (lower comes first)
     val position: Int = 0,
     // Firestore document ID mapping for sync
     val firestoreId: String? = null
@@ -63,7 +72,7 @@ data class TemplateWithExercises(
     @Relation(
         entity = ExerciseEntity::class,
         parentColumn = "id",
-        entityColumn = "workoutId"
+        entityColumn = "templateId"
     ) val exercises: List<ExerciseWithSets>
 )
 

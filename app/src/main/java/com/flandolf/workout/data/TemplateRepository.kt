@@ -4,6 +4,7 @@ import android.content.Context
 import com.flandolf.workout.data.sync.SyncRepository
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 
 class TemplateRepository(private val context: Context) {
@@ -11,50 +12,67 @@ class TemplateRepository(private val context: Context) {
     private val dao by lazy { db.templateDao() }
     val syncRepository by lazy { SyncRepository(context) }
 
-    suspend fun getAllTemplatesWithExercises() = dao.getAllTemplatesWithExercises()
+    fun getAllTemplatesWithExercises(): Flow<List<TemplateWithExercises>> = dao.getAllTemplatesWithExercises()
+
     suspend fun insertTemplate(template: Template): Long {
         val id = dao.insertTemplate(template)
-        syncRepository.syncTemplate(template)
         return id
     }
 
-    // Insert a template and its nested exercises/sets in a single transaction.
-    // Returns the newly inserted template ID.
-    suspend fun insertTemplateWithExercises(templateWithExercises: TemplateWithExercises): Long =
-        withContext(Dispatchers.IO) {
-            var insertedTemplateId = 0L
-            // Use Room's suspend withTransaction so we can call suspend DAO methods inside.
-            db.withTransaction {
-                // Insert the template row first
-                insertedTemplateId = dao.insertTemplate(templateWithExercises.template)
+    // --- new update helper ---
+    suspend fun updateTemplate(template: Template) = withContext(Dispatchers.IO) {
+        dao.updateTemplate(template)
+    }
 
-                // Use the workoutDao to insert exercises and sets (reusing workout tables for template content)
-                val workoutDao = db.workoutDao()
+    suspend fun addExercise(templateId: Long, name: String): Long = withContext(Dispatchers.IO) {
+        val maxPos = dao.getMaxPositionForTemplate(templateId)
+        val nextPos = maxPos + 1
+        dao.insertExercise(
+            ExerciseEntity(
+                templateId = templateId,
+                name = name,
+                position = nextPos
+            )
+        )
+    }
 
-                for (exWithSets in templateWithExercises.exercises) {
-                    // Copy the exercise but point its workoutId to the new template id
-                    val exerciseToInsert = exWithSets.exercise.copy(workoutId = insertedTemplateId)
-                    val exId = workoutDao.insertExercise(exerciseToInsert)
+    suspend fun deleteExerciseById(exerciseId: Long) = withContext(Dispatchers.IO) {
+        dao.deleteExerciseById(exerciseId)
+    }
 
-                    for (s in exWithSets.sets) {
-                        workoutDao.insertSet(
-                            SetEntity(
-                                exerciseId = exId,
-                                reps = s.reps,
-                                weight = s.weight
-                            )
-                        )
-                    }
-                }
-            }
+    suspend fun addSet(exerciseId: Long, reps: Int, weight: Float): Long = withContext(Dispatchers.IO) {
+        dao.insertSet(SetEntity(exerciseId = exerciseId, reps = reps, weight = weight))
+    }
 
-            // Attempt to sync the template (currently a no-op in sync repo). Don't fail the insert on sync error.
-            try {
-                syncRepository.syncTemplate(templateWithExercises.template.copy(id = insertedTemplateId))
-            } catch (_: Exception) {
-            }
-
-            insertedTemplateId
+    suspend fun updateSet(setId: Int, reps: Int, weight: Float) = withContext(Dispatchers.IO) {
+        // Need to preserve exerciseId - fetch existing set using TemplateDao
+        val existing = dao.getSetById(setId)
+        if (existing != null) {
+            dao.updateSet(existing.copy(reps = reps, weight = weight))
         }
+    }
 
+    suspend fun deleteSetById(setId: Int) = withContext(Dispatchers.IO) {
+        dao.deleteSetById(setId)
+    }
+
+    suspend fun getTemplate(id: Long): TemplateWithExercises? = withContext(Dispatchers.IO) {
+        dao.getTemplateWithExercises(id)
+    }
+
+    // Delete a template row by id
+    suspend fun deleteTemplateById(id: Long) = withContext(Dispatchers.IO) {
+        val t = dao.getTemplateById(id)
+        if (t != null) dao.deleteTemplate(t)
+    }
+
+    // Swap positions of two exercises within a template
+    suspend fun swapExercisePositions(ex1: ExerciseEntity, ex2: ExerciseEntity) = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val a = ex1.copy(position = ex2.position)
+            val b = ex2.copy(position = ex1.position)
+            dao.updateExercise(a)
+            dao.updateExercise(b)
+        }
+    }
 }

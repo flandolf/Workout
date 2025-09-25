@@ -31,6 +31,7 @@ import androidx.navigation.compose.rememberNavController
 import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.sync.AuthState
 import com.flandolf.workout.ui.components.BottomNavigationBar
+import com.flandolf.workout.ui.screens.AddTemplateScreen
 import com.flandolf.workout.ui.screens.EditWorkoutScreen
 import com.flandolf.workout.ui.screens.ExerciseDetailScreen
 import com.flandolf.workout.ui.screens.GraphDetailScreen
@@ -134,7 +135,12 @@ class MainActivity : ComponentActivity() {
                                 isTimerRunning = isTimerRunning.value,
                                 vm = workoutVm,
                                 previousBestSets = previousBestSets.value,
-                                onShowSnackbar = { msg -> snackbarHostState.showSnackbar(msg) }
+                                onShowSnackbar = { msg -> snackbarHostState.showSnackbar(msg) },
+                                onStartFromTemplate = { templateId ->
+                                    // create workout from template and start
+                                    workoutVm.startWorkoutFromTemplate(templateId)
+                                },
+                                templatesFlow = templateVm.templatesFlow(),
                             )
                         }
                         composable("history") {
@@ -259,6 +265,44 @@ class MainActivity : ComponentActivity() {
                         composable("templates") {
                             TemplateScreen(
                                 vm = templateVm,
+                                navController = navController
+                            )
+                        }
+                        composable(
+                            "edit_template/{templateId}"
+                        ) {
+                                backStackEntry ->
+                            val templateIdStr =
+                                backStackEntry.arguments?.getString("templateId")
+                            val templateId = templateIdStr?.toLongOrNull() ?: -1L
+                            LaunchedEffect(templateId) {
+                                if (templateId >= 0) templateVm.loadTemplate(templateId)
+                            }
+                            val templateState = templateVm.template.collectAsState()
+                            AddTemplateScreen(
+                                template = templateState.value?.exercises ?: emptyList(),
+                                onBack = {
+                                    // Discard empty template rows when leaving editor
+                                    templateVm.discardIfEmpty()
+                                    navController.popBackStack()
+                                },
+                                onAddExercise = { name ->
+                                    templateVm.addExercise(name)
+                                },
+                                onDeleteExercise = { exId ->
+                                    templateVm.deleteExercise(exId)
+                                },
+                                onAddSet = { exId, reps, weight ->
+                                    templateVm.addSet(exId, reps, weight)
+                                },
+                                onUpdateSet = { exId, setIndex, reps, weight ->
+                                    templateVm.updateSet(exId, setIndex, reps, weight)
+                                },
+                                onDeleteSet = { exId, setIndex ->
+                                    templateVm.deleteSet(exId, setIndex)
+                                },
+                                vm = templateVm,
+                                editVm = editVm,
                             )
                         }
                         composable("settings") {

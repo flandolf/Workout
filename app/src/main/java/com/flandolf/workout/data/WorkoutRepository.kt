@@ -598,4 +598,21 @@ class WorkoutRepository(private val context: Context) {
         // If all formats fail, use current time
         return System.currentTimeMillis()
     }
+
+    suspend fun startWorkoutFromTemplate(templateId: Long): Long = withContext(Dispatchers.IO) {
+        val templateDao = db.templateDao()
+        val tpl = templateDao.getTemplateWithExercises(templateId)
+        val currentTime = System.currentTimeMillis()
+        val workoutId = dao.insertWorkout(Workout(startTime = currentTime))
+        if (tpl != null) {
+            for (exWithSets in tpl.exercises) {
+                val ex = ExerciseEntity(workoutId = workoutId, name = exWithSets.exercise.name)
+                val exId = dao.insertExercise(ex)
+                for (s in exWithSets.sets) {
+                    dao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight))
+                }
+            }
+        }
+        workoutId
+    }
 }
