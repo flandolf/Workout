@@ -147,19 +147,6 @@ fun SyncSettingsScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Sync Now")
                             }
-
-                            OutlinedButton(
-                                onClick = { onManualSync?.invoke() ?: syncViewModel.syncDown() },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(
-                                    Icons.Default.CloudDownload,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Sync Down")
-                            }
                         }
 
                         Button(

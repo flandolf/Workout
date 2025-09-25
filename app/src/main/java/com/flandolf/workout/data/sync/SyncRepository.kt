@@ -2,6 +2,8 @@ package com.flandolf.workout.data.sync
 
 import android.content.Context
 import android.util.Log
+import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.flandolf.workout.data.AppDatabase
 import com.flandolf.workout.data.ExerciseEntity
 import com.flandolf.workout.data.SetEntity
@@ -27,10 +29,12 @@ class SyncRepository(
 ) {
     private val db = AppDatabase.getInstance(context)
     private val dao = db.workoutDao()
+    private val prefs: SharedPreferences = context.getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
 
     companion object {
         private const val TAG = "SyncRepository"
         private const val COLLECTION_WORKOUTS = "workouts"
+        private const val PREF_LAST_REMOTE_DOWNLOAD = "last_remote_download"
     }
 
     private val _syncStatus = MutableStateFlow(SyncStatus())
@@ -170,6 +174,23 @@ class SyncRepository(
     /**
      * Upload local changes to Firestore (single-document-per-workout with nested exercises/sets)
      */
+    private fun computeWorkoutContentHash(fsExercises: List<FSExercise>, workout: Workout): String {
+        // Build a deterministic string representing the workout content
+        val sb = StringBuilder()
+        sb.append(workout.date).append(':').append(workout.durationSeconds).append('|')
+        for (ex in fsExercises) {
+            sb.append(ex.name).append('#')
+            for (s in ex.sets) {
+                sb.append(s.weight).append('x').append(s.reps).append(';')
+            }
+            sb.append('|')
+        }
+        return sb.toString().hashCode().toString()
+    }
+
+    private fun getLastRemoteDownloadTime(): Long = prefs.getLong(PREF_LAST_REMOTE_DOWNLOAD, 0L)
+    private fun setLastRemoteDownloadTime(value: Long) = prefs.edit { putLong(PREF_LAST_REMOTE_DOWNLOAD, value) }
+
     private suspend fun uploadToFirestore() {
         val userId = getCurrentUserId()
         if (userId.isEmpty()) return
@@ -183,6 +204,7 @@ class SyncRepository(
             val maxBatchOps = 400 // keep below 500 limit and leave margin
 
             val workoutsToPersist = mutableListOf<Pair<Long, String>>()
+            var skippedUnchanged = 0
 
             suspend fun commitBatchIfNeeded() {
                 if (opsInBatch >= maxBatchOps) {
@@ -230,18 +252,38 @@ class SyncRepository(
                     "Uploading workout ${workout.id}: exercises=${fsExercises.size}, sets=${totalSets}"
                 )
 
+                val contentHash = computeWorkoutContentHash(fsExercises, workout)
+
+                // If remote doc exists and contentHash matches, skip upload
+                val workoutFsId = workout.firestoreId?.takeIf { it.isNotBlank() }
+                    ?: workoutDocId(userId, workout.id)
+                var shouldUpload = true
+                if (!workout.firestoreId.isNullOrBlank()) {
+                    try {
+                        val remoteSnap = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId).get().await()
+                        val remoteHash = remoteSnap.getString("contentHash") ?: ""
+                        if (remoteHash == contentHash) {
+                            shouldUpload = false
+                            skippedUnchanged++
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Unable to check remote hash for ${workout.id}", e)
+                    }
+                }
+
+                if (!shouldUpload) continue
+
                 val fsWorkout = FirestoreWorkout(
                     localId = workout.id,
                     userId = userId,
                     date = workout.date,
                     durationSeconds = workout.durationSeconds,
                     exercises = fsExercises,
+                    contentHash = contentHash,
                     version = 2L
                 )
-
                 // Determine docRef for workout. Prefer local firestoreId, else deterministic id.
-                val workoutFsId = workout.firestoreId?.takeIf { it.isNotBlank() }
-                    ?: workoutDocId(userId, workout.id)
+                // (workoutFsId already computed above)
 
                 val workoutDocRef = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId)
 
@@ -273,7 +315,7 @@ class SyncRepository(
                 }
             }
 
-            Log.d(TAG, "Uploaded ${localWorkouts.size} workouts to Firestore (nested docs)")
+            Log.d(TAG, "Uploaded ${localWorkouts.size - skippedUnchanged} workouts (skipped ${'$'}skippedUnchanged unchanged) to Firestore (nested docs)")
         } catch (e: Exception) {
             Log.e(TAG, "uploadToFirestore (nested) failed", e)
             throw e
@@ -307,17 +349,37 @@ class SyncRepository(
                 "Uploading single workout ${workout.id}: exercises=${fsExercises.size}, sets=${totalSetsForSingle}"
             )
 
+            val contentHash = computeWorkoutContentHash(fsExercises, workout)
+            val workoutFsId =
+                workout.firestoreId?.takeIf { it.isNotBlank() } ?: workoutDocId(userId, workout.id)
+
+            // Check remote hash to skip if unchanged
+            var shouldUpload = true
+            if (!workout.firestoreId.isNullOrBlank()) {
+                try {
+                    val remoteSnap = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId).get().await()
+                    val remoteHash = remoteSnap.getString("contentHash") ?: ""
+                    if (remoteHash == contentHash) {
+                        shouldUpload = false
+                        Log.d(TAG, "Skipping upload for workout ${workout.id}: unchanged content hash")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to check remote hash for single workout", e)
+                }
+            }
+
+            if (!shouldUpload) return
+
             val fsWorkout = FirestoreWorkout(
                 localId = workout.id,
                 userId = userId,
                 date = workout.date,
                 durationSeconds = workout.durationSeconds,
                 exercises = fsExercises,
+                contentHash = contentHash,
                 version = 2L
             )
-
-            val workoutFsId =
-                workout.firestoreId?.takeIf { it.isNotBlank() } ?: workoutDocId(userId, workout.id)
+            
             val workoutDocRef = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId)
 
             firestore.runBatch { b ->
@@ -418,14 +480,16 @@ class SyncRepository(
 
         try {
             Log.d(TAG, "Starting download from Firestore for user: $userId")
-
-            val workoutsSnapshot = firestore.collection(COLLECTION_WORKOUTS)
+            val lastDownload = getLastRemoteDownloadTime()
+            val query = firestore.collection(COLLECTION_WORKOUTS)
                 .whereEqualTo("userId", userId)
                 .orderBy("date", Query.Direction.DESCENDING)
-                .get()
-                .await()
+            val workoutsSnapshot = query.get().await()
 
-            Log.d(TAG, "Found ${'$'}{workoutsSnapshot.documents.size} remote workouts")
+            Log.d(TAG, "Found ${'$'}{workoutsSnapshot.documents.size} remote workouts (lastDownload=${'$'}lastDownload)")
+            var processed = 0
+            var skippedHash = 0
+            var newestTimestamp = lastDownload
 
             for (document in workoutsSnapshot.documents) {
                 val fsWorkout = document.toObject<FirestoreWorkout>() ?: continue
@@ -433,6 +497,28 @@ class SyncRepository(
                     TAG,
                     "Downloaded workout doc ${document.id}: exercises=${fsWorkout.exercises.size}"
                 )
+
+                // Skip if unchanged and we already have matching hash locally
+                val localExisting = if (fsWorkout.localId > 0) dao.getWorkoutWithExercises(fsWorkout.localId)?.workout else null
+                if (localExisting != null && fsWorkout.contentHash.isNotBlank()) {
+                    // Compute current local hash to compare
+                    try {
+                        val localWith = dao.getWorkoutWithExercises(localExisting.id)
+                        val localFsExercises = localWith?.exercises?.map { exWithSets ->
+                            FSExercise(
+                                name = exWithSets.exercise.name,
+                                sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                            )
+                        } ?: emptyList()
+                        val localHash = computeWorkoutContentHash(localFsExercises, localExisting)
+                        if (localHash == fsWorkout.contentHash) {
+                            skippedHash++
+                            continue
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to compute local hash for potential skip", e)
+                    }
+                }
 
                 val existingWorkout = if (fsWorkout.localId > 0) {
                     try {
@@ -501,9 +587,12 @@ class SyncRepository(
                         "Skipping exercise rebuild for workout ${localWorkout.id}: remote has empty/missing exercises"
                     )
                 }
+                processed++
+                if (fsWorkout.date > newestTimestamp) newestTimestamp = fsWorkout.date
             }
 
-            Log.d(TAG, "Download from Firestore completed successfully (nested docs)")
+            setLastRemoteDownloadTime(newestTimestamp)
+            Log.d(TAG, "Download from Firestore completed: processed=${'$'}processed skipped=${'$'}skippedHash newestTs=${'$'}newestTimestamp")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to download from Firestore", e)
             throw e

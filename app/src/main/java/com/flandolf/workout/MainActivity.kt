@@ -166,7 +166,7 @@ class MainActivity : ComponentActivity() {
                                                 actionLabel = "Restore"
                                             )
                                             if (res == SnackbarResult.ActionPerformed) {
-                                                syncVm.syncDown()
+                                                syncVm.performSync()
                                             }
                                         } else {
                                             snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
@@ -200,7 +200,7 @@ class MainActivity : ComponentActivity() {
                                                 actionLabel = "Restore"
                                             )
                                             if (res == SnackbarResult.ActionPerformed) {
-                                                syncVm.syncDown()
+                                                syncVm.performSync()
                                             }
                                         } else {
                                             snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")

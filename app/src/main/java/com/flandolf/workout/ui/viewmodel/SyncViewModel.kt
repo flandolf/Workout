@@ -187,32 +187,6 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Sync down from remote database only (download remote changes to local)
-     */
-    fun syncDown() {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                message = null,
-                errorMessage = null
-            )
-
-            try {
-                workoutRepository.syncDown()
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    message = "Downloaded latest data from cloud"
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "Failed to download data: ${'$'}{e.message}"
-                )
-            }
-        }
-    }
-
-    /**
      * Show authentication dialog
      */
     fun showAuthDialog() {
