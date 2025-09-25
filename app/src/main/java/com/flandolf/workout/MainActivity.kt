@@ -1,9 +1,12 @@
 package com.flandolf.workout
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ContentValues
 import android.content.Intent
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -47,7 +49,6 @@ import com.flandolf.workout.ui.viewmodel.SyncViewModel
 import com.flandolf.workout.ui.viewmodel.TemplateViewModel
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.launch
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -378,16 +379,31 @@ class MainActivity : ComponentActivity() {
             .format(Date())
         val fileName = "workout_export_$timestamp.csv"
 
-        // Use Downloads directory for better accessibility
-        val downloadsDir = Environment.getExternalStoragePublicDirectory(
-            Environment.DIRECTORY_DOWNLOADS
-        )
-        val file = File(downloadsDir, fileName)
-
         lifecycleScope.launch {
             try {
                 val repo = WorkoutRepository(applicationContext)
-                val exportedFile = repo.exportCsv(file)
+
+                // Insert into MediaStore Downloads
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+
+                val resolver = applicationContext.contentResolver
+                val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                val itemUri = resolver.insert(collection, contentValues)
+                    ?: throw IllegalStateException("Failed to create MediaStore record")
+
+                resolver.openOutputStream(itemUri)?.use { outStream ->
+                    repo.exportCsv(outStream) // make repo accept OutputStream instead of File
+                } ?: throw IllegalStateException("Failed to open output stream")
+
+                // Mark file as complete
+                contentValues.clear()
+                contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
+                resolver.update(itemUri, contentValues, null, null)
 
                 Toast.makeText(
                     this@MainActivity,
@@ -395,21 +411,24 @@ class MainActivity : ComponentActivity() {
                     Toast.LENGTH_LONG
                 ).show()
 
+                // Share intent
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/csv"
-                    putExtra(
-                        Intent.EXTRA_STREAM,
-                        FileProvider.getUriForFile(
-                            this@MainActivity,
-                            "${applicationContext.packageName}.fileprovider",
-                            exportedFile
-                        )
-                    )
+                    putExtra(Intent.EXTRA_STREAM, itemUri)
                     putExtra(Intent.EXTRA_SUBJECT, "Workout Data Export")
+                    putExtra(Intent.EXTRA_TITLE, fileName) // this helps the chooser UI
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+                    // Optional: force a user-friendly filename in ClipData
+                    clipData = ClipData.newUri(
+                        contentResolver,
+                        fileName,
+                        itemUri
+                    )
                 }
 
                 startActivity(Intent.createChooser(shareIntent, "Share CSV Export"))
+
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(

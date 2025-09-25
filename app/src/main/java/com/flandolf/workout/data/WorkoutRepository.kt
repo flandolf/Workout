@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileWriter
+import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -87,11 +88,14 @@ class WorkoutRepository(private val context: Context) {
      * - Weight, reps, and calculated volume for each set
      * - Proper CSV escaping for special characters
      */
-    suspend fun exportCsv(file: File): File = withContext(Dispatchers.IO) {
+    suspend fun exportCsv(outputStream: OutputStream): Unit = withContext(Dispatchers.IO) {
         val workouts = getAllWorkouts()
-        FileWriter(file).use { writer ->
-            // Enhanced CSV header with more useful information
-            writer.append("Date,Time,Workout Duration (seconds),Workout Duration (formatted),Exercise Name,Set Number,Reps,Weight (kg),Volume (kg),Notes\n")
+
+        outputStream.bufferedWriter().use { writer ->
+            // Header row
+            writer.appendLine(
+                "Date,Time,Workout Duration (seconds),Workout Duration (formatted),Exercise Name,Set Number,Reps,Weight (kg),Volume (kg),Notes"
+            )
 
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
@@ -106,23 +110,25 @@ class WorkoutRepository(private val context: Context) {
                     var setIndex = 1
                     for (s in ex.sets) {
                         val volume = s.reps * s.weight
-                        val notes = "" // Could be extended to include notes in the future
+                        val notes = "" // placeholder
 
-                        writer.append(escapeCsv(date)).append(',').append(escapeCsv(time))
-                            .append(',').append(durationSeconds.toString()).append(',')
+                        writer.append(escapeCsv(date)).append(',')
+                            .append(escapeCsv(time)).append(',')
+                            .append(durationSeconds.toString()).append(',')
                             .append(escapeCsv(durationText)).append(',')
                             .append(escapeCsv(ex.exercise.name)).append(',')
-                            .append(setIndex.toString()).append(',').append(s.reps.toString())
-                            .append(',').append(String.format(Locale.US, "%.2f", s.weight))
-                            .append(',')
+                            .append(setIndex.toString()).append(',')
+                            .append(s.reps.toString()).append(',')
+                            .append(String.format(Locale.US, "%.2f", s.weight)).append(',')
                             .append(String.format(Locale.US, "%.2f", volume)).append(',')
-                            .append(escapeCsv(notes)).append('\n')
+                            .append(escapeCsv(notes))
+                            .appendLine()
+
                         setIndex++
                     }
                 }
             }
         }
-        file
     }
 
     private fun escapeCsv(value: String): String {
