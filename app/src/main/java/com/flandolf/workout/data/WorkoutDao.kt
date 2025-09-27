@@ -26,7 +26,7 @@ interface WorkoutDao {
     @Update
     suspend fun updateExercise(exercise: ExerciseEntity)
 
-    @Query("SELECT * FROM exercises WHERE id = :exerciseId LIMIT 1")
+    @Query("SELECT * FROM workout_exercises WHERE id = :exerciseId LIMIT 1")
     suspend fun getExerciseById(exerciseId: Long): ExerciseEntity?
 
     @Delete
@@ -38,20 +38,20 @@ interface WorkoutDao {
     @Delete
     suspend fun deleteSet(set: SetEntity)
 
-    @Query("SELECT * FROM sets WHERE id = :setId LIMIT 1")
+    @Query("SELECT * FROM workout_sets WHERE id = :setId LIMIT 1")
     suspend fun getSetById(setId: Int): SetEntity?
 
     // Lookups to support upsert during download
-    @Query("SELECT * FROM exercises WHERE firestoreId = :firestoreId LIMIT 1")
+    @Query("SELECT * FROM workout_exercises WHERE firestoreId = :firestoreId LIMIT 1")
     suspend fun getExerciseByFirestoreId(firestoreId: String): ExerciseEntity?
 
-    @Query("SELECT * FROM exercises WHERE id = :localId AND workoutId = :localWorkoutId LIMIT 1")
+    @Query("SELECT * FROM workout_exercises WHERE id = :localId AND workoutId = :localWorkoutId LIMIT 1")
     suspend fun getExerciseByLocalId(localId: Long, localWorkoutId: Long): ExerciseEntity?
 
-    @Query("SELECT * FROM sets WHERE firestoreId = :firestoreId LIMIT 1")
+    @Query("SELECT * FROM workout_sets WHERE firestoreId = :firestoreId LIMIT 1")
     suspend fun getSetByFirestoreId(firestoreId: String): SetEntity?
 
-    @Query("SELECT * FROM sets WHERE id = :localId AND exerciseId = :localExerciseId LIMIT 1")
+    @Query("SELECT * FROM workout_sets WHERE id = :localId AND exerciseId = :localExerciseId LIMIT 1")
     suspend fun getSetByLocalId(localId: Long, localExerciseId: Long): SetEntity?
 
     @Update
@@ -86,13 +86,13 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts WHERE firestoreId = :firestoreId LIMIT 1")
     suspend fun getWorkoutWithExercisesByFirestoreId(firestoreId: String): WorkoutWithExercises?
 
-    @Query("SELECT DISTINCT name FROM exercises ORDER BY name")
+    @Query("SELECT DISTINCT name FROM workout_exercises ORDER BY name")
     suspend fun getDistinctExerciseNames(): List<String>
 
     @Query(
         """
-        SELECT s.* FROM sets s 
-        INNER JOIN exercises e ON s.exerciseId = e.id 
+    SELECT s.* FROM workout_sets s 
+    INNER JOIN workout_exercises e ON s.exerciseId = e.id 
         INNER JOIN workouts w ON e.workoutId = w.id 
         WHERE e.name = :exerciseName 
         AND w.id != :currentWorkoutId
@@ -103,27 +103,27 @@ interface WorkoutDao {
     suspend fun getBestSetFromLastWorkout(exerciseName: String, currentWorkoutId: Long): SetEntity?
 
     // New helpers for sync-down rebuild from nested FS doc
-    @Query("DELETE FROM sets WHERE exerciseId IN (SELECT id FROM exercises WHERE workoutId = :workoutId)")
+    @Query("DELETE FROM workout_sets WHERE exerciseId IN (SELECT id FROM workout_exercises WHERE workoutId = :workoutId)")
     suspend fun deleteSetsForWorkout(workoutId: Long)
 
-    @Query("DELETE FROM exercises WHERE workoutId = :workoutId")
+    @Query("DELETE FROM workout_exercises WHERE workoutId = :workoutId")
     suspend fun deleteExercisesForWorkout(workoutId: Long)
 
-    @Query("SELECT COALESCE(MAX(position), -1) FROM exercises WHERE workoutId = :workoutId")
+    @Query("SELECT COALESCE(MAX(position), -1) FROM workout_exercises WHERE workoutId = :workoutId")
     suspend fun getMaxPositionForWorkout(workoutId: Long): Int
 
     @Query(
         """
         SELECT exerciseName, setId, exerciseId, reps, weight, firestoreId FROM (
-            SELECT e.name AS exerciseName,
-                   s.id AS setId,
-                   s.exerciseId AS exerciseId,
-                   s.reps AS reps,
-                   s.weight AS weight,
-                   s.firestoreId AS firestoreId,
-                   ROW_NUMBER() OVER (PARTITION BY e.name ORDER BY w.date DESC, (s.weight * s.reps) DESC) AS rn
-            FROM sets s
-            INNER JOIN exercises e ON s.exerciseId = e.id
+         SELECT e.name AS exerciseName,
+             s.id AS setId,
+             s.exerciseId AS exerciseId,
+             s.reps AS reps,
+             s.weight AS weight,
+             s.firestoreId AS firestoreId,
+             ROW_NUMBER() OVER (PARTITION BY e.name ORDER BY w.date DESC, (s.weight * s.reps) DESC) AS rn
+         FROM workout_sets s
+         INNER JOIN workout_exercises e ON s.exerciseId = e.id
             INNER JOIN workouts w ON e.workoutId = w.id
             WHERE e.name IN (:exerciseNames) AND w.id != :currentWorkoutId
         ) ranked

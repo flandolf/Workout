@@ -438,7 +438,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private fun snapshotElapsedSeconds(): Long {
         val startRealtime = timerStartRealtime
         return if (startRealtime != null && _isTimerRunning.value) {
-            val computed = resumeBaseSeconds + ((SystemClock.elapsedRealtime() - startRealtime) / 1000L)
+            val computed =
+                resumeBaseSeconds + ((SystemClock.elapsedRealtime() - startRealtime) / 1000L)
             if (computed != _elapsedSeconds.value) {
                 _elapsedSeconds.value = computed
             }

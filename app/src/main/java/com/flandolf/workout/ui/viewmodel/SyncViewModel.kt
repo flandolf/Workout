@@ -1,6 +1,7 @@
 package com.flandolf.workout.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.flandolf.workout.data.TemplateRepository
@@ -14,7 +15,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import android.util.Log
 
 class SyncViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository()
@@ -69,8 +69,10 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 val prevAuthState = lastAuthState
-                val becameAuthenticated = prevAuthState != AuthState.AUTHENTICATED && authState == AuthState.AUTHENTICATED
-                val becameUnauthenticated = prevAuthState == AuthState.AUTHENTICATED && authState != AuthState.AUTHENTICATED
+                val becameAuthenticated =
+                    prevAuthState != AuthState.AUTHENTICATED && authState == AuthState.AUTHENTICATED
+                val becameUnauthenticated =
+                    prevAuthState == AuthState.AUTHENTICATED && authState != AuthState.AUTHENTICATED
                 lastAuthState = authState
 
                 // If authenticated and network is online, ensure sync repository is initialized
@@ -101,7 +103,12 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                     // Clear counts when unauthenticated
                     countsJob?.cancel()
                     _uiState.value =
-                        _uiState.value.copy(localWorkoutCount = 0, remoteWorkoutCount = 0, localTemplateCount = 0, remoteTemplateCount = 0)
+                        _uiState.value.copy(
+                            localWorkoutCount = 0,
+                            remoteWorkoutCount = 0,
+                            localTemplateCount = 0,
+                            remoteTemplateCount = 0
+                        )
                 }
             }
         }
@@ -279,8 +286,8 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun scheduleCountsRefresh(force: Boolean = false) {
-    val authSnapshot = lastAuthState ?: _uiState.value.authState
-    if (authSnapshot != AuthState.AUTHENTICATED) return
+        val authSnapshot = lastAuthState ?: _uiState.value.authState
+        if (authSnapshot != AuthState.AUTHENTICATED) return
         val now = System.currentTimeMillis()
         if (!force) {
             if (countsJob?.isActive == true) return

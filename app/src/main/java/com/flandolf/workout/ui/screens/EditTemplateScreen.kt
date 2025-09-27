@@ -69,14 +69,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flandolf.workout.data.CommonExercises
-import com.flandolf.workout.data.ExerciseWithSets
+import com.flandolf.workout.data.TemplateExerciseWithSets
 import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.EditWorkoutViewModel
 import com.flandolf.workout.ui.viewmodel.TemplateViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -84,7 +84,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, FlowPreview::class)
 @Composable
 fun AddTemplateScreen(
-    template: List<ExerciseWithSets>,
+    template: List<TemplateExerciseWithSets>,
     onBack: () -> Unit,
     onAddExercise: (String) -> Unit,
     onDeleteExercise: (Long) -> Unit,

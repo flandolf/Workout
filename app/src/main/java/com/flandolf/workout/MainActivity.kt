@@ -26,8 +26,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -172,7 +172,10 @@ class MainActivity : ComponentActivity() {
                                         // Navigate first so snackbar does not block transition
                                         navController.navigate("edit_template/$templateId")
                                         // Show snackbar asynchronously (optional delay-free)
-                                        snackbarHostState.showSnackbar("Template created", duration = SnackbarDuration.Short)
+                                        snackbarHostState.showSnackbar(
+                                            "Template created",
+                                            duration = SnackbarDuration.Short
+                                        )
                                     }
                                 }
                             )
@@ -369,10 +372,11 @@ class MainActivity : ComponentActivity() {
                                         syncVm.performSync()
                                     }
                                 },
-                                onImportTemplateCsv = { importTemplateCsv()
+                                onImportTemplateCsv = {
+                                    importTemplateCsv()
                                 },
                                 onExportTemplateCsv = {
-                                        exportTemplateCsv()
+                                    exportTemplateCsv()
                                 },
                                 themeViewModel = themeVm
                             )
@@ -409,7 +413,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val resolver = applicationContext.contentResolver
-                val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                val collection =
+                    MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
                 val itemUri = resolver.insert(collection, contentValues)
                     ?: throw IllegalStateException("Failed to create MediaStore record")
 
@@ -474,7 +479,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 val resolver = applicationContext.contentResolver
-                val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                val collection =
+                    MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
                 val itemUri = resolver.insert(collection, contentValues)
                     ?: throw IllegalStateException("Failed to create MediaStore record")
 

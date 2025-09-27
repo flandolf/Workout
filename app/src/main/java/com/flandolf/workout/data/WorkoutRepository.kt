@@ -6,8 +6,6 @@ import com.flandolf.workout.data.sync.SyncRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileWriter
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,7 +21,11 @@ class WorkoutRepository(private val context: Context) {
         try {
             dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
         } catch (e: Exception) {
-            android.util.Log.w("WorkoutRepository", "Failed to update updatedAt for workout $workoutId", e)
+            android.util.Log.w(
+                "WorkoutRepository",
+                "Failed to update updatedAt for workout $workoutId",
+                e
+            )
         }
     }
 
@@ -94,7 +96,8 @@ class WorkoutRepository(private val context: Context) {
 
     suspend fun getAllWorkouts(): List<WorkoutWithExercises> = dao.getAllWorkoutsWithExercises()
 
-    fun observeAllWorkouts(): Flow<List<WorkoutWithExercises>> = dao.observeAllWorkoutsWithExercises()
+    fun observeAllWorkouts(): Flow<List<WorkoutWithExercises>> =
+        dao.observeAllWorkoutsWithExercises()
 
     suspend fun getWorkout(id: Long): WorkoutWithExercises? = dao.getWorkoutWithExercises(id)
 
@@ -387,7 +390,12 @@ class WorkoutRepository(private val context: Context) {
 
                     // Create workout with duration
                     val now = System.currentTimeMillis()
-                    val workout = Workout(date = date, durationSeconds = duration, startTime = date, updatedAt = now)
+                    val workout = Workout(
+                        date = date,
+                        durationSeconds = duration,
+                        startTime = date,
+                        updatedAt = now
+                    )
                     val workoutId = dao.insertWorkout(workout)
                     // Log inserted workout details for verification (human-readable + epoch)
                     android.util.Log.d(
@@ -519,7 +527,12 @@ class WorkoutRepository(private val context: Context) {
                     if (exercises.isEmpty()) continue
 
                     val now = System.currentTimeMillis()
-                    val workout = Workout(date = date, durationSeconds = duration, startTime = date, updatedAt = now)
+                    val workout = Workout(
+                        date = date,
+                        durationSeconds = duration,
+                        startTime = date,
+                        updatedAt = now
+                    )
                     val workoutId = dao.insertWorkout(workout)
 
                     for ((exerciseName, sets) in exercises) {
@@ -673,17 +686,24 @@ class WorkoutRepository(private val context: Context) {
             val templateDao = db.templateDao()
             val tpl = templateDao.getTemplateWithExercises(templateId)
             val currentTime = System.currentTimeMillis()
-                val workoutId = dao.insertWorkout(Workout(startTime = currentTime, updatedAt = currentTime))
+            val workoutId =
+                dao.insertWorkout(Workout(startTime = currentTime, updatedAt = currentTime))
             if (tpl != null) {
                 for (exWithSets in tpl.exercises) {
                     val ex = ExerciseEntity(workoutId = workoutId, name = exWithSets.exercise.name)
                     val exId = dao.insertExercise(ex)
                     for (s in exWithSets.sets) {
-                        dao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight))
+                        dao.insertSet(
+                            SetEntity(
+                                exerciseId = exId,
+                                reps = s.reps,
+                                weight = s.weight
+                            )
+                        )
                     }
                 }
             }
-                dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
+            dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
             workoutId
         }
     }

@@ -8,6 +8,8 @@ import com.flandolf.workout.data.AppDatabase
 import com.flandolf.workout.data.ExerciseEntity
 import com.flandolf.workout.data.SetEntity
 import com.flandolf.workout.data.Template
+import com.flandolf.workout.data.TemplateExerciseEntity
+import com.flandolf.workout.data.TemplateSetEntity
 import com.flandolf.workout.data.Workout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -199,7 +201,10 @@ class SyncRepository(
     }
 
     /** Compute template content hash */
-    private fun computeTemplateContentHash(fsExercises: List<FSExercise>, template: Template): String {
+    private fun computeTemplateContentHash(
+        fsExercises: List<FSExercise>,
+        template: Template
+    ): String {
         val sb = StringBuilder()
         sb.append(template.name).append('|')
         for (ex in fsExercises) {
@@ -216,7 +221,9 @@ class SyncRepository(
     private fun setLastRemoteDownloadTime(value: Long) =
         prefs.edit { putLong(PREF_LAST_REMOTE_DOWNLOAD, value) }
 
-    private fun getLastTemplateRemoteDownloadTime(): Long = prefs.getLong(PREF_LAST_TEMPLATE_REMOTE_DOWNLOAD, 0L)
+    private fun getLastTemplateRemoteDownloadTime(): Long =
+        prefs.getLong(PREF_LAST_TEMPLATE_REMOTE_DOWNLOAD, 0L)
+
     private fun setLastTemplateRemoteDownloadTime(value: Long) =
         prefs.edit { putLong(PREF_LAST_TEMPLATE_REMOTE_DOWNLOAD, value) }
 
@@ -267,11 +274,19 @@ class SyncRepository(
                 val fsExercises = workoutWithExercises.exercises.map { exWithSets ->
                     FSExercise(
                         name = exWithSets.exercise.name,
-                        sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                        sets = exWithSets.sets.map { s ->
+                            FSSet(
+                                weight = s.weight.toDouble(),
+                                reps = s.reps
+                            )
+                        }
                     )
                 }
                 val totalSets = workoutWithExercises.exercises.sumOf { it.sets.size }
-                Log.d(TAG, "Uploading workout ${workout.id}: exercises=${fsExercises.size}, sets=$totalSets")
+                Log.d(
+                    TAG,
+                    "Uploading workout ${workout.id}: exercises=${fsExercises.size}, sets=$totalSets"
+                )
 
                 val contentHash = computeWorkoutContentHash(fsExercises, workout)
                 val workoutFsId = workout.firestoreId?.takeIf { it.isNotBlank() }
@@ -279,7 +294,9 @@ class SyncRepository(
                 var shouldUpload = true
                 if (!workout.firestoreId.isNullOrBlank()) {
                     try {
-                        val remoteSnap = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId).get().await()
+                        val remoteSnap =
+                            firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId).get()
+                                .await()
                         val remoteHash = remoteSnap.getString("contentHash") ?: ""
                         if (remoteHash == contentHash) {
                             shouldUpload = false
@@ -287,9 +304,16 @@ class SyncRepository(
                             val remoteClientUpdatedAt = remoteSnap.getLong("clientUpdatedAt") ?: 0L
                             if (remoteClientUpdatedAt < workout.updatedAt) {
                                 try {
-                                    remoteSnap.reference.update("clientUpdatedAt", workout.updatedAt).await()
+                                    remoteSnap.reference.update(
+                                        "clientUpdatedAt",
+                                        workout.updatedAt
+                                    ).await()
                                 } catch (e: Exception) {
-                                    Log.w(TAG, "Failed to bump clientUpdatedAt for unchanged workout ${workout.id}", e)
+                                    Log.w(
+                                        TAG,
+                                        "Failed to bump clientUpdatedAt for unchanged workout ${workout.id}",
+                                        e
+                                    )
                                 }
                             }
                         }
@@ -334,7 +358,10 @@ class SyncRepository(
                     Log.w(TAG, "Failed to persist remaining firestoreIds locally", e)
                 }
             }
-            Log.d(TAG, "Uploaded ${localWorkouts.size - skippedUnchanged} workouts (skipped $skippedUnchanged unchanged) to Firestore (nested docs)")
+            Log.d(
+                TAG,
+                "Uploaded ${localWorkouts.size - skippedUnchanged} workouts (skipped $skippedUnchanged unchanged) to Firestore (nested docs)"
+            )
         } catch (e: Exception) {
             Log.e(TAG, "uploadToFirestore (nested) failed", e)
             throw e
@@ -388,7 +415,12 @@ class SyncRepository(
                 val fsExercises = templateWithExercises.exercises.map { exWithSets ->
                     FSExercise(
                         name = exWithSets.exercise.name,
-                        sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                        sets = exWithSets.sets.map { s ->
+                            FSSet(
+                                weight = s.weight.toDouble(),
+                                reps = s.reps
+                            )
+                        }
                     )
                 }
                 val contentHash = computeTemplateContentHash(fsExercises, template)
@@ -398,7 +430,9 @@ class SyncRepository(
                 var shouldUpload = true
                 if (!template.firestoreId.isNullOrBlank()) {
                     try {
-                        val remoteSnap = firestore.collection(COLLECTION_TEMPLATES).document(templateFsId).get().await()
+                        val remoteSnap =
+                            firestore.collection(COLLECTION_TEMPLATES).document(templateFsId).get()
+                                .await()
                         val remoteHash = remoteSnap.getString("contentHash") ?: ""
                         if (remoteHash == contentHash) {
                             shouldUpload = false
@@ -406,9 +440,16 @@ class SyncRepository(
                             val remoteClientUpdatedAt = remoteSnap.getLong("clientUpdatedAt") ?: 0L
                             if (remoteClientUpdatedAt < template.updatedAt) {
                                 try {
-                                    remoteSnap.reference.update("clientUpdatedAt", template.updatedAt).await()
+                                    remoteSnap.reference.update(
+                                        "clientUpdatedAt",
+                                        template.updatedAt
+                                    ).await()
                                 } catch (e: Exception) {
-                                    Log.w(TAG, "Failed to bump clientUpdatedAt for unchanged template ${template.id}", e)
+                                    Log.w(
+                                        TAG,
+                                        "Failed to bump clientUpdatedAt for unchanged template ${template.id}",
+                                        e
+                                    )
                                 }
                             }
                         }
@@ -450,7 +491,10 @@ class SyncRepository(
                     Log.w(TAG, "Failed to persist remaining template firestoreIds locally", e)
                 }
             }
-            Log.d(TAG, "Uploaded ${localTemplates.size - skippedUnchanged} templates (skipped $skippedUnchanged unchanged) to Firestore")
+            Log.d(
+                TAG,
+                "Uploaded ${localTemplates.size - skippedUnchanged} templates (skipped $skippedUnchanged unchanged) to Firestore"
+            )
         } catch (e: Exception) {
             Log.e(TAG, "uploadTemplatesToFirestore failed", e)
             throw e
@@ -468,29 +512,48 @@ class SyncRepository(
             val fsExercises = workoutWith?.exercises?.map { exWithSets ->
                 FSExercise(
                     name = exWithSets.exercise.name,
-                    sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                    sets = exWithSets.sets.map { s ->
+                        FSSet(
+                            weight = s.weight.toDouble(),
+                            reps = s.reps
+                        )
+                    }
                 )
             } ?: emptyList()
             val totalSetsForSingle = workoutWith?.exercises?.sumOf { it.sets.size } ?: 0
-            Log.d(TAG, "Uploading single workout ${workout.id}: exercises=${fsExercises.size}, sets=$totalSetsForSingle")
+            Log.d(
+                TAG,
+                "Uploading single workout ${workout.id}: exercises=${fsExercises.size}, sets=$totalSetsForSingle"
+            )
             val contentHash = computeWorkoutContentHash(fsExercises, workout)
-            val workoutFsId = workout.firestoreId?.takeIf { it.isNotBlank() } ?: workoutDocId(userId, workout.id)
+            val workoutFsId =
+                workout.firestoreId?.takeIf { it.isNotBlank() } ?: workoutDocId(userId, workout.id)
             var shouldUpload = true
             if (!workout.firestoreId.isNullOrBlank()) {
                 try {
-                    val remoteSnap = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId).get().await()
+                    val remoteSnap =
+                        firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId).get()
+                            .await()
                     val remoteHash = remoteSnap.getString("contentHash") ?: ""
                     if (remoteHash == contentHash) {
                         shouldUpload = false
                         val remoteClientUpdatedAt = remoteSnap.getLong("clientUpdatedAt") ?: 0L
                         if (remoteClientUpdatedAt < workout.updatedAt) {
                             try {
-                                remoteSnap.reference.update("clientUpdatedAt", workout.updatedAt).await()
+                                remoteSnap.reference.update("clientUpdatedAt", workout.updatedAt)
+                                    .await()
                             } catch (e: Exception) {
-                                Log.w(TAG, "Failed to bump clientUpdatedAt for unchanged workout ${workout.id}", e)
+                                Log.w(
+                                    TAG,
+                                    "Failed to bump clientUpdatedAt for unchanged workout ${workout.id}",
+                                    e
+                                )
                             }
                         }
-                        Log.d(TAG, "Skipping upload for workout ${workout.id}: unchanged content hash")
+                        Log.d(
+                            TAG,
+                            "Skipping upload for workout ${workout.id}: unchanged content hash"
+                        )
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to check remote hash for single workout", e)
@@ -531,28 +594,44 @@ class SyncRepository(
             // Skip empty unnamed templates
             if (tmplWith.template.name.isBlank() && tmplWith.exercises.isEmpty()) return
 
-            val fsExercises = tmplWith.exercises.sortedBy { it.exercise.position }.map { exWithSets ->
-                FSExercise(
-                    name = exWithSets.exercise.name,
-                    sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
-                )
-            }
+            val fsExercises =
+                tmplWith.exercises.sortedBy { it.exercise.position }.map { exWithSets ->
+                    FSExercise(
+                        name = exWithSets.exercise.name,
+                        sets = exWithSets.sets.map { s ->
+                            FSSet(
+                                weight = s.weight.toDouble(),
+                                reps = s.reps
+                            )
+                        }
+                    )
+                }
             val contentHash = computeTemplateContentHash(fsExercises, tmplWith.template)
             val template = tmplWith.template
-            val templateFsId = template.firestoreId?.takeIf { it.isNotBlank() } ?: templateDocId(userId, template.id)
+            val templateFsId = template.firestoreId?.takeIf { it.isNotBlank() } ?: templateDocId(
+                userId,
+                template.id
+            )
 
             var shouldUpload = true
             if (!template.firestoreId.isNullOrBlank()) {
                 try {
-                    val remoteSnap = firestore.collection(COLLECTION_TEMPLATES).document(templateFsId).get().await()
+                    val remoteSnap =
+                        firestore.collection(COLLECTION_TEMPLATES).document(templateFsId).get()
+                            .await()
                     val remoteHash = remoteSnap.getString("contentHash") ?: ""
                     if (remoteHash == contentHash) shouldUpload = false
                     val remoteClientUpdatedAt = remoteSnap.getLong("clientUpdatedAt") ?: 0L
                     if (remoteHash == contentHash && remoteClientUpdatedAt < template.updatedAt) {
                         try {
-                            remoteSnap.reference.update("clientUpdatedAt", template.updatedAt).await()
+                            remoteSnap.reference.update("clientUpdatedAt", template.updatedAt)
+                                .await()
                         } catch (e: Exception) {
-                            Log.w(TAG, "Failed to bump clientUpdatedAt for unchanged template ${template.id}", e)
+                            Log.w(
+                                TAG,
+                                "Failed to bump clientUpdatedAt for unchanged template ${template.id}",
+                                e
+                            )
                         }
                     }
                 } catch (e: Exception) {
@@ -573,7 +652,9 @@ class SyncRepository(
             val docRef = firestore.collection(COLLECTION_TEMPLATES).document(templateFsId)
             firestore.runBatch { b -> b.set(docRef, fsTemplate) }.await()
             if (template.firestoreId.isNullOrBlank()) {
-                try { templateDao.updateTemplate(template.copy(firestoreId = docRef.id)) } catch (e: Exception) {
+                try {
+                    templateDao.updateTemplate(template.copy(firestoreId = docRef.id))
+                } catch (e: Exception) {
                     Log.w(TAG, "Failed to persist template firestoreId after single sync", e)
                 }
             }
@@ -661,8 +742,12 @@ class SyncRepository(
             if (!firestoreId.isNullOrBlank()) {
                 // Try direct delete first
                 try {
-                    firestore.collection(COLLECTION_TEMPLATES).document(firestoreId).delete().await()
-                    Log.d(TAG, "Deleted template ${'$'}templateId (doc ${'$'}firestoreId) from Firestore")
+                    firestore.collection(COLLECTION_TEMPLATES).document(firestoreId).delete()
+                        .await()
+                    Log.d(
+                        TAG,
+                        "Deleted template ${'$'}templateId (doc ${'$'}firestoreId) from Firestore"
+                    )
                     return
                 } catch (e: Exception) {
                     Log.w(TAG, "Direct delete by firestoreId failed, falling back to query", e)
@@ -706,13 +791,19 @@ class SyncRepository(
                 collection.orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
             }
             val workoutsSnapshot = query.get().await()
-            Log.d(TAG, "Found ${workoutsSnapshot.documents.size} remote workouts (lastDownload=$lastDownload)")
+            Log.d(
+                TAG,
+                "Found ${workoutsSnapshot.documents.size} remote workouts (lastDownload=$lastDownload)"
+            )
             var processed = 0
             var skippedHash = 0
             var newestTimestamp = lastDownload
             for (document in workoutsSnapshot.documents) {
                 val fsWorkout = document.toObject<FirestoreWorkout>() ?: continue
-                Log.d(TAG, "Downloaded workout doc ${document.id}: exercises=${fsWorkout.exercises.size}")
+                Log.d(
+                    TAG,
+                    "Downloaded workout doc ${document.id}: exercises=${fsWorkout.exercises.size}"
+                )
 
                 val remoteUpdatedAt = when {
                     fsWorkout.clientUpdatedAt > 0L -> fsWorkout.clientUpdatedAt
@@ -724,7 +815,11 @@ class SyncRepository(
                     try {
                         document.reference.update("clientUpdatedAt", remoteUpdatedAt).await()
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to backfill clientUpdatedAt for workout ${document.id}", e)
+                        Log.w(
+                            TAG,
+                            "Failed to backfill clientUpdatedAt for workout ${document.id}",
+                            e
+                        )
                     }
                 }
 
@@ -734,10 +829,20 @@ class SyncRepository(
 
                 if (fsWorkout.isDeleted) {
                     try {
-                        val deleted = dao.getWorkoutWithExercisesByFirestoreId(document.id)?.workout?.let { dao.deleteWorkout(it) }
-                            ?: if (fsWorkout.localId > 0) dao.getWorkoutWithExercises(fsWorkout.localId)?.workout?.let { dao.deleteWorkout(it) } else null
+                        dao.getWorkoutWithExercisesByFirestoreId(document.id)?.workout?.let {
+                            dao.deleteWorkout(it)
+                        }
+                            ?: if (fsWorkout.localId > 0) dao.getWorkoutWithExercises(fsWorkout.localId)?.workout?.let {
+                                dao.deleteWorkout(
+                                    it
+                                )
+                            } else null
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed local delete for remote-deleted workout ${document.id}", e)
+                        Log.w(
+                            TAG,
+                            "Failed local delete for remote-deleted workout ${document.id}",
+                            e
+                        )
                     }
                     if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
                     continue
@@ -745,8 +850,8 @@ class SyncRepository(
 
                 val existingWithExercises = try {
                     dao.getWorkoutWithExercisesByFirestoreId(document.id)
-                        ?: if (fsWorkout.localId > 0) dao.getWorkoutWithExercises(fsWorkout.localId) else null
-                        ?: dao.getWorkoutByDate(fsWorkout.date)?.let { dao.getWorkoutWithExercises(it.id) }
+                        ?: if (fsWorkout.localId > 0) dao.getWorkoutWithExercises(fsWorkout.localId)
+                        else null
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to load existing workout for ${document.id}", e)
                     null
@@ -759,7 +864,12 @@ class SyncRepository(
                             existingWithExercises.exercises.map { exWithSets ->
                                 FSExercise(
                                     name = exWithSets.exercise.name,
-                                    sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                                    sets = exWithSets.sets.map { s ->
+                                        FSSet(
+                                            weight = s.weight.toDouble(),
+                                            reps = s.reps
+                                        )
+                                    }
                                 )
                             },
                             localExisting
@@ -809,7 +919,11 @@ class SyncRepository(
                             .update("localId", insertedId)
                             .await()
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to store new localId for downloaded workout ${document.id}", e)
+                        Log.w(
+                            TAG,
+                            "Failed to store new localId for downloaded workout ${document.id}",
+                            e
+                        )
                     }
                     persisted
                 }
@@ -819,13 +933,27 @@ class SyncRepository(
                     dao.deleteExercisesForWorkout(localWorkout.id)
                     if (fsWorkout.exercises.isNotEmpty()) {
                         for (ex in fsWorkout.exercises) {
-                            val exId = dao.insertExercise(ExerciseEntity(workoutId = localWorkout.id, name = ex.name))
+                            val exId = dao.insertExercise(
+                                ExerciseEntity(
+                                    workoutId = localWorkout.id,
+                                    name = ex.name
+                                )
+                            )
                             for (s in ex.sets) {
-                                dao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight.toFloat()))
+                                dao.insertSet(
+                                    SetEntity(
+                                        exerciseId = exId,
+                                        reps = s.reps,
+                                        weight = s.weight.toFloat()
+                                    )
+                                )
                             }
                         }
                     } else {
-                        Log.d(TAG, "Cleared exercises for workout ${localWorkout.id}: remote has no exercises")
+                        Log.d(
+                            TAG,
+                            "Cleared exercises for workout ${localWorkout.id}: remote has no exercises"
+                        )
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to rebuild exercises for workout ${localWorkout.id}", e)
@@ -837,7 +965,10 @@ class SyncRepository(
             if (newestTimestamp > lastDownload) {
                 setLastRemoteDownloadTime(newestTimestamp)
             }
-            Log.d(TAG, "Workout download from Firestore completed: processed=$processed skipped=$skippedHash newestTs=$newestTimestamp")
+            Log.d(
+                TAG,
+                "Workout download from Firestore completed: processed=$processed skipped=$skippedHash newestTs=$newestTimestamp"
+            )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to download workouts from Firestore", e)
             throw e
@@ -865,7 +996,10 @@ class SyncRepository(
                 collection.orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
             }
             val templatesSnapshot = query.get().await()
-            Log.d(TAG, "Found ${templatesSnapshot.documents.size} remote templates (lastDownload=$lastDownload)")
+            Log.d(
+                TAG,
+                "Found ${templatesSnapshot.documents.size} remote templates (lastDownload=$lastDownload)"
+            )
             var processed = 0
             var skippedHash = 0
             var newestTimestamp = lastDownload
@@ -881,7 +1015,11 @@ class SyncRepository(
                     try {
                         document.reference.update("clientUpdatedAt", remoteUpdatedAt).await()
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to backfill clientUpdatedAt for template ${document.id}", e)
+                        Log.w(
+                            TAG,
+                            "Failed to backfill clientUpdatedAt for template ${document.id}",
+                            e
+                        )
                     }
                 }
 
@@ -892,9 +1030,14 @@ class SyncRepository(
                 if (fsTemplate.isDeleted) {
                     // If marked deleted remotely, attempt local delete
                     try {
-                        templateDao.getTemplateByFirestoreId(document.id)?.let { templateDao.deleteTemplate(it) }
+                        templateDao.getTemplateByFirestoreId(document.id)
+                            ?.let { templateDao.deleteTemplate(it) }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed local delete for remote-deleted template ${document.id}", e)
+                        Log.w(
+                            TAG,
+                            "Failed local delete for remote-deleted template ${document.id}",
+                            e
+                        )
                     }
                     if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
                     continue
@@ -902,7 +1045,9 @@ class SyncRepository(
 
                 val existingWithExercises = try {
                     templateDao.getTemplateWithExercisesByFirestoreId(document.id)
-                        ?: if (fsTemplate.localId > 0) templateDao.getTemplateWithExercises(fsTemplate.localId) else null
+                        ?: if (fsTemplate.localId > 0) templateDao.getTemplateWithExercises(
+                            fsTemplate.localId
+                        ) else null
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to load existing template for ${document.id}", e)
                     null
@@ -915,7 +1060,12 @@ class SyncRepository(
                             existingWithExercises.exercises.map { exWithSets ->
                                 FSExercise(
                                     name = exWithSets.exercise.name,
-                                    sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                                    sets = exWithSets.sets.map { s ->
+                                        FSSet(
+                                            weight = s.weight.toDouble(),
+                                            reps = s.reps
+                                        )
+                                    }
                                 )
                             },
                             localExisting
@@ -948,7 +1098,11 @@ class SyncRepository(
                     }
                     updated
                 } else {
-                    val newTemplate = Template(name = fsTemplate.name, updatedAt = remoteUpdatedAt, firestoreId = document.id)
+                    val newTemplate = Template(
+                        name = fsTemplate.name,
+                        updatedAt = remoteUpdatedAt,
+                        firestoreId = document.id
+                    )
                     val insertedId = templateDao.insertTemplate(newTemplate)
                     val persisted = newTemplate.copy(id = insertedId)
                     templateDao.updateTemplate(persisted)
@@ -958,7 +1112,11 @@ class SyncRepository(
                             .update("localId", insertedId)
                             .await()
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to store new localId for downloaded template ${document.id}", e)
+                        Log.w(
+                            TAG,
+                            "Failed to store new localId for downloaded template ${document.id}",
+                            e
+                        )
                     }
                     persisted
                 }
@@ -972,14 +1130,27 @@ class SyncRepository(
                     if (fsTemplate.exercises.isNotEmpty()) {
                         fsTemplate.exercises.forEachIndexed { index, ex ->
                             val exId = templateDao.insertExercise(
-                                ExerciseEntity(templateId = localTemplate.id, name = ex.name, position = index)
+                                TemplateExerciseEntity(
+                                    templateId = localTemplate.id,
+                                    name = ex.name,
+                                    position = index
+                                )
                             )
                             for (s in ex.sets) {
-                                templateDao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight.toFloat()))
+                                templateDao.insertSet(
+                                    TemplateSetEntity(
+                                        exerciseId = exId,
+                                        reps = s.reps,
+                                        weight = s.weight.toFloat()
+                                    )
+                                )
                             }
                         }
                     } else {
-                        Log.d(TAG, "Cleared exercises for template ${localTemplate.id}: remote has no exercises")
+                        Log.d(
+                            TAG,
+                            "Cleared exercises for template ${localTemplate.id}: remote has no exercises"
+                        )
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to rebuild exercises for template ${localTemplate.id}", e)

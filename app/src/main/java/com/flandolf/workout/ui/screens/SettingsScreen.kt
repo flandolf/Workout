@@ -38,11 +38,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.flandolf.workout.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.flandolf.workout.ui.theme.ThemeMode
 import com.flandolf.workout.ui.viewmodel.SyncViewModel
 import com.flandolf.workout.ui.viewmodel.ThemeViewModel
-import com.flandolf.workout.ui.theme.ThemeMode
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,7 +60,8 @@ fun SettingsScreen(
 
     // Collect sync state
     val syncUiState = syncViewModel?.uiState?.collectAsStateWithLifecycle()?.value
-    val showAuthDialog = syncViewModel?.showAuthDialog?.collectAsStateWithLifecycle()?.value ?: false
+    val showAuthDialog =
+        syncViewModel?.showAuthDialog?.collectAsStateWithLifecycle()?.value ?: false
 
     Scaffold(
         topBar = {

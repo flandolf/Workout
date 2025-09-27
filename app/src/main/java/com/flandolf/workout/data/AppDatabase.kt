@@ -6,8 +6,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [Workout::class, ExerciseEntity::class, SetEntity::class, Template::class],
-    version = 3
+    entities = [
+        Workout::class,
+        ExerciseEntity::class,
+        SetEntity::class,
+        Template::class,
+        TemplateExerciseEntity::class,
+        TemplateSetEntity::class
+    ],
+    version = 1
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun workoutDao(): WorkoutDao

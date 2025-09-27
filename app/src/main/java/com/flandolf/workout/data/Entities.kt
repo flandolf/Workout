@@ -19,30 +19,20 @@ data class Workout(
 )
 
 @Entity(
-    tableName = "exercises",
+    tableName = "workout_exercises",
     foreignKeys = [
         ForeignKey(
             entity = Workout::class,
             parentColumns = ["id"],
             childColumns = ["workoutId"],
             onDelete = ForeignKey.CASCADE
-        ),
-        ForeignKey(
-            entity = Template::class,
-            parentColumns = ["id"],
-            childColumns = ["templateId"],
-            onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("workoutId"), Index("templateId"), Index(
-        value = ["firestoreId"],
-        unique = true
-    )]
+    indices = [Index("workoutId"), Index(value = ["firestoreId"], unique = true)]
 )
 data class ExerciseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val workoutId: Long? = null, // Nullable to allow exercises to belong to either a workout or a template
-    val templateId: Long? = null, // New: links exercise to a template
+    val workoutId: Long,
     val name: String,
     // Ordering within a workout or template (lower comes first)
     val position: Int = 0,
@@ -51,12 +41,16 @@ data class ExerciseEntity(
 )
 
 @Entity(
-    tableName = "sets", foreignKeys = [ForeignKey(
-        entity = ExerciseEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["exerciseId"],
-        onDelete = ForeignKey.CASCADE
-    )], indices = [Index("exerciseId"), Index(value = ["firestoreId"], unique = true)]
+    tableName = "workout_sets",
+    foreignKeys = [
+        ForeignKey(
+            entity = ExerciseEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["exerciseId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("exerciseId"), Index(value = ["firestoreId"], unique = true)]
 )
 data class SetEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
@@ -67,7 +61,6 @@ data class SetEntity(
     val firestoreId: String? = null
 )
 
-// Added firestoreId for template syncing
 @Entity(
     tableName = "templates",
     indices = [Index(value = ["id"], unique = true), Index(value = ["firestoreId"], unique = true)]
@@ -79,18 +72,63 @@ data class Template(
     val firestoreId: String? = null
 )
 
+@Entity(
+    tableName = "template_exercises",
+    foreignKeys = [
+        ForeignKey(
+            entity = Template::class,
+            parentColumns = ["id"],
+            childColumns = ["templateId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("templateId"), Index(value = ["firestoreId"], unique = true)]
+)
+data class TemplateExerciseEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val templateId: Long,
+    val name: String,
+    val position: Int = 0,
+    val firestoreId: String? = null
+)
+
+@Entity(
+    tableName = "template_sets",
+    foreignKeys = [
+        ForeignKey(
+            entity = TemplateExerciseEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["exerciseId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("exerciseId"), Index(value = ["firestoreId"], unique = true)]
+)
+data class TemplateSetEntity(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val exerciseId: Long,
+    val reps: Int,
+    val weight: Float,
+    val firestoreId: String? = null
+)
+
 data class TemplateWithExercises(
     @Embedded val template: Template,
     @Relation(
-        entity = ExerciseEntity::class,
+        entity = TemplateExerciseEntity::class,
         parentColumn = "id",
         entityColumn = "templateId"
-    ) val exercises: List<ExerciseWithSets>
+    ) val exercises: List<TemplateExerciseWithSets>
 )
 
 data class ExerciseWithSets(
     @Embedded val exercise: ExerciseEntity,
     @Relation(parentColumn = "id", entityColumn = "exerciseId") val sets: List<SetEntity>
+)
+
+data class TemplateExerciseWithSets(
+    @Embedded val exercise: TemplateExerciseEntity,
+    @Relation(parentColumn = "id", entityColumn = "exerciseId") val sets: List<TemplateSetEntity>
 )
 
 data class WorkoutWithExercises(

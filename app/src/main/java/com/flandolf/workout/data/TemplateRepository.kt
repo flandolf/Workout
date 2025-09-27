@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.InputStream
 import java.io.OutputStream
-import java.util.*
+import java.util.Locale
 
 class TemplateRepository(private val context: Context) {
     private val db by lazy { AppDatabase.getInstance(context) }
@@ -20,7 +20,11 @@ class TemplateRepository(private val context: Context) {
         try {
             dao.updateTemplateUpdatedAt(templateId, System.currentTimeMillis())
         } catch (e: Exception) {
-            android.util.Log.w("TemplateRepository", "Failed to update updatedAt for template $templateId", e)
+            android.util.Log.w(
+                "TemplateRepository",
+                "Failed to update updatedAt for template $templateId",
+                e
+            )
         }
     }
 
@@ -42,7 +46,7 @@ class TemplateRepository(private val context: Context) {
         val maxPos = dao.getMaxPositionForTemplate(templateId)
         val nextPos = maxPos + 1
         val exerciseId = dao.insertExercise(
-            ExerciseEntity(
+            TemplateExerciseEntity(
                 templateId = templateId,
                 name = name,
                 position = nextPos
@@ -56,7 +60,7 @@ class TemplateRepository(private val context: Context) {
         withContext(Dispatchers.IO) {
             val pos = position ?: (dao.getMaxPositionForTemplate(templateId) + 1)
             val exerciseId = dao.insertExercise(
-                ExerciseEntity(
+                TemplateExerciseEntity(
                     templateId = templateId,
                     name = name,
                     position = pos
@@ -74,10 +78,16 @@ class TemplateRepository(private val context: Context) {
 
     suspend fun addSet(exerciseId: Long, reps: Int, weight: Float): Long =
         withContext(Dispatchers.IO) {
-                val setId = dao.insertSet(SetEntity(exerciseId = exerciseId, reps = reps, weight = weight))
-                val exercise = dao.getExerciseById(exerciseId)
-                touchTemplate(exercise?.templateId)
-                setId
+            val setId = dao.insertSet(
+                TemplateSetEntity(
+                    exerciseId = exerciseId,
+                    reps = reps,
+                    weight = weight
+                )
+            )
+            val exercise = dao.getExerciseById(exerciseId)
+            touchTemplate(exercise?.templateId)
+            setId
         }
 
     suspend fun updateSet(setId: Int, reps: Int, weight: Float) = withContext(Dispatchers.IO) {
@@ -85,8 +95,8 @@ class TemplateRepository(private val context: Context) {
         val existing = dao.getSetById(setId)
         if (existing != null) {
             dao.updateSet(existing.copy(reps = reps, weight = weight))
-                val exercise = dao.getExerciseById(existing.exerciseId)
-                touchTemplate(exercise?.templateId)
+            val exercise = dao.getExerciseById(existing.exerciseId)
+            touchTemplate(exercise?.templateId)
         }
     }
 
@@ -105,7 +115,7 @@ class TemplateRepository(private val context: Context) {
 
     // Delete a template row by id (and remote if synced)
     suspend fun deleteTemplateById(id: Long) = withContext(Dispatchers.IO) {
-            val t = dao.getTemplateById(id)
+        val t = dao.getTemplateById(id)
         if (t != null) {
             val fsId = t.firestoreId
             dao.deleteTemplate(t)
@@ -114,22 +124,25 @@ class TemplateRepository(private val context: Context) {
                     syncRepository.initialize()
                     syncRepository.deleteTemplateFromFirestore(id, fsId)
                 } catch (e: Exception) {
-                    android.util.Log.w("TemplateRepository", "Failed remote delete for template $id", e)
+                    android.util.Log.w(
+                        "TemplateRepository",
+                        "Failed remote delete for template $id",
+                        e
+                    )
                 }
             }
         }
     }
 
     // Swap positions of two exercises within a template
-    suspend fun swapExercisePositions(ex1: ExerciseEntity, ex2: ExerciseEntity) =
+    suspend fun swapExercisePositions(ex1: TemplateExerciseEntity, ex2: TemplateExerciseEntity) =
         withContext(Dispatchers.IO) {
             db.withTransaction {
                 val a = ex1.copy(position = ex2.position)
                 val b = ex2.copy(position = ex1.position)
                 dao.updateExercise(a)
                 dao.updateExercise(b)
-                val templateId = ex1.templateId ?: ex2.templateId
-                touchTemplate(templateId)
+                touchTemplate(ex1.templateId)
             }
         }
 
@@ -268,7 +281,7 @@ class TemplateRepository(private val context: Context) {
                 // Insert exercises (even when they have zero sets)
                 var position = 0
                 for ((exerciseName, sets) in exercises) {
-                    val exercise = ExerciseEntity(
+                    val exercise = TemplateExerciseEntity(
                         templateId = templateId,
                         name = exerciseName,
                         position = position
@@ -276,7 +289,7 @@ class TemplateRepository(private val context: Context) {
                     val exerciseId = dao.insertExercise(exercise)
                     for ((reps, weight) in sets) {
                         dao.insertSet(
-                            SetEntity(
+                            TemplateSetEntity(
                                 exerciseId = exerciseId,
                                 reps = reps,
                                 weight = weight
@@ -289,7 +302,11 @@ class TemplateRepository(private val context: Context) {
                 importedTemplates++
                 touchTemplate(templateId)
             } catch (e: Exception) {
-                android.util.Log.w("TemplateRepository", "Failed to import template: $templateName", e)
+                android.util.Log.w(
+                    "TemplateRepository",
+                    "Failed to import template: $templateName",
+                    e
+                )
             }
         }
 
