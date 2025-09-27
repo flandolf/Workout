@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ContentValues
 import android.content.Intent
+import android.content.pm.PackageInfo
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
@@ -378,12 +379,22 @@ class MainActivity : ComponentActivity() {
                                 onExportTemplateCsv = {
                                     exportTemplateCsv()
                                 },
-                                themeViewModel = themeVm
+                                themeViewModel = themeVm,
+                                version = getAppVersion()
                             )
                         }
                     }
                 }
             }
+        }
+    }
+
+    fun getAppVersion(): String {
+        return try {
+            val pInfo: PackageInfo = packageManager.getPackageInfo(packageName, 0)
+            pInfo.versionName ?: "N/A"
+        } catch (_: Exception) {
+            "N/A"
         }
     }
 

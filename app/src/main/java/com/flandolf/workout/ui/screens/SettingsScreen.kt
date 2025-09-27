@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,7 +55,8 @@ fun SettingsScreen(
     onManualSync: (() -> Unit)? = null,
     onImportTemplateCsv: (() -> Unit)? = null,
     onExportTemplateCsv: (() -> Unit)? = null,
-    themeViewModel: ThemeViewModel? = null
+    themeViewModel: ThemeViewModel? = null,
+    version: String = ""
 ) {
     val showResetDialog = remember { mutableStateOf(false) }
 
@@ -161,6 +163,18 @@ fun SettingsScreen(
                     title = "Reset All Data",
                     description = "Permanently delete all workout data from this device. This action cannot be undone.",
                     color = MaterialTheme.colorScheme.error
+                )
+            }
+            item {
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+            item {
+                Text(
+                    text = "Version $version",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
