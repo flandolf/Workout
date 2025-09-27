@@ -1,7 +1,10 @@
 package com.flandolf.workout.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -19,6 +22,9 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -28,10 +34,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flandolf.workout.R
 import com.flandolf.workout.ui.viewmodel.SyncViewModel
+import com.flandolf.workout.ui.viewmodel.ThemeViewModel
+import com.flandolf.workout.ui.theme.ThemeMode
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,7 +53,8 @@ fun SettingsScreen(
     syncViewModel: SyncViewModel? = null,
     onManualSync: (() -> Unit)? = null,
     onImportTemplateCsv: (() -> Unit)? = null,
-    onExportTemplateCsv: (() -> Unit)? = null
+    onExportTemplateCsv: (() -> Unit)? = null,
+    themeViewModel: ThemeViewModel? = null
 ) {
     val showResetDialog = remember { mutableStateOf(false) }
 
@@ -64,6 +75,15 @@ fun SettingsScreen(
                 .fillMaxWidth(),
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
         ) {
+            if (themeViewModel != null) {
+                item {
+                    val selectedMode = themeViewModel.themeMode.collectAsState().value
+                    ThemeSettingCard(
+                        selectedMode = selectedMode,
+                        onModeSelected = { themeViewModel.setThemeMode(it) }
+                    )
+                }
+            }
             item {
                 if (syncViewModel != null && syncUiState != null) {
                     SyncSettingsScreen(
@@ -202,5 +222,45 @@ fun SettingsCard(
             },
             modifier = Modifier.clickable { action() }
         )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun ThemeSettingCard(
+    selectedMode: ThemeMode,
+    onModeSelected: (ThemeMode) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "App Theme",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Select the app's appearance mode. The system option will match your device's system theme.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            val modes = ThemeMode.entries.toTypedArray()
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                modes.forEachIndexed { index, mode ->
+                    SegmentedButton(
+                        selected = mode == selectedMode,
+                        onClick = { onModeSelected(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(index, modes.size)
+                    ) {
+                        Text(text = stringResource(id = mode.labelRes))
+                    }
+                }
+            }
+        }
     }
 }

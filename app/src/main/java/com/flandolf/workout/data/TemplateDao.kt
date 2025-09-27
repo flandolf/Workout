@@ -56,6 +56,10 @@ interface TemplateDao {
     @Query("SELECT * FROM templates WHERE id = :templateId LIMIT 1")
     suspend fun getTemplateWithExercises(templateId: Long): TemplateWithExercises?
 
+    @Transaction
+    @Query("SELECT * FROM templates WHERE firestoreId = :firestoreId LIMIT 1")
+    suspend fun getTemplateWithExercisesByFirestoreId(firestoreId: String): TemplateWithExercises?
+
     @Query("DELETE FROM exercises WHERE id = :exerciseId")
     suspend fun deleteExerciseById(exerciseId: Long)
 

@@ -15,8 +15,8 @@ android {
         applicationId = "com.flandolf.workout"
         minSdk = 34
         targetSdk = 36
-        versionName = "0.62"
-        versionCode = 62
+        versionName = "0.63"
+        versionCode = 63
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -32,6 +32,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+
+
     }
     buildFeatures {
         compose = true

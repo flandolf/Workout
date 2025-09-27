@@ -1,5 +1,6 @@
 package com.flandolf.workout.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,16 +14,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -31,18 +42,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
 import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.components.BarChart
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
-@OptIn(ExperimentalMaterial3Api::class)
+private enum class SortOption(val label: String) {
+    REPS("Reps"),
+    SETS("Sets"),
+    VOLUME("Volume")
+}
+
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class
+)
 @Composable
 fun ProgressScreen(
     workouts: List<WorkoutWithExercises>,
@@ -58,30 +87,37 @@ fun ProgressScreen(
     val totals by remember(workouts) {
         derivedStateOf {
             val map = mutableMapOf<String, Triple<Int, Int, Float>>() // name -> (reps, sets, kg)
-            var totalKgLifted = 0f
+            var totalVolumeKg = 0.0
             var totalReps = 0
 
             for (w in workouts) {
                 for (ex in w.exercises) {
-                    val (oldReps, oldSets, oldKg) = map.getOrDefault(
+                    val (oldReps, oldSets, oldVolume) = map.getOrDefault(
                         ex.exercise.name,
                         Triple(0, 0, 0f)
                     )
                     var exerciseReps = 0
-                    var exerciseKg = 0f
+                    var exerciseVolume = 0.0
 
                     for (s in ex.sets) {
+                        val setVolume = s.reps * s.weight.toDouble()
                         exerciseReps += s.reps
-                        exerciseKg += s.reps * s.weight
+                        exerciseVolume += setVolume
                     }
 
+                    val updatedVolume = oldVolume.toDouble() + exerciseVolume
+
                     map[ex.exercise.name] =
-                        Triple(oldReps + exerciseReps, oldSets + ex.sets.size, oldKg + exerciseKg)
+                        Triple(
+                            oldReps + exerciseReps,
+                            oldSets + ex.sets.size,
+                            updatedVolume.toFloat()
+                        )
                     totalReps += exerciseReps
-                    totalKgLifted += exerciseKg
+                    totalVolumeKg += exerciseVolume
                 }
             }
-            map to Pair(totalKgLifted, totalReps)
+            map to Pair(totalVolumeKg.toFloat(), totalReps)
         }
     }
 
@@ -100,6 +136,7 @@ fun ProgressScreen(
         }
     ) { innerPadding ->
         val scrollState = rememberScrollState()
+        val coroutineScope = rememberCoroutineScope()
 
         Column(
             modifier = Modifier
@@ -288,57 +325,200 @@ fun ProgressScreen(
                     }
                 }
 
+                var searchQuery by remember { mutableStateOf("") }
+                var sortOption by remember { mutableStateOf(SortOption.REPS) }
+                var isSortMenuExpanded by remember { mutableStateOf(false) }
+                val totalExercises = exerciseTotals.size
+
+                val filteredExercises by remember(searchQuery, sortOption, exerciseTotals) {
+                    derivedStateOf {
+                        val comparator = when (sortOption) {
+                            SortOption.REPS -> compareByDescending { it.value.first }
+                            SortOption.SETS -> compareByDescending<Map.Entry<String, Triple<Int, Int, Float>>> { it.value.second }
+                            SortOption.VOLUME -> compareByDescending { it.value.third }
+                        }
+
+                        exerciseTotals.entries
+                            .filter {
+                                searchQuery.isBlank() || it.key.contains(
+                                    searchQuery,
+                                    ignoreCase = true
+                                )
+                            }
+                            .sortedWith(comparator.thenBy { it.key })
+                    }
+                }
+
+                val resultCount = filteredExercises.size
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Search exercises") },
+                        placeholder = { Text("Type an exercise name") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null
+                            )
+                        },
+                        trailingIcon = {
+                            AnimatedVisibility(visible = searchQuery.isNotBlank()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear search"
+                                    )
+                                }
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = {
+                            coroutineScope.launch {
+                                scrollState.animateScrollTo(0)
+                            }
+                        }),
+                        shape = MaterialTheme.shapes.medium
+                    )
+
+                    Text(
+                        "Showing $resultCount of $totalExercises exercises",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+//                    AnimatedVisibility(visible = searchQuery.isBlank() && topSuggestions.isNotEmpty()) {
+//                        LazyRow(
+//                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+//                        ) {
+//                            topSuggestions.forEach { suggestion ->
+//                                item {
+//                                    AssistChip(
+//                                        onClick = { searchQuery = suggestion },
+//                                        leadingIcon = {
+//                                            Icon(
+//                                                imageVector = Icons.Default.Search,
+//                                                contentDescription = null
+//                                            )
+//                                        },
+//                                        label = { Text(suggestion) },
+//                                    )
+//                                }
+//                            }
+//                        }
+//                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Sort by",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Box {
+                            FilledTonalButton(onClick = { isSortMenuExpanded = true }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(sortOption.label)
+                            }
+                            DropdownMenu(
+                                expanded = isSortMenuExpanded,
+                                onDismissRequest = { isSortMenuExpanded = false }
+                            ) {
+                                SortOption.entries.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.label) },
+                                        onClick = {
+                                            sortOption = option
+                                            isSortMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Exercise Progress List (non-lazy so the whole screen scrolls as one)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    exerciseTotals.entries.sortedByDescending { it.value.first }.forEach { entry ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onExerciseClick(entry.key) },
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        entry.key,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        Text(
-                                            "${entry.value.first} reps",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Text(
-                                            "${entry.value.second} sets",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.secondary
-                                        )
-                                        Text(
-                                            "${formatWeight(entry.value.third)} kg",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.tertiary
-                                        )
-                                    }
-                                }
-                                Icon(
-                                    Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                    if (filteredExercises.isEmpty()) {
+                        Text(
+                            "No exercises match your search.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        )
+                    } else {
+                        filteredExercises.forEach { entry ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onExerciseClick(entry.key) },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
                                 )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        HighlightedText(
+                                            text = entry.key,
+                                            query = searchQuery,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            modifier = Modifier,
+                                            highlightStyle = SpanStyle(
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            Text(
+                                                "${entry.value.first} reps",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                "${entry.value.second} sets",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                            Text(
+                                                "${formatWeight(entry.value.third)} kg",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -346,4 +526,40 @@ fun ProgressScreen(
             }
         }
     }
+}
+
+@Composable
+private fun HighlightedText(
+    text: String,
+    query: String,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    highlightStyle: SpanStyle
+) {
+    if (query.isBlank()) {
+        Text(text = text, style = style, modifier = modifier)
+        return
+    }
+
+    val lowerText = text.lowercase()
+    val lowerQuery = query.lowercase()
+    val annotated = buildAnnotatedString {
+        var startIndex = 0
+        var matchIndex = lowerText.indexOf(lowerQuery, startIndex)
+
+        while (matchIndex >= 0) {
+            append(text.substring(startIndex, matchIndex))
+            withStyle(highlightStyle) {
+                append(text.substring(matchIndex, matchIndex + lowerQuery.length))
+            }
+            startIndex = matchIndex + lowerQuery.length
+            matchIndex = lowerText.indexOf(lowerQuery, startIndex)
+        }
+
+        if (startIndex < text.length) {
+            append(text.substring(startIndex))
+        }
+    }
+
+    Text(text = annotated, style = style, modifier = modifier)
 }

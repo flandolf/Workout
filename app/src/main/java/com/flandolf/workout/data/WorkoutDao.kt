@@ -65,6 +65,13 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts ORDER BY date DESC LIMIT 1")
     suspend fun getLatestWorkoutWithExercises(): WorkoutWithExercises?
 
+    @Query("SELECT * FROM workouts WHERE firestoreId = :firestoreId LIMIT 1")
+    suspend fun getWorkoutByFirestoreId(firestoreId: String): Workout?
+
+    @Transaction
+    @Query("SELECT * FROM workouts WHERE firestoreId = :firestoreId LIMIT 1")
+    suspend fun getWorkoutWithExercisesByFirestoreId(firestoreId: String): WorkoutWithExercises?
+
     @Query("SELECT DISTINCT name FROM exercises ORDER BY name")
     suspend fun getDistinctExerciseNames(): List<String>
 

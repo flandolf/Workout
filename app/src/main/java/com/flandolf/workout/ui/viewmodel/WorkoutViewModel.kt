@@ -3,6 +3,7 @@ package com.flandolf.workout.ui.viewmodel
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.SystemClock
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,7 @@ import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.WorkoutWithExercises
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class WorkoutViewModel(application: Application) : AndroidViewModel(application) {
@@ -47,13 +49,23 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             val currentTime = System.currentTimeMillis()
             val timeDiffSeconds = (currentTime - lastSaveTime) / 1000L
 
-            if (savedIsTimerRunning && timeDiffSeconds > 0) {
-                _elapsedSeconds.value = savedElapsedSeconds + timeDiffSeconds
-                _isTimerRunning.value = true
-                startTimerJob()
+            val adjustedElapsed = if (savedIsTimerRunning && timeDiffSeconds > 0) {
+                savedElapsedSeconds + timeDiffSeconds
             } else {
-                _elapsedSeconds.value = savedElapsedSeconds
-                _isTimerRunning.value = savedIsTimerRunning
+                savedElapsedSeconds
+            }
+
+            _elapsedSeconds.value = adjustedElapsed
+            resumeBaseSeconds = adjustedElapsed
+
+            if (savedIsTimerRunning) {
+                _isTimerRunning.value = true
+                timerStartRealtime = SystemClock.elapsedRealtime()
+                startTimerJob()
+                updateElapsedFromRealtime()
+            } else {
+                _isTimerRunning.value = false
+                timerStartRealtime = null
             }
 
             // Load the current workout data
@@ -70,6 +82,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private val _elapsedSeconds = MutableStateFlow(0L)
     val elapsedSeconds: StateFlow<Long> = _elapsedSeconds
     private var timerJob: kotlinx.coroutines.Job? = null
+    private var timerStartRealtime: Long? = null
+    private var resumeBaseSeconds: Long = 0L
 
     private val _currentWorkout = MutableStateFlow<WorkoutWithExercises?>(null)
     val currentWorkout: StateFlow<WorkoutWithExercises?> = _currentWorkout
@@ -105,10 +119,13 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 val id = repo.startWorkout()
                 _currentWorkoutId.value = id
                 _elapsedSeconds.value = 0L
+                resumeBaseSeconds = 0L
+                timerStartRealtime = SystemClock.elapsedRealtime()
                 _currentWorkout.value = repo.getWorkout(id)
                 loadPreviousBestSets()
                 _isTimerRunning.value = true
                 startTimerJob()
+                updateElapsedFromRealtime()
                 saveWorkoutState()
             }
         } else {
@@ -117,21 +134,31 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun resumeTimer() {
-        if (timerJob == null) {
+        if (_isTimerRunning.value && timerJob == null) {
+            timerStartRealtime = SystemClock.elapsedRealtime()
+            startTimerJob()
+            updateElapsedFromRealtime()
+            saveWorkoutState()
+            return
+        }
+
+        if (!_isTimerRunning.value) {
+            resumeBaseSeconds = snapshotElapsedSeconds()
+            timerStartRealtime = SystemClock.elapsedRealtime()
             _isTimerRunning.value = true
             startTimerJob()
+            updateElapsedFromRealtime()
             saveWorkoutState()
         }
     }
 
     private fun startTimerJob() {
         timerJob?.cancel()
-        _isTimerRunning.value = true
         timerJob =
             viewModelScope.launch {
-                while (true) {
+                while (isActive) {
+                    updateElapsedFromRealtime()
                     kotlinx.coroutines.delay(1000L)
-                    _elapsedSeconds.value = _elapsedSeconds.value + 1
                 }
             }
     }
@@ -140,13 +167,15 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         val id = _currentWorkoutId.value
         if (id != null) {
             // Clear UI state immediately for instant response
-            val duration = _elapsedSeconds.value
+            val duration = snapshotElapsedSeconds()
             _currentWorkoutId.value = null
             _elapsedSeconds.value = 0L
             timerJob?.cancel()
             timerJob = null
             _isTimerRunning.value = false
             _currentWorkout.value = null
+            timerStartRealtime = null
+            resumeBaseSeconds = 0L
             clearSavedState()
 
             // Sync in background
@@ -184,19 +213,21 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 timerJob = null
                 _isTimerRunning.value = false
                 _currentWorkout.value = null
+                timerStartRealtime = null
+                resumeBaseSeconds = 0L
                 clearSavedState()
             }
         }
     }
 
-    fun tickOneSecond() {
-        _elapsedSeconds.value = _elapsedSeconds.value + 1
-    }
-
     fun pauseTimer() {
+        val elapsed = snapshotElapsedSeconds()
         timerJob?.cancel()
         timerJob = null
         _isTimerRunning.value = false
+        resumeBaseSeconds = elapsed
+        timerStartRealtime = null
+        _elapsedSeconds.value = elapsed
         saveWorkoutState()
     }
 
@@ -372,9 +403,10 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private fun saveWorkoutState() {
         val workoutId = _currentWorkoutId.value
         if (workoutId != null) {
+            val elapsed = snapshotElapsedSeconds()
             prefs.edit {
                 putLong(KEY_CURRENT_WORKOUT_ID, workoutId)
-                putLong(KEY_ELAPSED_SECONDS, _elapsedSeconds.value)
+                putLong(KEY_ELAPSED_SECONDS, elapsed)
                 putBoolean(KEY_IS_TIMER_RUNNING, _isTimerRunning.value)
                 putLong(KEY_LAST_SAVE_TIME, System.currentTimeMillis())
             }
@@ -389,11 +421,35 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             val id = repo.startWorkoutFromTemplate(templateId)
             _currentWorkoutId.value = id
             _elapsedSeconds.value = 0L
+            resumeBaseSeconds = 0L
+            timerStartRealtime = SystemClock.elapsedRealtime()
             _currentWorkout.value = repo.getWorkout(id)
             loadPreviousBestSets()
             _isTimerRunning.value = true
             startTimerJob()
+            updateElapsedFromRealtime()
             saveWorkoutState()
+        }
+    }
+
+    private fun updateElapsedFromRealtime() {
+        val startRealtime = timerStartRealtime ?: return
+        val elapsed = resumeBaseSeconds + ((SystemClock.elapsedRealtime() - startRealtime) / 1000L)
+        if (elapsed != _elapsedSeconds.value) {
+            _elapsedSeconds.value = elapsed
+        }
+    }
+
+    private fun snapshotElapsedSeconds(): Long {
+        val startRealtime = timerStartRealtime
+        return if (startRealtime != null && _isTimerRunning.value) {
+            val computed = resumeBaseSeconds + ((SystemClock.elapsedRealtime() - startRealtime) / 1000L)
+            if (computed != _elapsedSeconds.value) {
+                _elapsedSeconds.value = computed
+            }
+            computed
+        } else {
+            _elapsedSeconds.value
         }
     }
 }

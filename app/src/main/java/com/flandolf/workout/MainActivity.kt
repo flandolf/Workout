@@ -49,6 +49,7 @@ import com.flandolf.workout.ui.viewmodel.EditWorkoutViewModel
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import com.flandolf.workout.ui.viewmodel.SyncViewModel
 import com.flandolf.workout.ui.viewmodel.TemplateViewModel
+import com.flandolf.workout.ui.viewmodel.ThemeViewModel
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -61,6 +62,7 @@ class MainActivity : ComponentActivity() {
     private val syncVm: SyncViewModel by viewModels()
     private val editVm: EditWorkoutViewModel by viewModels()
     private val templateVm: TemplateViewModel by viewModels()
+    private val themeVm: ThemeViewModel by viewModels()
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,7 +70,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         historyVm.loadWorkouts()
         setContent {
-            WorkoutTheme {
+            val themeMode by themeVm.themeMode.collectAsState()
+            WorkoutTheme(themeMode = themeMode) {
                 val navController = rememberNavController()
                 val snackbarHostState = remember { SnackbarHostState() }
                 val coroutineScope = rememberCoroutineScope()
@@ -375,7 +378,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onExportTemplateCsv = {
                                         exportTemplateCsv()
-                                }
+                                },
+                                themeViewModel = themeVm
                             )
                         }
                     }

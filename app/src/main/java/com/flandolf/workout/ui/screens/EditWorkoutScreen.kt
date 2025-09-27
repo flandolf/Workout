@@ -198,10 +198,10 @@ fun EditWorkoutScreen(
                                     // the input hasn't changed before showing. This prevents
                                     // brief flashes/pops while the user types.
                                     delay(100)
-                                    if (newExerciseName.trim() == query) {
-                                        showDropdown = filteredSuggestionsState.isNotEmpty()
+                                    showDropdown = if (newExerciseName.trim() == query) {
+                                        filteredSuggestionsState.isNotEmpty()
                                     } else {
-                                        showDropdown = false
+                                        false
                                     }
                                 } else {
                                     // User continued typing since the debounced value was captured.

@@ -671,17 +671,28 @@ class SyncRepository(
             for (document in workoutsSnapshot.documents) {
                 val fsWorkout = document.toObject<FirestoreWorkout>() ?: continue
                 Log.d(TAG, "Downloaded workout doc ${document.id}: exercises=${fsWorkout.exercises.size}")
-                val localExisting = if (fsWorkout.localId > 0) dao.getWorkoutWithExercises(fsWorkout.localId)?.workout else null
+
+                val existingWithExercises = try {
+                    dao.getWorkoutWithExercisesByFirestoreId(document.id)
+                        ?: if (fsWorkout.localId > 0) dao.getWorkoutWithExercises(fsWorkout.localId) else null
+                        ?: dao.getWorkoutByDate(fsWorkout.date)?.let { dao.getWorkoutWithExercises(it.id) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load existing workout for ${document.id}", e)
+                    null
+                }
+                val localExisting = existingWithExercises?.workout
+
                 if (localExisting != null && fsWorkout.contentHash.isNotBlank()) {
                     try {
-                        val localWith = dao.getWorkoutWithExercises(localExisting.id)
-                        val localFsExercises = localWith?.exercises?.map { exWithSets ->
-                            FSExercise(
-                                name = exWithSets.exercise.name,
-                                sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
-                            )
-                        } ?: emptyList()
-                        val localHash = computeWorkoutContentHash(localFsExercises, localExisting)
+                        val localHash = computeWorkoutContentHash(
+                            existingWithExercises.exercises.map { exWithSets ->
+                                FSExercise(
+                                    name = exWithSets.exercise.name,
+                                    sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                                )
+                            },
+                            localExisting
+                        )
                         if (localHash == fsWorkout.contentHash) {
                             skippedHash++
                             continue
@@ -690,16 +701,24 @@ class SyncRepository(
                         Log.w(TAG, "Failed to compute local hash for potential skip", e)
                     }
                 }
-                val existingWorkout = if (fsWorkout.localId > 0) {
-                    try { dao.getWorkoutWithExercises(fsWorkout.localId)?.workout } catch (_: Exception) { null }
-                } else { try { dao.getWorkoutByDate(fsWorkout.date) } catch (_: Exception) { null } }
-                val localWorkout = if (existingWorkout != null) {
-                    val updatedWorkout = existingWorkout.copy(
+
+                val localWorkout = if (localExisting != null) {
+                    val updatedWorkout = localExisting.copy(
                         date = fsWorkout.date,
                         durationSeconds = fsWorkout.durationSeconds,
                         firestoreId = document.id
                     )
                     dao.updateWorkout(updatedWorkout)
+                    if (fsWorkout.localId != updatedWorkout.id) {
+                        try {
+                            firestore.collection(COLLECTION_WORKOUTS)
+                                .document(document.id)
+                                .update("localId", updatedWorkout.id)
+                                .await()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to backfill localId for workout ${document.id}", e)
+                        }
+                    }
                     updatedWorkout
                 } else {
                     val newWorkout = Workout(
@@ -709,26 +728,36 @@ class SyncRepository(
                         firestoreId = document.id
                     )
                     val insertedId = dao.insertWorkout(newWorkout)
-                    val persisted = newWorkout.copy(id = insertedId, firestoreId = document.id)
+                    val persisted = newWorkout.copy(id = insertedId)
                     dao.updateWorkout(persisted)
+                    try {
+                        firestore.collection(COLLECTION_WORKOUTS)
+                            .document(document.id)
+                            .update("localId", insertedId)
+                            .await()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to store new localId for downloaded workout ${document.id}", e)
+                    }
                     persisted
                 }
-                if (fsWorkout.exercises.isNotEmpty()) {
-                    try {
-                        dao.deleteSetsForWorkout(localWorkout.id)
-                        dao.deleteExercisesForWorkout(localWorkout.id)
+
+                try {
+                    dao.deleteSetsForWorkout(localWorkout.id)
+                    dao.deleteExercisesForWorkout(localWorkout.id)
+                    if (fsWorkout.exercises.isNotEmpty()) {
                         for (ex in fsWorkout.exercises) {
                             val exId = dao.insertExercise(ExerciseEntity(workoutId = localWorkout.id, name = ex.name))
                             for (s in ex.sets) {
                                 dao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight.toFloat()))
                             }
                         }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to rebuild exercises for workout ${localWorkout.id}", e)
+                    } else {
+                        Log.d(TAG, "Cleared exercises for workout ${localWorkout.id}: remote has no exercises")
                     }
-                } else {
-                    Log.d(TAG, "Skipping exercise rebuild for workout ${localWorkout.id}: remote has empty/missing exercises")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to rebuild exercises for workout ${localWorkout.id}", e)
                 }
+
                 processed++
                 if (fsWorkout.date > newestTimestamp) newestTimestamp = fsWorkout.date
             }
@@ -770,17 +799,27 @@ class SyncRepository(
                     }
                     continue
                 }
-                val localExisting = if (fsTemplate.localId > 0) templateDao.getTemplateById(fsTemplate.localId) else templateDao.getTemplateByFirestoreId(document.id)
+
+                val existingWithExercises = try {
+                    templateDao.getTemplateWithExercisesByFirestoreId(document.id)
+                        ?: if (fsTemplate.localId > 0) templateDao.getTemplateWithExercises(fsTemplate.localId) else null
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load existing template for ${document.id}", e)
+                    null
+                }
+                val localExisting = existingWithExercises?.template
+
                 if (localExisting != null && fsTemplate.contentHash.isNotBlank()) {
                     try {
-                        val localWith = templateDao.getTemplateWithExercises(localExisting.id)
-                        val localFsExercises = localWith?.exercises?.map { exWithSets ->
-                            FSExercise(
-                                name = exWithSets.exercise.name,
-                                sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
-                            )
-                        } ?: emptyList()
-                        val localHash = computeTemplateContentHash(localFsExercises, localExisting)
+                        val localHash = computeTemplateContentHash(
+                            existingWithExercises.exercises.map { exWithSets ->
+                                FSExercise(
+                                    name = exWithSets.exercise.name,
+                                    sets = exWithSets.sets.map { s -> FSSet(weight = s.weight.toDouble(), reps = s.reps) }
+                                )
+                            },
+                            localExisting
+                        )
                         if (localHash == fsTemplate.contentHash) {
                             skippedHash++
                             continue
@@ -789,29 +828,54 @@ class SyncRepository(
                         Log.w(TAG, "Failed to compute local template hash for potential skip", e)
                     }
                 }
+
                 val localTemplate = if (localExisting != null) {
                     val updated = localExisting.copy(name = fsTemplate.name, firestoreId = document.id)
                     templateDao.updateTemplate(updated)
+                    if (fsTemplate.localId != updated.id) {
+                        try {
+                            firestore.collection(COLLECTION_TEMPLATES)
+                                .document(document.id)
+                                .update("localId", updated.id)
+                                .await()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to backfill localId for template ${document.id}", e)
+                        }
+                    }
                     updated
                 } else {
                     val newTemplate = Template(name = fsTemplate.name, firestoreId = document.id)
                     val insertedId = templateDao.insertTemplate(newTemplate)
-                    val persisted = newTemplate.copy(id = insertedId, firestoreId = document.id)
+                    val persisted = newTemplate.copy(id = insertedId)
                     templateDao.updateTemplate(persisted)
+                    try {
+                        firestore.collection(COLLECTION_TEMPLATES)
+                            .document(document.id)
+                            .update("localId", insertedId)
+                            .await()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to store new localId for downloaded template ${document.id}", e)
+                    }
                     persisted
                 }
-                // Rebuild exercises for template
+
                 try {
                     val existingExercises = templateDao.getExercisesForTemplate(localTemplate.id)
                     for (ex in existingExercises) {
                         templateDao.deleteSetsForExercise(ex.id)
                     }
                     templateDao.deleteExercisesForTemplate(localTemplate.id)
-                    fsTemplate.exercises.forEachIndexed { index, ex ->
-                        val exId = templateDao.insertExercise(ExerciseEntity(templateId = localTemplate.id, name = ex.name, position = index))
-                        for (s in ex.sets) {
-                            templateDao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight.toFloat()))
+                    if (fsTemplate.exercises.isNotEmpty()) {
+                        fsTemplate.exercises.forEachIndexed { index, ex ->
+                            val exId = templateDao.insertExercise(
+                                ExerciseEntity(templateId = localTemplate.id, name = ex.name, position = index)
+                            )
+                            for (s in ex.sets) {
+                                templateDao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight.toFloat()))
+                            }
                         }
+                    } else {
+                        Log.d(TAG, "Cleared exercises for template ${localTemplate.id}: remote has no exercises")
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to rebuild exercises for template ${localTemplate.id}", e)
