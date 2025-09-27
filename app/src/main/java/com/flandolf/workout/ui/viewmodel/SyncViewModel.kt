@@ -8,10 +8,13 @@ import com.flandolf.workout.data.WorkoutRepository
 import com.flandolf.workout.data.sync.AuthRepository
 import com.flandolf.workout.data.sync.AuthState
 import com.flandolf.workout.data.sync.SyncStatus
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import android.util.Log
 
 class SyncViewModel(application: Application) : AndroidViewModel(application) {
     private val authRepository = AuthRepository()
@@ -27,6 +30,10 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
 
     // Guard to avoid repeatedly requesting initialization
     private var requestedInitialize = false
+    private var lastAuthState: AuthState? = null
+    private var countsJob: Job? = null
+    private var lastCountsRefreshAt = 0L
+    private val countsThrottleMs = 5_000L
 
     init {
         // Combine auth and sync states
@@ -61,6 +68,11 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                     syncStartTime = newStartTime
                 )
 
+                val prevAuthState = lastAuthState
+                val becameAuthenticated = prevAuthState != AuthState.AUTHENTICATED && authState == AuthState.AUTHENTICATED
+                val becameUnauthenticated = prevAuthState == AuthState.AUTHENTICATED && authState != AuthState.AUTHENTICATED
+                lastAuthState = authState
+
                 // If authenticated and network is online, ensure sync repository is initialized
                 if (authState == AuthState.AUTHENTICATED && syncStatus.isOnline && !requestedInitialize) {
                     requestedInitialize = true
@@ -74,32 +86,20 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 // Reset guard if user signs out
-                if (authState == AuthState.UNAUTHENTICATED) {
+                if (becameUnauthenticated) {
                     requestedInitialize = false
                 }
 
-                // When authenticated, refresh local/remote counts asynchronously
+                // When authenticated, refresh local/remote counts asynchronously with throttling
                 if (authState == AuthState.AUTHENTICATED) {
-                    viewModelScope.launch {
-                        try {
-                            val localCount = workoutRepository.getLocalWorkoutCount()
-                            val remoteCount = syncRepository.getRemoteWorkoutCount()
-                            val remoteTemplateCount = syncRepository.getRemoteTemplateCount()
-                            val localTemplateCount = templateRepository.getLocalTemplateCount()
-                            _uiState.value = _uiState.value.copy(
-                                localWorkoutCount = localCount,
-                                remoteWorkoutCount = remoteCount,
-                                localTemplateCount = localTemplateCount,
-                                remoteTemplateCount = remoteTemplateCount
-                            )
-                        } catch (e: Exception) {
-                            _uiState.value = _uiState.value.copy(
-                                errorMessage = "Failed to fetch counts: ${e.message}"
-                            )
-                        }
+                    if (becameAuthenticated) {
+                        scheduleCountsRefresh(force = true)
+                    } else if (!isSyncingNow) {
+                        scheduleCountsRefresh()
                     }
                 } else {
                     // Clear counts when unauthenticated
+                    countsJob?.cancel()
                     _uiState.value =
                         _uiState.value.copy(localWorkoutCount = 0, remoteWorkoutCount = 0, localTemplateCount = 0, remoteTemplateCount = 0)
                 }
@@ -111,19 +111,7 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
      * Refresh counts on demand
      */
     fun refreshCounts() {
-        viewModelScope.launch {
-            try {
-                val local = workoutRepository.getLocalWorkoutCount()
-                val remote = syncRepository.getRemoteWorkoutCount()
-                val localTemplateCount = templateRepository.getLocalTemplateCount()
-                val remoteTemplateCount = syncRepository.getRemoteTemplateCount()
-                _uiState.value =
-                    _uiState.value.copy(localWorkoutCount = local, remoteWorkoutCount = remote, localTemplateCount = localTemplateCount, remoteTemplateCount = remoteTemplateCount)
-            } catch (e: Exception) {
-                _uiState.value =
-                    _uiState.value.copy(errorMessage = "Failed to refresh counts: ${e.message}")
-            }
-        }
+        scheduleCountsRefresh(force = true)
     }
 
     /**
@@ -290,7 +278,43 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun scheduleCountsRefresh(force: Boolean = false) {
+    val authSnapshot = lastAuthState ?: _uiState.value.authState
+    if (authSnapshot != AuthState.AUTHENTICATED) return
+        val now = System.currentTimeMillis()
+        if (!force) {
+            if (countsJob?.isActive == true) return
+            if (now - lastCountsRefreshAt < countsThrottleMs) return
+        } else {
+            countsJob?.cancel()
+        }
+
+        countsJob = viewModelScope.launch {
+            try {
+                val local = workoutRepository.getLocalWorkoutCount()
+                val remote = syncRepository.getRemoteWorkoutCount()
+                val localTemplate = templateRepository.getLocalTemplateCount()
+                val remoteTemplate = syncRepository.getRemoteTemplateCount()
+                lastCountsRefreshAt = System.currentTimeMillis()
+                _uiState.value = _uiState.value.copy(
+                    localWorkoutCount = local,
+                    remoteWorkoutCount = remote,
+                    localTemplateCount = localTemplate,
+                    remoteTemplateCount = remoteTemplate
+                )
+            } catch (e: CancellationException) {
+                Log.w("SyncViewModel", "Counts refresh coroutine cancelled", e)
+                throw e // rethrow to respect structured concurrency
+            } catch (e: Exception) {
+                Log.e("SyncViewModel", "Failed to fetch counts", e)
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Failed to fetch counts: ${e.message}"
+                )
+            }
+        }
+    }
 }
+
 
 data class SyncUiState(
     val authState: AuthState = AuthState.LOADING,

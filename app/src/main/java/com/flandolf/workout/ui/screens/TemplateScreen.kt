@@ -23,7 +23,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -33,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.flandolf.workout.ui.viewmodel.TemplateViewModel
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +43,7 @@ fun TemplateScreen(
     val coroutineScope = rememberCoroutineScope()
 
     // Collect templates reactively from the ViewModel's Flow
-    val templates by vm.templatesFlow().collectAsState(initial = emptyList())
+    val templates by vm.templatesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
 
     Scaffold(
         topBar = {

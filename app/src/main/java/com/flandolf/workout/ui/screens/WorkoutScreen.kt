@@ -93,6 +93,7 @@ import com.flandolf.workout.data.SetEntity
 import com.flandolf.workout.data.TemplateWithExercises
 import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -143,7 +144,7 @@ fun WorkoutScreen(
 
 
     // Observe sync status for toast notifications
-    val syncStatus by vm.syncStatus.collectAsState()
+    val syncStatus by vm.syncStatus.collectAsStateWithLifecycle()
 
     // Handle sync status changes
     LaunchedEffect(syncStatus) {
@@ -173,9 +174,9 @@ fun WorkoutScreen(
     }
 
     // collect templates reactively
-    val templates by templatesFlow.collectAsState(initial = emptyList())
+    val templates by templatesFlow.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    val currentWorkoutId by vm.currentWorkoutId.collectAsState()
+    val currentWorkoutId by vm.currentWorkoutId.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -313,8 +314,11 @@ fun WorkoutScreen(
 
                         // Debounce input changes and update filteredSuggestionsState on pause. This avoids
                         // doing filtering work on every keystroke and prevents UI jank.
-                        LaunchedEffect(combinedLowercase) {
-                            // Collect trimmed input changes, debounce, then compute a small result set.
+                        LaunchedEffect(addExerciseVisible, combinedLowercase) {
+                            if (!addExerciseVisible) {
+                                filteredSuggestionsState.clear()
+                                return@LaunchedEffect
+                            }
                             snapshotFlow { newExerciseName.trim() }
                                 .debounce(150)
                                 .collectLatest { query ->

@@ -28,7 +28,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -42,6 +42,7 @@ import com.flandolf.workout.R
 import com.flandolf.workout.ui.viewmodel.SyncViewModel
 import com.flandolf.workout.ui.viewmodel.ThemeViewModel
 import com.flandolf.workout.ui.theme.ThemeMode
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,8 +60,8 @@ fun SettingsScreen(
     val showResetDialog = remember { mutableStateOf(false) }
 
     // Collect sync state
-    val syncUiState = syncViewModel?.uiState?.collectAsState()?.value
-    val showAuthDialog = syncViewModel?.showAuthDialog?.collectAsState()?.value ?: false
+    val syncUiState = syncViewModel?.uiState?.collectAsStateWithLifecycle()?.value
+    val showAuthDialog = syncViewModel?.showAuthDialog?.collectAsStateWithLifecycle()?.value ?: false
 
     Scaffold(
         topBar = {
@@ -77,7 +78,7 @@ fun SettingsScreen(
         ) {
             if (themeViewModel != null) {
                 item {
-                    val selectedMode = themeViewModel.themeMode.collectAsState().value
+                    val selectedMode by themeViewModel.themeMode.collectAsStateWithLifecycle()
                     ThemeSettingCard(
                         selectedMode = selectedMode,
                         onModeSelected = { themeViewModel.setThemeMode(it) }

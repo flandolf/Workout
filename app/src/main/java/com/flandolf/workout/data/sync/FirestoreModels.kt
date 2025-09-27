@@ -41,6 +41,7 @@ data class FirestoreWorkout(
     val exercises: List<FSExercise> = emptyList(),
     // Hash of the workout content (structure + values) used for incremental upload diffing.
     val contentHash: String = "",
+    val clientUpdatedAt: Long = 0L,
     @ServerTimestamp
     val createdAt: Date? = null,
     @ServerTimestamp
@@ -56,7 +57,8 @@ data class FirestoreWorkout(
         date = 0L,
         durationSeconds = 0L,
         exercises = emptyList(),
-        contentHash = "",
+    contentHash = "",
+    clientUpdatedAt = 0L,
         createdAt = null,
         updatedAt = null,
         isDeleted = false,
@@ -76,6 +78,7 @@ data class FirestoreTemplate(
     val name: String = "",
     val exercises: List<FSExercise> = emptyList(),
     val contentHash: String = "",
+    val clientUpdatedAt: Long = 0L,
     @ServerTimestamp
     val createdAt: Date? = null,
     @ServerTimestamp
@@ -89,7 +92,8 @@ data class FirestoreTemplate(
         userId = "",
         name = "",
         exercises = emptyList(),
-        contentHash = "",
+    contentHash = "",
+    clientUpdatedAt = 0L,
         createdAt = null,
         updatedAt = null,
         isDeleted = false,

@@ -1,8 +1,10 @@
 package com.flandolf.workout.data
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.flandolf.workout.data.sync.SyncRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileWriter
@@ -16,9 +18,18 @@ class WorkoutRepository(private val context: Context) {
     private val dao by lazy { db.workoutDao() }
     val syncRepository by lazy { SyncRepository(context) }
 
+    private suspend fun touchWorkout(workoutId: Long?) {
+        if (workoutId == null) return
+        try {
+            dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
+        } catch (e: Exception) {
+            android.util.Log.w("WorkoutRepository", "Failed to update updatedAt for workout $workoutId", e)
+        }
+    }
+
     suspend fun startWorkout(): Long {
         val currentTime = System.currentTimeMillis()
-        val id = dao.insertWorkout(Workout(startTime = currentTime))
+        val id = dao.insertWorkout(Workout(startTime = currentTime, updatedAt = currentTime))
         android.util.Log.d("WorkoutRepository", "Started workout local id=$id")
 
         // Removed automatic sync at workout start to avoid constant syncing.
@@ -39,7 +50,10 @@ class WorkoutRepository(private val context: Context) {
                 dao.deleteWorkout(existing)
                 syncRepository.deleteWorkoutFromFirestore(id)
             } else {
-                val updated = existing.copy(durationSeconds = durationSeconds)
+                val updated = existing.copy(
+                    durationSeconds = durationSeconds,
+                    updatedAt = System.currentTimeMillis()
+                )
                 dao.updateWorkout(updated)
                 syncRepository.syncWorkout(updated)
             }
@@ -49,28 +63,38 @@ class WorkoutRepository(private val context: Context) {
     suspend fun addExercise(workoutId: Long, name: String): Long {
         val maxPos = dao.getMaxPositionForWorkout(workoutId)
         val nextPos = maxPos + 1
-        return dao.insertExercise(
+        val exerciseId = dao.insertExercise(
             ExerciseEntity(
                 workoutId = workoutId,
                 name = name,
                 position = nextPos
             )
         )
+        touchWorkout(workoutId)
+        return exerciseId
     }
 
     suspend fun updateExercise(exercise: ExerciseEntity) {
         dao.updateExercise(exercise)
+        touchWorkout(exercise.workoutId)
     }
 
     suspend fun addSet(exerciseId: Long, reps: Int, weight: Float): Long {
-        return dao.insertSet(SetEntity(exerciseId = exerciseId, reps = reps, weight = weight))
+        val exercise = dao.getExerciseById(exerciseId)
+        val setId = dao.insertSet(SetEntity(exerciseId = exerciseId, reps = reps, weight = weight))
+        touchWorkout(exercise?.workoutId)
+        return setId
     }
 
     suspend fun deleteSet(set: SetEntity) {
         dao.deleteSet(set)
+        val exercise = dao.getExerciseById(set.exerciseId)
+        touchWorkout(exercise?.workoutId)
     }
 
     suspend fun getAllWorkouts(): List<WorkoutWithExercises> = dao.getAllWorkoutsWithExercises()
+
+    fun observeAllWorkouts(): Flow<List<WorkoutWithExercises>> = dao.observeAllWorkoutsWithExercises()
 
     suspend fun getWorkout(id: Long): WorkoutWithExercises? = dao.getWorkoutWithExercises(id)
 
@@ -79,6 +103,23 @@ class WorkoutRepository(private val context: Context) {
     suspend fun getBestSetFromLastWorkout(
         exerciseName: String, currentWorkoutId: Long
     ): SetEntity? = dao.getBestSetFromLastWorkout(exerciseName, currentWorkoutId)
+
+    suspend fun getBestSetsFromLastWorkouts(
+        exerciseNames: List<String>,
+        currentWorkoutId: Long
+    ): Map<String, SetEntity> {
+        if (exerciseNames.isEmpty()) return emptyMap()
+        val results = dao.getBestSetsForExercises(exerciseNames, currentWorkoutId)
+        return results.associate { result ->
+            result.exerciseName to SetEntity(
+                id = result.setId,
+                exerciseId = result.exerciseId,
+                reps = result.reps,
+                weight = result.weight,
+                firestoreId = result.firestoreId
+            )
+        }
+    }
 
     /**
      * Exports all workout data to a CSV file with comprehensive information including:
@@ -140,6 +181,7 @@ class WorkoutRepository(private val context: Context) {
     suspend fun deleteExercise(exercise: ExerciseEntity) {
         dao.deleteExercise(exercise)
         // Note: Exercise deletion doesn't need immediate sync since it's part of workout
+        touchWorkout(exercise.workoutId)
     }
 
     suspend fun deleteWorkout(workout: Workout) {
@@ -154,6 +196,8 @@ class WorkoutRepository(private val context: Context) {
 
     suspend fun updateSet(set: SetEntity) {
         dao.updateSet(set)
+        val exercise = dao.getExerciseById(set.exerciseId)
+        touchWorkout(exercise?.workoutId)
     }
 
     private fun formatDuration(seconds: Long): String {
@@ -161,12 +205,9 @@ class WorkoutRepository(private val context: Context) {
         return "$mins min"
     }
 
-    suspend fun resetAllData() {
-        // Clear local database
+    suspend fun resetAllData() = withContext(Dispatchers.IO) {
         try {
-            dao.getAllWorkoutsWithExercises().forEach { workout ->
-                dao.deleteWorkout(workout.workout)
-            }
+            db.clearAllTables()
         } catch (e: Exception) {
             android.util.Log.e("WorkoutRepository", "Failed to reset local data", e)
         }
@@ -235,25 +276,27 @@ class WorkoutRepository(private val context: Context) {
             var importedWorkouts = 0
             val workoutMap = mutableMapOf<String, MutableMap<String, Any>>()
 
-            inputStream.bufferedReader().use { reader ->
-                val lines = reader.readLines()
-                if (lines.isEmpty()) return@withContext 0
+            inputStream.bufferedReader().useLines { sequence ->
+                var isFirstLine = true
+                var index = 0
+                sequence.forEach { rawLine ->
+                    val line = rawLine.trim()
+                    if (line.isEmpty()) {
+                        index++
+                        return@forEach
+                    }
 
-                // Detect header presence (some exports include a header row). If the first line
-                // contains common header tokens, skip it; otherwise start at line 0.
-                var startIndex = 0
-                val firstLine = lines.firstOrNull() ?: ""
-                if (firstLine.contains("Date", ignoreCase = true) || firstLine.contains(
-                        "Time",
-                        ignoreCase = true
-                    ) || firstLine.contains("Exercise", ignoreCase = true)
-                ) {
-                    startIndex = 1
-                }
-
-                for (i in startIndex until lines.size) {
-                    val line = lines[i].trim()
-                    if (line.isEmpty()) continue
+                    if (isFirstLine) {
+                        isFirstLine = false
+                        if (line.contains("Date", ignoreCase = true) || line.contains(
+                                "Time",
+                                ignoreCase = true
+                            ) || line.contains("Exercise", ignoreCase = true)
+                        ) {
+                            index++
+                            return@forEach
+                        }
+                    }
 
                     // Robust delimiter detection: try semicolon and comma and prefer the parse
                     // that yields the expected number of columns (or the larger column count).
@@ -267,9 +310,12 @@ class WorkoutRepository(private val context: Context) {
                     }
                     android.util.Log.d(
                         "WorkoutRepository",
-                        "Detected delimiter for line ${i}: ${if (row === rowSemicolon) ";" else ","} (cols=${row.size})"
+                        "Detected delimiter for line ${index}: ${if (row === rowSemicolon) ";" else ","} (cols=${row.size})"
                     )
-                    if (shouldSkipRow(row)) continue
+                    if (shouldSkipRow(row)) {
+                        index++
+                        return@forEach
+                    }
 
                     try {
                         val workoutNumber = row[0].trim().replace("\"", "")
@@ -284,13 +330,13 @@ class WorkoutRepository(private val context: Context) {
                         val weightStr = row[weightColumn].trim().replace("\"", "")
                         val repsStr = row[repsColumn].trim().replace("\"", "")
 
-                        if (exerciseName.isBlank()) continue
+                        if (exerciseName.isBlank()) return@forEach
 
                         val weight = weightStr.toFloatOrNull() ?: 0f
                         val reps = repsStr.toIntOrNull() ?: 0
                         val duration = durationStr.toLongOrNull() ?: 0L
 
-                        if (reps <= 0) continue
+                        if (reps <= 0) return@forEach
 
                         // Parse date - handle various formats
                         val workoutDate = parseCsvDate(dateStr)
@@ -324,6 +370,7 @@ class WorkoutRepository(private val context: Context) {
                         android.util.Log.w("WorkoutRepository", "Failed to parse CSV row: $line", e)
                         // Continue with next row
                     }
+                    index++
                 }
             }
 
@@ -339,7 +386,8 @@ class WorkoutRepository(private val context: Context) {
                     if (exercises.isEmpty()) continue
 
                     // Create workout with duration
-                    val workout = Workout(date = date, durationSeconds = duration, startTime = date)
+                    val now = System.currentTimeMillis()
+                    val workout = Workout(date = date, durationSeconds = duration, startTime = date, updatedAt = now)
                     val workoutId = dao.insertWorkout(workout)
                     // Log inserted workout details for verification (human-readable + epoch)
                     android.util.Log.d(
@@ -360,6 +408,8 @@ class WorkoutRepository(private val context: Context) {
                             dao.insertSet(set)
                         }
                     }
+
+                    dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
 
                     importedWorkouts++
 
@@ -395,22 +445,23 @@ class WorkoutRepository(private val context: Context) {
             var importedWorkouts = 0
             val workoutMap = mutableMapOf<String, MutableMap<String, Any>>()
 
-            inputStream.bufferedReader().use { reader ->
-                val lines = reader.readLines()
-                if (lines.isEmpty()) return@withContext 0
+            inputStream.bufferedReader().useLines { sequence ->
+                var isFirstLine = true
+                sequence.forEach { rawLine ->
+                    val line = rawLine.trim()
+                    if (line.isEmpty()) {
+                        return@forEach
+                    }
 
-                // Skip header if present (detect if first line contains "Date")
-                var startIndex = 0
-                if (lines[0].startsWith("Date", ignoreCase = true)) {
-                    startIndex = 1
-                }
-
-                for (i in startIndex until lines.size) {
-                    val line = lines[i].trim()
-                    if (line.isEmpty()) continue
+                    if (isFirstLine) {
+                        isFirstLine = false
+                        if (line.startsWith("Date", ignoreCase = true)) {
+                            return@forEach
+                        }
+                    }
 
                     val row = parseCsvLine(line)
-                    if (row.size <= weightColumn) continue
+                    if (row.size <= weightColumn) return@forEach
 
                     try {
                         val dateStr = row[dateColumn].trim().replace("\"", "")
@@ -420,13 +471,13 @@ class WorkoutRepository(private val context: Context) {
                         val repsStr = row[repsColumn].trim().replace("\"", "")
                         val weightStr = row[weightColumn].trim().replace("\"", "")
 
-                        if (exerciseName.isBlank()) continue
+                        if (exerciseName.isBlank()) return@forEach
 
                         val weight = weightStr.toFloatOrNull() ?: 0f
                         val reps = repsStr.toIntOrNull() ?: 0
                         val duration = durationStr.toLongOrNull() ?: 0L
 
-                        if (reps <= 0) continue
+                        if (reps <= 0) return@forEach
 
                         // Parse combined date + time into epoch millis
                         val workoutDate = parseCsvDate("$dateStr $timeStr")
@@ -467,7 +518,8 @@ class WorkoutRepository(private val context: Context) {
 
                     if (exercises.isEmpty()) continue
 
-                    val workout = Workout(date = date, durationSeconds = duration, startTime = date)
+                    val now = System.currentTimeMillis()
+                    val workout = Workout(date = date, durationSeconds = duration, startTime = date, updatedAt = now)
                     val workoutId = dao.insertWorkout(workout)
 
                     for ((exerciseName, sets) in exercises) {
@@ -481,6 +533,8 @@ class WorkoutRepository(private val context: Context) {
                             dao.insertSet(set)
                         }
                     }
+
+                    dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
 
                     importedWorkouts++
                 } catch (e: Exception) {
@@ -615,19 +669,22 @@ class WorkoutRepository(private val context: Context) {
     }
 
     suspend fun startWorkoutFromTemplate(templateId: Long): Long = withContext(Dispatchers.IO) {
-        val templateDao = db.templateDao()
-        val tpl = templateDao.getTemplateWithExercises(templateId)
-        val currentTime = System.currentTimeMillis()
-        val workoutId = dao.insertWorkout(Workout(startTime = currentTime))
-        if (tpl != null) {
-            for (exWithSets in tpl.exercises) {
-                val ex = ExerciseEntity(workoutId = workoutId, name = exWithSets.exercise.name)
-                val exId = dao.insertExercise(ex)
-                for (s in exWithSets.sets) {
-                    dao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight))
+        db.withTransaction {
+            val templateDao = db.templateDao()
+            val tpl = templateDao.getTemplateWithExercises(templateId)
+            val currentTime = System.currentTimeMillis()
+                val workoutId = dao.insertWorkout(Workout(startTime = currentTime, updatedAt = currentTime))
+            if (tpl != null) {
+                for (exWithSets in tpl.exercises) {
+                    val ex = ExerciseEntity(workoutId = workoutId, name = exWithSets.exercise.name)
+                    val exId = dao.insertExercise(ex)
+                    for (s in exWithSets.sets) {
+                        dao.insertSet(SetEntity(exerciseId = exId, reps = s.reps, weight = s.weight))
+                    }
                 }
             }
+                dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
+            workoutId
         }
-        workoutId
     }
 }

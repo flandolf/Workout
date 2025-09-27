@@ -65,9 +65,6 @@ fun HistoryScreen(
     onEditWorkout: (Long) -> Unit = {},
     onConvertToTemplate: (WorkoutWithExercises) -> Unit = {}
 ) {
-    LaunchedEffect(Unit) {
-        viewModel?.loadWorkouts()
-    }
     val df = remember { SimpleDateFormat("dd/MM/yy", Locale.getDefault()) }
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
@@ -124,7 +121,7 @@ fun HistoryScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(workouts) { w ->
+                    items(items = workouts, key = { it.workout.id }) { w ->
                         var expanded by remember { mutableStateOf(false) }
                         Card(
                             modifier = Modifier

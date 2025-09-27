@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.coroutines.cancellation.CancellationException
 
 
 class SyncRepository(
@@ -283,6 +284,14 @@ class SyncRepository(
                         if (remoteHash == contentHash) {
                             shouldUpload = false
                             skippedUnchanged++
+                            val remoteClientUpdatedAt = remoteSnap.getLong("clientUpdatedAt") ?: 0L
+                            if (remoteClientUpdatedAt < workout.updatedAt) {
+                                try {
+                                    remoteSnap.reference.update("clientUpdatedAt", workout.updatedAt).await()
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to bump clientUpdatedAt for unchanged workout ${workout.id}", e)
+                                }
+                            }
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Unable to check remote hash for ${workout.id}", e)
@@ -297,6 +306,7 @@ class SyncRepository(
                     durationSeconds = workout.durationSeconds,
                     exercises = fsExercises,
                     contentHash = contentHash,
+                    clientUpdatedAt = workout.updatedAt,
                     version = 2L
                 )
                 val workoutDocRef = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId)
@@ -393,6 +403,14 @@ class SyncRepository(
                         if (remoteHash == contentHash) {
                             shouldUpload = false
                             skippedUnchanged++
+                            val remoteClientUpdatedAt = remoteSnap.getLong("clientUpdatedAt") ?: 0L
+                            if (remoteClientUpdatedAt < template.updatedAt) {
+                                try {
+                                    remoteSnap.reference.update("clientUpdatedAt", template.updatedAt).await()
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to bump clientUpdatedAt for unchanged template ${template.id}", e)
+                                }
+                            }
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Unable to check remote template hash for ${template.id}", e)
@@ -406,6 +424,7 @@ class SyncRepository(
                     name = template.name,
                     exercises = fsExercises,
                     contentHash = contentHash,
+                    clientUpdatedAt = template.updatedAt,
                     version = 1L
                 )
                 val docRef = firestore.collection(COLLECTION_TEMPLATES).document(templateFsId)
@@ -463,6 +482,14 @@ class SyncRepository(
                     val remoteHash = remoteSnap.getString("contentHash") ?: ""
                     if (remoteHash == contentHash) {
                         shouldUpload = false
+                        val remoteClientUpdatedAt = remoteSnap.getLong("clientUpdatedAt") ?: 0L
+                        if (remoteClientUpdatedAt < workout.updatedAt) {
+                            try {
+                                remoteSnap.reference.update("clientUpdatedAt", workout.updatedAt).await()
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to bump clientUpdatedAt for unchanged workout ${workout.id}", e)
+                            }
+                        }
                         Log.d(TAG, "Skipping upload for workout ${workout.id}: unchanged content hash")
                     }
                 } catch (e: Exception) {
@@ -477,6 +504,7 @@ class SyncRepository(
                 durationSeconds = workout.durationSeconds,
                 exercises = fsExercises,
                 contentHash = contentHash,
+                clientUpdatedAt = workout.updatedAt,
                 version = 2L
             )
             val workoutDocRef = firestore.collection(COLLECTION_WORKOUTS).document(workoutFsId)
@@ -519,6 +547,14 @@ class SyncRepository(
                     val remoteSnap = firestore.collection(COLLECTION_TEMPLATES).document(templateFsId).get().await()
                     val remoteHash = remoteSnap.getString("contentHash") ?: ""
                     if (remoteHash == contentHash) shouldUpload = false
+                    val remoteClientUpdatedAt = remoteSnap.getLong("clientUpdatedAt") ?: 0L
+                    if (remoteHash == contentHash && remoteClientUpdatedAt < template.updatedAt) {
+                        try {
+                            remoteSnap.reference.update("clientUpdatedAt", template.updatedAt).await()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to bump clientUpdatedAt for unchanged template ${template.id}", e)
+                        }
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to check remote hash for template ${'$'}{template.id}", e)
                 }
@@ -531,6 +567,7 @@ class SyncRepository(
                 name = template.name,
                 exercises = fsExercises,
                 contentHash = contentHash,
+                clientUpdatedAt = template.updatedAt,
                 version = 1L
             )
             val docRef = firestore.collection(COLLECTION_TEMPLATES).document(templateFsId)
@@ -660,9 +697,14 @@ class SyncRepository(
         try {
             Log.d(TAG, "Starting workout download from Firestore for user: $userId")
             val lastDownload = getLastRemoteDownloadTime()
-            val query = firestore.collection(COLLECTION_WORKOUTS)
+            val collection = firestore.collection(COLLECTION_WORKOUTS)
                 .whereEqualTo("userId", userId)
-                .orderBy("date", Query.Direction.DESCENDING)
+            val query = if (lastDownload > 0L) {
+                collection.whereGreaterThan("clientUpdatedAt", lastDownload)
+                    .orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
+            } else {
+                collection.orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
+            }
             val workoutsSnapshot = query.get().await()
             Log.d(TAG, "Found ${workoutsSnapshot.documents.size} remote workouts (lastDownload=$lastDownload)")
             var processed = 0
@@ -671,6 +713,35 @@ class SyncRepository(
             for (document in workoutsSnapshot.documents) {
                 val fsWorkout = document.toObject<FirestoreWorkout>() ?: continue
                 Log.d(TAG, "Downloaded workout doc ${document.id}: exercises=${fsWorkout.exercises.size}")
+
+                val remoteUpdatedAt = when {
+                    fsWorkout.clientUpdatedAt > 0L -> fsWorkout.clientUpdatedAt
+                    fsWorkout.updatedAt != null -> fsWorkout.updatedAt.time
+                    else -> fsWorkout.date
+                }
+
+                if (fsWorkout.clientUpdatedAt <= 0L && remoteUpdatedAt > 0L) {
+                    try {
+                        document.reference.update("clientUpdatedAt", remoteUpdatedAt).await()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to backfill clientUpdatedAt for workout ${document.id}", e)
+                    }
+                }
+
+                if (remoteUpdatedAt > newestTimestamp) {
+                    newestTimestamp = remoteUpdatedAt
+                }
+
+                if (fsWorkout.isDeleted) {
+                    try {
+                        val deleted = dao.getWorkoutWithExercisesByFirestoreId(document.id)?.workout?.let { dao.deleteWorkout(it) }
+                            ?: if (fsWorkout.localId > 0) dao.getWorkoutWithExercises(fsWorkout.localId)?.workout?.let { dao.deleteWorkout(it) } else null
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed local delete for remote-deleted workout ${document.id}", e)
+                    }
+                    if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
+                    continue
+                }
 
                 val existingWithExercises = try {
                     dao.getWorkoutWithExercisesByFirestoreId(document.id)
@@ -706,7 +777,8 @@ class SyncRepository(
                     val updatedWorkout = localExisting.copy(
                         date = fsWorkout.date,
                         durationSeconds = fsWorkout.durationSeconds,
-                        firestoreId = document.id
+                        firestoreId = document.id,
+                        updatedAt = remoteUpdatedAt
                     )
                     dao.updateWorkout(updatedWorkout)
                     if (fsWorkout.localId != updatedWorkout.id) {
@@ -725,6 +797,7 @@ class SyncRepository(
                         date = fsWorkout.date,
                         durationSeconds = fsWorkout.durationSeconds,
                         startTime = fsWorkout.date,
+                        updatedAt = remoteUpdatedAt,
                         firestoreId = document.id
                     )
                     val insertedId = dao.insertWorkout(newWorkout)
@@ -759,9 +832,11 @@ class SyncRepository(
                 }
 
                 processed++
-                if (fsWorkout.date > newestTimestamp) newestTimestamp = fsWorkout.date
+                if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
             }
-            setLastRemoteDownloadTime(newestTimestamp)
+            if (newestTimestamp > lastDownload) {
+                setLastRemoteDownloadTime(newestTimestamp)
+            }
             Log.d(TAG, "Workout download from Firestore completed: processed=$processed skipped=$skippedHash newestTs=$newestTimestamp")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to download workouts from Firestore", e)
@@ -781,15 +856,39 @@ class SyncRepository(
         try {
             Log.d(TAG, "Starting template download from Firestore for user: $userId")
             val lastDownload = getLastTemplateRemoteDownloadTime()
-            val query = firestore.collection(COLLECTION_TEMPLATES)
+            val collection = firestore.collection(COLLECTION_TEMPLATES)
                 .whereEqualTo("userId", userId)
-                .orderBy("name", Query.Direction.ASCENDING)
+            val query = if (lastDownload > 0L) {
+                collection.whereGreaterThan("clientUpdatedAt", lastDownload)
+                    .orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
+            } else {
+                collection.orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
+            }
             val templatesSnapshot = query.get().await()
             Log.d(TAG, "Found ${templatesSnapshot.documents.size} remote templates (lastDownload=$lastDownload)")
             var processed = 0
             var skippedHash = 0
+            var newestTimestamp = lastDownload
             for (document in templatesSnapshot.documents) {
                 val fsTemplate = document.toObject<FirestoreTemplate>() ?: continue
+                val remoteUpdatedAt = when {
+                    fsTemplate.clientUpdatedAt > 0L -> fsTemplate.clientUpdatedAt
+                    fsTemplate.updatedAt != null -> fsTemplate.updatedAt.time
+                    else -> System.currentTimeMillis()
+                }
+
+                if (fsTemplate.clientUpdatedAt <= 0L && remoteUpdatedAt > 0L) {
+                    try {
+                        document.reference.update("clientUpdatedAt", remoteUpdatedAt).await()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to backfill clientUpdatedAt for template ${document.id}", e)
+                    }
+                }
+
+                if (remoteUpdatedAt > newestTimestamp) {
+                    newestTimestamp = remoteUpdatedAt
+                }
+
                 if (fsTemplate.isDeleted) {
                     // If marked deleted remotely, attempt local delete
                     try {
@@ -797,6 +896,7 @@ class SyncRepository(
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed local delete for remote-deleted template ${document.id}", e)
                     }
+                    if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
                     continue
                 }
 
@@ -830,7 +930,11 @@ class SyncRepository(
                 }
 
                 val localTemplate = if (localExisting != null) {
-                    val updated = localExisting.copy(name = fsTemplate.name, firestoreId = document.id)
+                    val updated = localExisting.copy(
+                        name = fsTemplate.name,
+                        firestoreId = document.id,
+                        updatedAt = remoteUpdatedAt
+                    )
                     templateDao.updateTemplate(updated)
                     if (fsTemplate.localId != updated.id) {
                         try {
@@ -844,7 +948,7 @@ class SyncRepository(
                     }
                     updated
                 } else {
-                    val newTemplate = Template(name = fsTemplate.name, firestoreId = document.id)
+                    val newTemplate = Template(name = fsTemplate.name, updatedAt = remoteUpdatedAt, firestoreId = document.id)
                     val insertedId = templateDao.insertTemplate(newTemplate)
                     val persisted = newTemplate.copy(id = insertedId)
                     templateDao.updateTemplate(persisted)
@@ -881,8 +985,11 @@ class SyncRepository(
                     Log.w(TAG, "Failed to rebuild exercises for template ${localTemplate.id}", e)
                 }
                 processed++
+                if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
             }
-            setLastTemplateRemoteDownloadTime(System.currentTimeMillis())
+            if (newestTimestamp > lastDownload) {
+                setLastTemplateRemoteDownloadTime(newestTimestamp)
+            }
             Log.d(TAG, "Template download completed: processed=$processed skipped=$skippedHash")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to download templates from Firestore", e)
@@ -902,8 +1009,11 @@ class SyncRepository(
                 .get()
                 .await()
             snapshot.documents.size
+        } catch (e: CancellationException) {
+            Log.w(TAG, "getRemoteWorkoutCount coroutine cancelled", e)
+            throw e
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to get remote workout count", e)
+            Log.e(TAG, "Failed to get remote workout count", e)
             0
         }
     }
@@ -920,8 +1030,11 @@ class SyncRepository(
                 .get()
                 .await()
             snapshot.documents.size
+        } catch (e: CancellationException) {
+            Log.w(TAG, "getRemoteTemplateCount coroutine cancelled", e)
+            throw e
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to get remote template count", e)
+            Log.e(TAG, "Failed to get remote template count", e)
             0
         }
     }

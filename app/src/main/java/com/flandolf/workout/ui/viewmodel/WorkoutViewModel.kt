@@ -267,15 +267,10 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
             val currentWorkout = _currentWorkout.value
             val currentWorkoutId = _currentWorkoutId.value
             if (currentWorkout != null && currentWorkoutId != null) {
-                val previousSets = mutableMapOf<String, SetEntity>()
-                for (exercise in currentWorkout.exercises) {
-                    val previousBestSet =
-                        repo.getBestSetFromLastWorkout(exercise.exercise.name, currentWorkoutId)
-                    if (previousBestSet != null) {
-                        previousSets[exercise.exercise.name] = previousBestSet
-                    }
-                }
-                _previousBestSets.value = previousSets
+                val names = currentWorkout.exercises
+                    .map { it.exercise.name }
+                    .distinct()
+                _previousBestSets.value = repo.getBestSetsFromLastWorkouts(names, currentWorkoutId)
             }
         }
     }

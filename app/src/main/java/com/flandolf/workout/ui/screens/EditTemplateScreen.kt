@@ -49,7 +49,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -77,6 +76,7 @@ import com.flandolf.workout.ui.viewmodel.EditWorkoutViewModel
 import com.flandolf.workout.ui.viewmodel.TemplateViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -100,7 +100,7 @@ fun AddTemplateScreen(
     var newExerciseName by remember { mutableStateOf("") }
 
     // Template name state that reflects vm.template
-    val currentTemplate by vm.template.collectAsState()
+    val currentTemplate by vm.template.collectAsStateWithLifecycle()
     var templateName by remember { mutableStateOf(currentTemplate?.template?.name ?: "") }
     // Keep the local field in sync when vm.template changes (e.g., load)
     LaunchedEffect(currentTemplate?.template?.name) {

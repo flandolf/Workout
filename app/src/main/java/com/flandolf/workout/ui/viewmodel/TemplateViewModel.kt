@@ -16,6 +16,8 @@ import kotlinx.coroutines.withContext
 class TemplateViewModel(application: Application) : AndroidViewModel(application) {
     private val repo = TemplateRepository(application.applicationContext)
 
+    val templatesFlow: Flow<List<TemplateWithExercises>> = repo.getAllTemplatesWithExercises()
+
     private val _template = MutableStateFlow<TemplateWithExercises?>(null)
     val template: StateFlow<TemplateWithExercises?> = _template
 
@@ -33,9 +35,6 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
             }
         }
     }
-
-    // Expose reactive Flow for templates list
-    fun templatesFlow(): Flow<List<TemplateWithExercises>> = repo.getAllTemplatesWithExercises()
 
     // Persist a change to the template's name
     fun updateTemplateName(newName: String) {

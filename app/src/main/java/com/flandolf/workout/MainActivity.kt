@@ -22,12 +22,12 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -68,14 +68,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        historyVm.loadWorkouts()
         setContent {
-            val themeMode by themeVm.themeMode.collectAsState()
+            val themeMode by themeVm.themeMode.collectAsStateWithLifecycle()
             WorkoutTheme(themeMode = themeMode) {
                 val navController = rememberNavController()
                 val snackbarHostState = remember { SnackbarHostState() }
                 val coroutineScope = rememberCoroutineScope()
-                val syncUiState by syncVm.uiState.collectAsState()
+                val syncUiState by syncVm.uiState.collectAsStateWithLifecycle()
+                val templatesFlow = remember(templateVm) { templateVm.templatesFlow }
 
                 // Debounce simple snackbar messages to avoid spam
                 LaunchedEffect(syncUiState.message, syncUiState.errorMessage) {
@@ -103,18 +103,16 @@ class MainActivity : ComponentActivity() {
                         },
                     ) {
                         composable("workout") {
-                            val elapsed = workoutVm.elapsedSeconds.collectAsState()
-                            val currentWorkout = workoutVm.currentWorkout.collectAsState()
-                            val isTimerRunning = workoutVm.isTimerRunning.collectAsState()
-                            val previousBestSets = workoutVm.previousBestSets.collectAsState()
-                            LaunchedEffect(Unit) {
-                                historyVm.loadWorkouts()
-                            }
+                            val elapsed by workoutVm.elapsedSeconds.collectAsStateWithLifecycle()
+                            val currentWorkout by workoutVm.currentWorkout.collectAsStateWithLifecycle()
+                            val isTimerRunning by workoutVm.isTimerRunning.collectAsStateWithLifecycle()
+                            val previousBestSets by workoutVm.previousBestSets.collectAsStateWithLifecycle()
+                            val exerciseSuggestions by workoutVm.exerciseNameSuggestions.collectAsStateWithLifecycle()
                             // load suggestions and pass into screen
                             LaunchedEffect(Unit) { workoutVm.loadExerciseNameSuggestions() }
                             WorkoutScreen(
-                                elapsedSeconds = elapsed.value,
-                                currentExercises = currentWorkout.value?.exercises ?: emptyList(),
+                                elapsedSeconds = elapsed,
+                                currentExercises = currentWorkout?.exercises ?: emptyList(),
                                 onStartTick = { workoutVm.resumeTimer() },
                                 onPauseTick = { workoutVm.pauseTimer() },
                                 onEndWorkout = {
@@ -137,22 +135,22 @@ class MainActivity : ComponentActivity() {
                                     )
                                 },
                                 onDeleteExercise = { workoutVm.deleteExercise(it) },
-                                exerciseNameSuggestions = workoutVm.exerciseNameSuggestions.collectAsState().value,
-                                isTimerRunning = isTimerRunning.value,
+                                exerciseNameSuggestions = exerciseSuggestions,
+                                isTimerRunning = isTimerRunning,
                                 vm = workoutVm,
-                                previousBestSets = previousBestSets.value,
+                                previousBestSets = previousBestSets,
                                 onShowSnackbar = { msg -> snackbarHostState.showSnackbar(msg) },
                                 onStartFromTemplate = { templateId ->
                                     // create workout from template and start
                                     workoutVm.startWorkoutFromTemplate(templateId)
                                 },
-                                templatesFlow = templateVm.templatesFlow(),
+                                templatesFlow = templatesFlow,
                             )
                         }
                         composable("history") {
-                            val workouts = historyVm.workouts.collectAsState()
+                            val workouts by historyVm.workouts.collectAsStateWithLifecycle()
                             HistoryScreen(
-                                workouts = workouts.value,
+                                workouts = workouts,
                                 viewModel = historyVm,
                                 onEditWorkout = { workoutId ->
                                     navController.navigate("edit_workout/$workoutId")
@@ -181,11 +179,11 @@ class MainActivity : ComponentActivity() {
 
                             // If there are no local workouts, suggest syncing down when appropriate
                             LaunchedEffect(
-                                workouts.value.size,
+                                workouts.size,
                                 syncUiState.authState,
                                 syncUiState.syncStatus.isOnline
                             ) {
-                                if (workouts.value.isEmpty()) {
+                                if (workouts.isEmpty()) {
                                     if (syncUiState.authState == AuthState.AUTHENTICATED) {
                                         if (syncUiState.syncStatus.isOnline) {
                                             val res = snackbarHostState.showSnackbar(
@@ -205,20 +203,20 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         composable("progress") {
-                            val workouts = historyVm.workouts.collectAsState()
+                            val workouts by historyVm.workouts.collectAsStateWithLifecycle()
                             ProgressScreen(
-                                workouts = workouts.value,
+                                workouts = workouts,
                                 viewModel = historyVm,
                                 onExerciseClick = { exerciseName ->
                                     navController.navigate("exercise_detail/$exerciseName")
                                 })
 
                             LaunchedEffect(
-                                workouts.value.size,
+                                workouts.size,
                                 syncUiState.authState,
                                 syncUiState.syncStatus.isOnline
                             ) {
-                                if (workouts.value.isEmpty()) {
+                                if (workouts.isEmpty()) {
                                     // Reuse same messaging as history
                                     if (syncUiState.authState == AuthState.AUTHENTICATED) {
                                         if (syncUiState.syncStatus.isOnline) {
@@ -241,20 +239,20 @@ class MainActivity : ComponentActivity() {
                         composable("exercise_detail/{exerciseName}") { backStackEntry ->
                             val exerciseName =
                                 backStackEntry.arguments?.getString("exerciseName") ?: ""
-                            val workouts = historyVm.workouts.collectAsState()
+                            val workouts by historyVm.workouts.collectAsStateWithLifecycle()
                             ExerciseDetailScreen(
                                 exerciseName = exerciseName,
-                                workouts = workouts.value,
+                                workouts = workouts,
                                 onBackClick = { navController.popBackStack() },
                                 onGraphClick = { navController.navigate("graph_detail/$exerciseName") })
                         }
                         composable("graph_detail/{exerciseName}") { backStackEntry ->
                             val exerciseName =
                                 backStackEntry.arguments?.getString("exerciseName") ?: ""
-                            val workouts = historyVm.workouts.collectAsState()
+                            val workouts by historyVm.workouts.collectAsStateWithLifecycle()
                             GraphDetailScreen(
                                 exerciseName = exerciseName,
-                                workouts = workouts.value,
+                                workouts = workouts,
                                 onBackClick = { navController.popBackStack() })
                         }
                         composable("edit_workout/{workoutId}") { backStackEntry ->
@@ -263,12 +261,10 @@ class MainActivity : ComponentActivity() {
                             LaunchedEffect(workoutId) {
                                 if (workoutId > 0) editVm.loadWorkout(workoutId)
                             }
-                            val workoutState = editVm.workout.collectAsState()
+                            val workoutState by editVm.workout.collectAsStateWithLifecycle()
                             EditWorkoutScreen(
-                                workout = workoutState.value?.exercises ?: emptyList(),
+                                workout = workoutState?.exercises ?: emptyList(),
                                 onBack = {
-                                    // Refresh history on return
-                                    historyVm.loadWorkouts()
                                     navController.popBackStack()
                                 },
                                 onAddExercise = { name ->
@@ -304,9 +300,9 @@ class MainActivity : ComponentActivity() {
                             LaunchedEffect(templateId) {
                                 if (templateId >= 0) templateVm.loadTemplate(templateId)
                             }
-                            val templateState = templateVm.template.collectAsState()
+                            val templateState by templateVm.template.collectAsStateWithLifecycle()
                             AddTemplateScreen(
-                                template = templateState.value?.exercises ?: emptyList(),
+                                template = templateState?.exercises ?: emptyList(),
                                 onBack = {
                                     // Discard empty template rows when leaving editor
                                     templateVm.discardIfEmpty()
@@ -344,7 +340,6 @@ class MainActivity : ComponentActivity() {
                                         try {
                                             repo.resetAllData()
                                             workoutVm.refreshCurrentWorkout()
-                                            historyVm.loadWorkouts()
                                         } catch (e: Exception) {
                                             e.printStackTrace()
                                             coroutineScope.launch {
@@ -560,7 +555,6 @@ class MainActivity : ComponentActivity() {
 
                                 // Refresh data in view models
                                 workoutVm.refreshCurrentWorkout()
-                                historyVm.loadWorkouts()
 
                                 runOnUiThread {
                                     Toast.makeText(
@@ -609,7 +603,6 @@ class MainActivity : ComponentActivity() {
 
                                 // Refresh data in view models
                                 workoutVm.refreshCurrentWorkout()
-                                historyVm.loadWorkouts()
 
                                 runOnUiThread {
                                     Toast.makeText(

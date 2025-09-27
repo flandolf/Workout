@@ -78,11 +78,6 @@ fun ProgressScreen(
     viewModel: HistoryViewModel? = null,
     onExerciseClick: (String) -> Unit = {}
 ) {
-    // Pull fresh info on load
-    LaunchedEffect(Unit) {
-        viewModel?.loadWorkouts()
-    }
-
     // Aggregate total reps, sets, and weight lifted per exercise name
     val totals by remember(workouts) {
         derivedStateOf {

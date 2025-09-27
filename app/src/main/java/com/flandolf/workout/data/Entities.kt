@@ -11,8 +11,9 @@ import androidx.room.Relation
 data class Workout(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val date: Long = System.currentTimeMillis(),
-    val startTime: Long,
+    val startTime: Long = System.currentTimeMillis(),
     val durationSeconds: Long = 0,
+    val updatedAt: Long = System.currentTimeMillis(),
     // Firestore document ID mapping for sync
     val firestoreId: String? = null
 )
@@ -74,6 +75,7 @@ data class SetEntity(
 data class Template(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val updatedAt: Long = System.currentTimeMillis(),
     val firestoreId: String? = null
 )
 

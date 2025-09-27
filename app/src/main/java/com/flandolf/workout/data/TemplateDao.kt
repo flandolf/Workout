@@ -16,6 +16,9 @@ interface TemplateDao {
     @Update
     suspend fun updateTemplate(template: Template)
 
+    @Query("UPDATE templates SET updatedAt = :updatedAt WHERE id = :templateId")
+    suspend fun updateTemplateUpdatedAt(templateId: Long, updatedAt: Long)
+
     @Delete
     suspend fun deleteTemplate(template: Template)
 
@@ -24,6 +27,9 @@ interface TemplateDao {
 
     @Update
     suspend fun updateExercise(exercise: ExerciseEntity)
+
+    @Query("SELECT * FROM exercises WHERE id = :exerciseId LIMIT 1")
+    suspend fun getExerciseById(exerciseId: Long): ExerciseEntity?
 
     @Delete
     suspend fun deleteExercise(exercise: ExerciseEntity)
