@@ -3,4 +3,25 @@
     <string name="settings_theme_option_system">System</string>
     <string name="settings_theme_option_light">Light</string>
     <string name="settings_theme_option_dark">Dark</string>
+    <string name="snackbar_template_created">Template created</string>
+    <string name="snackbar_no_workouts_restore_prompt">No local workouts. Restore from cloud?</string>
+    <string name="snackbar_no_workouts_go_online">No local workouts. Go online to restore from cloud.</string>
+    <string name="snackbar_no_workouts_sign_in">No local workouts. Sign in to restore cloud data.</string>
+    <string name="action_restore">Restore</string>
+    <string name="snackbar_reset_failed">Reset failed: %1$s</string>
+    <string name="error_unknown">Unknown error</string>
+    <string name="snackbar_sign_in_to_sync">Sign in to sync with the cloud</string>
+    <string name="snackbar_offline_retry">Offline: will retry when online</string>
+    <string name="snackbar_retry_action">Retry</string>
+    <string name="toast_templates_exported">Templates exported to Downloads: %1$s</string>
+    <string name="toast_export_failed">Export failed: %1$s</string>
+    <string name="toast_csv_exported">CSV exported to Downloads: %1$s</string>
+    <string name="share_templates_subject">Workout Templates Export</string>
+    <string name="chooser_share_templates">Share Templates CSV Export</string>
+    <string name="share_csv_subject">Workout Data Export</string>
+    <string name="chooser_share_csv">Share CSV Export</string>
+    <string name="toast_import_success_workouts">Import successful: %1$d workouts imported</string>
+    <string name="toast_import_success_templates">Import successful: %1$d templates imported</string>
+    <string name="toast_import_failed_read">Import failed: Could not read file</string>
+    <string name="toast_import_failed_generic">Import failed: %1$s</string>
 </resources>

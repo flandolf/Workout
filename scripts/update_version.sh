@@ -35,8 +35,6 @@ if [[ ! -f "$file" ]]; then
   exit 3
 fi
 
-backup="$file.bak.$(date +%Y%m%d%H%M%S)"
-
 # Replace versionCode (int) and versionName (quoted string) using robust captures.
 # - Only replace the assigned value, keeping existing whitespace and formatting.
 VC="$version_code" VN="$version_name" perl -0777 -pe '
@@ -68,11 +66,9 @@ if [[ $DRY_RUN -eq 1 ]]; then
   exit 0
 fi
 
-# Backup original file then replace
-mv "$file" "$backup"
+# Replace original file
 mv "$file.tmp" "$file"
 
 echo "Commit count: $commit_count"
 echo "Updated $file -> versionCode $version_code, versionName $version_name"
-echo "Backup: $backup"
 exit 0

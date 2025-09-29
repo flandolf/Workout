@@ -74,6 +74,42 @@ fun SyncSettingsScreen(
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+
+        // Show a live "sync in progress" card when a sync is running
+        if (uiState.isSyncing && uiState.syncStartTime > 0L) {
+            // Local clock that updates every second while syncing so we can show duration
+            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+            LaunchedEffect(true, uiState.syncStartTime) {
+                if (uiState.isSyncing) {
+                    while (true) {
+                        delay(1000L)
+                        now = System.currentTimeMillis()
+                    }
+                }
+            }
+
+            val elapsedSec = ((now - uiState.syncStartTime) / 1000).coerceAtLeast(0L)
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    Text(
+                        "Sync in progress (${elapsedSec}s)",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
         // Authentication Status Card
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -198,40 +234,6 @@ fun SyncSettingsScreen(
             }
         }
 
-        // Show a live "sync in progress" card when a sync is running
-        if (uiState.isSyncing && uiState.syncStartTime > 0L) {
-            // Local clock that updates every second while syncing so we can show duration
-            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-            LaunchedEffect(true, uiState.syncStartTime) {
-                if (uiState.isSyncing) {
-                    while (true) {
-                        delay(1000L)
-                        now = System.currentTimeMillis()
-                    }
-                }
-            }
-
-            val elapsedSec = ((now - uiState.syncStartTime) / 1000).coerceAtLeast(0L)
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    Text(
-                        "Sync in progress (${elapsedSec}s)",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        }
 
         // Sync Status Card
         if (uiState.authState == AuthState.AUTHENTICATED) {
@@ -295,7 +297,7 @@ fun SyncSettingsScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(vertical = 16.dp)) {
                     Text(
                         "Sign In Options",
                         style = MaterialTheme.typography.titleMedium,

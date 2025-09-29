@@ -4,8 +4,10 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ContentValues
 import android.content.Intent
-import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
@@ -25,8 +27,8 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
@@ -49,10 +51,15 @@ import com.flandolf.workout.ui.theme.WorkoutTheme
 import com.flandolf.workout.ui.viewmodel.EditWorkoutViewModel
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import com.flandolf.workout.ui.viewmodel.SyncViewModel
+import com.flandolf.workout.ui.viewmodel.SyncUiState
 import com.flandolf.workout.ui.viewmodel.TemplateViewModel
 import com.flandolf.workout.ui.viewmodel.ThemeViewModel
 import com.flandolf.workout.ui.viewmodel.WorkoutViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.InputStream
+import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -65,6 +72,21 @@ class MainActivity : ComponentActivity() {
     private val templateVm: TemplateViewModel by viewModels()
     private val themeVm: ThemeViewModel by viewModels()
 
+    private val importWorkoutLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { handleWorkoutImport(it) }
+        }
+
+    private val importStrongLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { handleStrongImport(it) }
+        }
+
+    private val importTemplateLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let { handleTemplateImport(it) }
+        }
+
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,7 +96,7 @@ class MainActivity : ComponentActivity() {
             WorkoutTheme(themeMode = themeMode) {
                 val navController = rememberNavController()
                 val snackbarHostState = remember { SnackbarHostState() }
-                val coroutineScope = rememberCoroutineScope()
+                val context = LocalContext.current
                 val syncUiState by syncVm.uiState.collectAsStateWithLifecycle()
                 val templatesFlow = remember(templateVm) { templateVm.templatesFlow }
 
@@ -157,7 +179,7 @@ class MainActivity : ComponentActivity() {
                                     navController.navigate("edit_workout/$workoutId")
                                 },
                                 onConvertToTemplate = { workoutWithExercises ->
-                                    coroutineScope.launch {
+                                    lifecycleScope.launch {
                                         val dateStr = SimpleDateFormat(
                                             "yyyy-MM-dd",
                                             Locale.getDefault()
@@ -174,7 +196,7 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("edit_template/$templateId")
                                         // Show snackbar asynchronously (optional delay-free)
                                         snackbarHostState.showSnackbar(
-                                            "Template created",
+                                            context.getString(R.string.snackbar_template_created),
                                             duration = SnackbarDuration.Short
                                         )
                                     }
@@ -187,22 +209,15 @@ class MainActivity : ComponentActivity() {
                                 syncUiState.authState,
                                 syncUiState.syncStatus.isOnline
                             ) {
-                                if (workouts.isEmpty()) {
-                                    if (syncUiState.authState == AuthState.AUTHENTICATED) {
-                                        if (syncUiState.syncStatus.isOnline) {
-                                            val res = snackbarHostState.showSnackbar(
-                                                "No local workouts. Restore from cloud?",
-                                                actionLabel = "Restore"
-                                            )
-                                            if (res == SnackbarResult.ActionPerformed) {
-                                                syncVm.performSync()
-                                            }
-                                        } else {
-                                            snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
-                                        }
-                                    } else {
-                                        snackbarHostState.showSnackbar("No local workouts. Sign in to restore cloud data.")
-                                    }
+                                snackbarHostState.handleEmptyWorkouts(
+                                    workoutsEmpty = workouts.isEmpty(),
+                                    syncUiState = syncUiState,
+                                    restorePrompt = context.getString(R.string.snackbar_no_workouts_restore_prompt),
+                                    restoreAction = context.getString(R.string.action_restore),
+                                    offlineMessage = context.getString(R.string.snackbar_no_workouts_go_online),
+                                    signInMessage = context.getString(R.string.snackbar_no_workouts_sign_in)
+                                ) {
+                                    syncVm.performSync()
                                 }
                             }
                         }
@@ -220,23 +235,15 @@ class MainActivity : ComponentActivity() {
                                 syncUiState.authState,
                                 syncUiState.syncStatus.isOnline
                             ) {
-                                if (workouts.isEmpty()) {
-                                    // Reuse same messaging as history
-                                    if (syncUiState.authState == AuthState.AUTHENTICATED) {
-                                        if (syncUiState.syncStatus.isOnline) {
-                                            val res = snackbarHostState.showSnackbar(
-                                                "No local workouts. Restore from cloud?",
-                                                actionLabel = "Restore"
-                                            )
-                                            if (res == SnackbarResult.ActionPerformed) {
-                                                syncVm.performSync()
-                                            }
-                                        } else {
-                                            snackbarHostState.showSnackbar("No local workouts. Go online to restore from cloud.")
-                                        }
-                                    } else {
-                                        snackbarHostState.showSnackbar("No local workouts. Sign in to restore cloud data.")
-                                    }
+                                snackbarHostState.handleEmptyWorkouts(
+                                    workoutsEmpty = workouts.isEmpty(),
+                                    syncUiState = syncUiState,
+                                    restorePrompt = context.getString(R.string.snackbar_no_workouts_restore_prompt),
+                                    restoreAction = context.getString(R.string.action_restore),
+                                    offlineMessage = context.getString(R.string.snackbar_no_workouts_go_online),
+                                    signInMessage = context.getString(R.string.snackbar_no_workouts_sign_in)
+                                ) {
+                                    syncVm.performSync()
                                 }
                             }
                         }
@@ -346,9 +353,12 @@ class MainActivity : ComponentActivity() {
                                             workoutVm.refreshCurrentWorkout()
                                         } catch (e: Exception) {
                                             e.printStackTrace()
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar("Reset failed: ${e.localizedMessage ?: "Unknown"}")
-                                            }
+                                            snackbarHostState.showSnackbar(
+                                                context.getString(
+                                                    R.string.snackbar_reset_failed,
+                                                    e.localizedMessage ?: context.getString(R.string.error_unknown)
+                                                )
+                                            )
                                         }
                                     }
                                 },
@@ -356,14 +366,16 @@ class MainActivity : ComponentActivity() {
                                 onManualSync = {
                                     // Guard against offline or unauthenticated
                                     if (!syncUiState.isInitialized || syncUiState.authState != AuthState.AUTHENTICATED) {
-                                        coroutineScope.launch {
-                                            snackbarHostState.showSnackbar("Sign in to sync with the cloud")
+                                        lifecycleScope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                context.getString(R.string.snackbar_sign_in_to_sync)
+                                            )
                                         }
                                     } else if (!syncUiState.syncStatus.isOnline) {
-                                        coroutineScope.launch {
+                                        lifecycleScope.launch {
                                             val res = snackbarHostState.showSnackbar(
-                                                "Offline: will retry when online",
-                                                actionLabel = "Retry"
+                                                context.getString(R.string.snackbar_offline_retry),
+                                                actionLabel = context.getString(R.string.snackbar_retry_action)
                                             )
                                             if (res == SnackbarResult.ActionPerformed) {
                                                 syncVm.performSync()
@@ -391,19 +403,25 @@ class MainActivity : ComponentActivity() {
 
     fun getAppVersion(): String {
         return try {
-            val pInfo: PackageInfo = packageManager.getPackageInfo(packageName, 0)
-            pInfo.versionName ?: "N/A"
+            val pm = packageManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val pInfo = pm.getPackageInfo(
+                    packageName,
+                    PackageManager.PackageInfoFlags.of(0)
+                )
+                pInfo.versionName ?: "N/A"
+            } else {
+                @Suppress("DEPRECATION")
+                val pInfo = pm.getPackageInfo(packageName, 0)
+                pInfo.versionName ?: "N/A"
+            }
         } catch (_: Exception) {
             "N/A"
         }
     }
 
     private fun importTemplateCsv() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/*"
-        }
-        importTemplate.launch(intent)
+        importTemplateLauncher.launch(arrayOf("text/*"))
     }
 
     private fun exportTemplateCsv() {
@@ -412,60 +430,35 @@ class MainActivity : ComponentActivity() {
         val fileName = "workout_templates_$timestamp.csv"
 
         lifecycleScope.launch {
+            val repo = TemplateRepository(applicationContext)
             try {
-                val repo = TemplateRepository(applicationContext)
-
-                // Insert into MediaStore Downloads
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                    put(MediaStore.Downloads.MIME_TYPE, "text/csv")
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                    put(MediaStore.Downloads.IS_PENDING, 1)
+                val itemUri = withContext(Dispatchers.IO) {
+                    exportToDownloads(fileName, CSV_MIME_TYPE) { outStream ->
+                        repo.exportTemplatesCsv(outStream)
+                    }
                 }
-
-                val resolver = applicationContext.contentResolver
-                val collection =
-                    MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                val itemUri = resolver.insert(collection, contentValues)
-                    ?: throw IllegalStateException("Failed to create MediaStore record")
-
-                resolver.openOutputStream(itemUri)?.use { outStream ->
-                    repo.exportTemplatesCsv(outStream)
-                } ?: throw IllegalStateException("Failed to open output stream")
-
-                // Mark file as complete
-                contentValues.clear()
-                contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
-                resolver.update(itemUri, contentValues, null, null)
 
                 Toast.makeText(
                     this@MainActivity,
-                    "Templates exported to Downloads: $fileName",
+                    getString(R.string.toast_templates_exported, fileName),
                     Toast.LENGTH_LONG
                 ).show()
 
-                // Share intent
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/csv"
-                    putExtra(Intent.EXTRA_STREAM, itemUri)
-                    putExtra(Intent.EXTRA_SUBJECT, "Workout Templates Export")
-                    putExtra(Intent.EXTRA_TITLE, fileName)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-
-                    clipData = ClipData.newUri(
-                        contentResolver,
-                        fileName,
-                        itemUri
-                    )
-                }
-
-                startActivity(Intent.createChooser(shareIntent, "Share Templates CSV Export"))
-
+                shareExport(
+                    uri = itemUri,
+                    mimeType = CSV_MIME_TYPE,
+                    subject = getString(R.string.share_templates_subject),
+                    chooserTitle = getString(R.string.chooser_share_templates),
+                    fileName = fileName
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(
                     this@MainActivity,
-                    "Export failed: ${e.localizedMessage ?: "Unknown error"}",
+                    getString(
+                        R.string.toast_export_failed,
+                        e.localizedMessage ?: getString(R.string.error_unknown)
+                    ),
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -478,61 +471,35 @@ class MainActivity : ComponentActivity() {
         val fileName = "workout_export_$timestamp.csv"
 
         lifecycleScope.launch {
+            val repo = WorkoutRepository(applicationContext)
             try {
-                val repo = WorkoutRepository(applicationContext)
-
-                // Insert into MediaStore Downloads
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
-                    put(MediaStore.Downloads.MIME_TYPE, "text/csv")
-                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                    put(MediaStore.Downloads.IS_PENDING, 1)
+                val itemUri = withContext(Dispatchers.IO) {
+                    exportToDownloads(fileName, CSV_MIME_TYPE) { outStream ->
+                        repo.exportCsv(outStream)
+                    }
                 }
-
-                val resolver = applicationContext.contentResolver
-                val collection =
-                    MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                val itemUri = resolver.insert(collection, contentValues)
-                    ?: throw IllegalStateException("Failed to create MediaStore record")
-
-                resolver.openOutputStream(itemUri)?.use { outStream ->
-                    repo.exportCsv(outStream) // make repo accept OutputStream instead of File
-                } ?: throw IllegalStateException("Failed to open output stream")
-
-                // Mark file as complete
-                contentValues.clear()
-                contentValues.put(MediaStore.Downloads.IS_PENDING, 0)
-                resolver.update(itemUri, contentValues, null, null)
 
                 Toast.makeText(
                     this@MainActivity,
-                    "CSV exported to Downloads: $fileName",
+                    getString(R.string.toast_csv_exported, fileName),
                     Toast.LENGTH_LONG
                 ).show()
 
-                // Share intent
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/csv"
-                    putExtra(Intent.EXTRA_STREAM, itemUri)
-                    putExtra(Intent.EXTRA_SUBJECT, "Workout Data Export")
-                    putExtra(Intent.EXTRA_TITLE, fileName) // this helps the chooser UI
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-
-                    // Optional: force a user-friendly filename in ClipData
-                    clipData = ClipData.newUri(
-                        contentResolver,
-                        fileName,
-                        itemUri
-                    )
-                }
-
-                startActivity(Intent.createChooser(shareIntent, "Share CSV Export"))
-
+                shareExport(
+                    uri = itemUri,
+                    mimeType = CSV_MIME_TYPE,
+                    subject = getString(R.string.share_csv_subject),
+                    chooserTitle = getString(R.string.chooser_share_csv),
+                    fileName = fileName
+                )
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(
                     this@MainActivity,
-                    "Export failed: ${e.localizedMessage ?: "Unknown error"}",
+                    getString(
+                        R.string.toast_export_failed,
+                        e.localizedMessage ?: getString(R.string.error_unknown)
+                    ),
                     Toast.LENGTH_LONG
                 ).show()
             }
@@ -540,160 +507,192 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun onImportStrongCsv() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/*"
-        }
-        importStrong.launch(intent)
+        importStrongLauncher.launch(arrayOf("text/*"))
     }
 
     private fun onImportWorkoutCsv() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "text/*"
-        }
-        importWorkout.launch(intent)
-
+        importWorkoutLauncher.launch(arrayOf("text/*"))
     }
 
-    var importWorkout =
-        registerForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                val uri = result.data?.data
-                if (uri != null) {
-                    lifecycleScope.launch {
-                        try {
-                            val inputStream = contentResolver.openInputStream(uri)
-                            if (inputStream != null) {
-                                val repo =
-                                    WorkoutRepository(applicationContext)
-                                val importedCount = repo.importWorkoutCsv(inputStream)
-                                inputStream.close()
+    private fun handleWorkoutImport(uri: Uri) {
+        handleImport(
+            uri = uri,
+            successMessage = { count ->
+                getString(R.string.toast_import_success_workouts, count)
+            },
+            postSuccess = {
+                workoutVm.refreshCurrentWorkout()
+            }
+        ) { inputStream ->
+            val repo = WorkoutRepository(applicationContext)
+            repo.importWorkoutCsv(inputStream)
+        }
+    }
 
-                                // Refresh data in view models
-                                workoutVm.refreshCurrentWorkout()
+    private fun handleStrongImport(uri: Uri) {
+        handleImport(
+            uri = uri,
+            successMessage = { count ->
+                getString(R.string.toast_import_success_workouts, count)
+            },
+            postSuccess = {
+                workoutVm.refreshCurrentWorkout()
+            }
+        ) { inputStream ->
+            val repo = WorkoutRepository(applicationContext)
+            repo.importStrongCsv(inputStream)
+        }
+    }
 
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Import successful: $importedCount workouts imported",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            } else {
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Import failed: Could not read file",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            runOnUiThread {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Import failed: ${e.localizedMessage ?: "Unknown error"}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        }
-                    }
+    private fun handleTemplateImport(uri: Uri) {
+        handleImport(
+            uri = uri,
+            successMessage = { count ->
+                getString(R.string.toast_import_success_templates, count)
+            }
+        ) { inputStream ->
+            val repo = TemplateRepository(applicationContext)
+            repo.importTemplatesCsv(inputStream)
+        }
+    }
+
+    private fun handleImport(
+        uri: Uri,
+        successMessage: (Int) -> String,
+        postSuccess: suspend () -> Unit = {},
+        importAction: suspend (InputStream) -> Int
+    ) {
+        lifecycleScope.launch {
+            try {
+                persistReadPermission(uri)
+                val count = withContext(Dispatchers.IO) {
+                    contentResolver.openInputStream(uri)?.use { inputStream ->
+                        importAction(inputStream)
+                    } ?: throw IllegalStateException(
+                        getString(R.string.toast_import_failed_read)
+                    )
                 }
+                postSuccess()
+                Toast.makeText(
+                    this@MainActivity,
+                    successMessage(count),
+                    Toast.LENGTH_LONG
+                ).show()
+            } catch (e: IllegalStateException) {
+                Toast.makeText(
+                    this@MainActivity,
+                    e.message ?: getString(
+                        R.string.toast_import_failed_generic,
+                        getString(R.string.error_unknown)
+                    ),
+                    Toast.LENGTH_LONG
+                ).show()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(
+                        R.string.toast_import_failed_generic,
+                        e.localizedMessage ?: getString(R.string.error_unknown)
+                    ),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun persistReadPermission(uri: Uri) {
+        try {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: SecurityException) {
+            // If the provider does not allow persistable permissions, ignore.
+        }
+    }
+
+    private suspend fun exportToDownloads(
+        fileName: String,
+        mimeType: String,
+        writeAction: suspend (OutputStream) -> Unit
+    ): Uri {
+        val resolver = applicationContext.contentResolver
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, mimeType)
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val itemUri = resolver.insert(collection, contentValues)
+            ?: throw IllegalStateException("Failed to create MediaStore record")
+        return try {
+            resolver.openOutputStream(itemUri)?.use { outStream ->
+                writeAction(outStream)
+            } ?: throw IllegalStateException("Failed to open output stream")
+
+            val finalizeValues = ContentValues().apply {
+                put(MediaStore.Downloads.IS_PENDING, 0)
+            }
+            resolver.update(itemUri, finalizeValues, null, null)
+            itemUri
+        } catch (e: Exception) {
+            resolver.delete(itemUri, null, null)
+            throw e
+        }
+    }
+
+    private fun shareExport(
+        uri: Uri,
+        mimeType: String,
+        subject: String,
+        chooserTitle: String,
+        fileName: String
+    ) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TITLE, fileName)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            clipData = ClipData.newUri(contentResolver, fileName, uri)
+        }
+
+        if (shareIntent.resolveActivity(packageManager) != null) {
+            startActivity(Intent.createChooser(shareIntent, chooserTitle))
+        }
+    }
+
+    companion object {
+        private const val CSV_MIME_TYPE = "text/csv"
+    }
+}
+
+private suspend fun SnackbarHostState.handleEmptyWorkouts(
+    workoutsEmpty: Boolean,
+    syncUiState: SyncUiState,
+    restorePrompt: String,
+    restoreAction: String,
+    offlineMessage: String,
+    signInMessage: String,
+    onRestore: suspend () -> Unit
+) {
+    if (!workoutsEmpty) return
+    when (syncUiState.authState) {
+        AuthState.AUTHENTICATED -> {
+            if (syncUiState.syncStatus.isOnline) {
+                val result = showSnackbar(restorePrompt, actionLabel = restoreAction)
+                if (result == SnackbarResult.ActionPerformed) {
+                    onRestore()
+                }
+            } else {
+                showSnackbar(offlineMessage)
             }
         }
 
-    var importStrong =
-        registerForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                val uri = result.data?.data
-                if (uri != null) {
-                    lifecycleScope.launch {
-                        try {
-                            val inputStream = contentResolver.openInputStream(uri)
-                            if (inputStream != null) {
-                                val repo =
-                                    WorkoutRepository(applicationContext)
-                                val importedCount = repo.importStrongCsv(inputStream)
-                                inputStream.close()
-
-                                // Refresh data in view models
-                                workoutVm.refreshCurrentWorkout()
-
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Import successful: $importedCount workouts imported",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            } else {
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Import failed: Could not read file",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            runOnUiThread {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Import failed: ${e.localizedMessage ?: "Unknown error"}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        }
-                    }
-                }
-            }
+        else -> {
+            showSnackbar(signInMessage)
         }
-
-    var importTemplate =
-        registerForActivityResult(contract = ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == RESULT_OK) {
-                val uri = result.data?.data
-                if (uri != null) {
-                    lifecycleScope.launch {
-                        try {
-                            val inputStream = contentResolver.openInputStream(uri)
-                            if (inputStream != null) {
-                                val repo = TemplateRepository(applicationContext)
-                                val importedCount = repo.importTemplatesCsv(inputStream)
-                                inputStream.close()
-
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Import successful: $importedCount templates imported",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            } else {
-                                runOnUiThread {
-                                    Toast.makeText(
-                                        this@MainActivity,
-                                        "Import failed: Could not read file",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            runOnUiThread {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Import failed: ${e.localizedMessage ?: "Unknown error"}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
+    }
 }

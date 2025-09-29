@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import com.flandolf.workout.data.WorkoutWithExercises
 import com.flandolf.workout.data.formatWeight
 import com.flandolf.workout.ui.components.BarChart
+import com.flandolf.workout.ui.components.EmptyStateCard
 import com.flandolf.workout.ui.viewmodel.HistoryViewModel
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -142,30 +143,17 @@ fun ProgressScreen(
         ) {
             if (exerciseTotals.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.BarChart,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            "No progress yet",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "Start logging workouts to see your progress!",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-                    }
+                    EmptyStateCard(
+                        icon = Icons.Default.BarChart,
+                        title = "No progress yet",
+                        message = "Start logging workouts to see your progress!",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                    )
                 }
             } else {
                 // Progress Summary Header
