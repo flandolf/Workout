@@ -54,7 +54,7 @@ fun ExerciseDetailScreen(
 ) {
     // Calculate exercise-specific data
     val exerciseData = remember(exerciseName, workouts) {
-        val dataPoints = mutableListOf<Triple<Long, Float, Int>>() // date, best weight, total reps
+        val dataPoints = mutableListOf<Triple<Long, Float, Int>>() // date, weight, reps (one per set)
         var totalReps = 0
         var totalSets = 0
         var totalVolume = 0f
@@ -65,22 +65,43 @@ fun ExerciseDetailScreen(
             val exercise = workout.exercises.find { it.exercise.name == exerciseName }
             if (exercise != null && exercise.sets.isNotEmpty()) {
                 val workoutReps = exercise.sets.sumOf { it.reps }
-                // Use float math for volume: reps * weight (weight is Float). Avoid converting to Int
-                // which truncates decimal weight and causes the mismatch.
-                val workoutVolume =
-                    exercise.sets.sumOf { (it.reps * it.weight).toDouble() }.toFloat()
-                val workoutBestWeight = exercise.sets.maxOf { it.weight }
-                val workoutBestReps = exercise.sets.maxOf { it.reps }
+                // Volume is sum of reps * weight across sets
+                val workoutVolume = exercise.sets.sumOf { (it.reps * it.weight).toDouble() }.toFloat()
 
                 totalReps += workoutReps
                 totalSets += exercise.sets.size
                 totalVolume += workoutVolume
-                bestWeight = max(bestWeight, workoutBestWeight)
-                bestReps = max(bestReps, workoutBestReps)
 
-                dataPoints.add(Triple(workout.workout.date, workoutBestWeight, workoutReps))
+                // Track bests per-exercise (across all sets)
+                for (set in exercise.sets) {
+                    bestWeight = max(bestWeight, set.weight)
+                    bestReps = max(bestReps, set.reps)
+
+                    dataPoints.add(Triple(workout.workout.date, set.weight, set.reps))
+                }
             }
         }
+
+        // Helper to get start of day (midnight) for grouping
+        fun startOfDay(millis: Long): Long {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = millis
+            cal.set(java.util.Calendar.HOUR_OF_DAY, 0)
+            cal.set(java.util.Calendar.MINUTE, 0)
+            cal.set(java.util.Calendar.SECOND, 0)
+            cal.set(java.util.Calendar.MILLISECOND, 0)
+            return cal.timeInMillis
+        }
+
+        // Group per-set datapoints by their day (start-of-day millis)
+        val groupedMap: Map<Long, List<Triple<Long, Float, Int>>> =
+            dataPoints.groupBy({ startOfDay(it.first) }, { it })
+
+        // Convert to a stable list of (date -> list of (weight,reps)) sorted by date ascending
+        val groupedSets: List<Pair<Long, List<Pair<Float, Int>>>> = groupedMap
+            .entries
+            .sortedBy { it.key }
+            .map { entry -> entry.key to entry.value.map { triple -> triple.second to triple.third } }
 
         ExerciseStats(
             totalReps = totalReps,
@@ -88,9 +109,9 @@ fun ExerciseDetailScreen(
             totalVolume = totalVolume,
             bestWeight = bestWeight,
             bestReps = bestReps,
-            averageWeight = if (dataPoints.isNotEmpty()) dataPoints.map { it.second }.average()
-                .toFloat() else 0f,
-            dataPoints = dataPoints
+            averageWeight = if (dataPoints.isNotEmpty()) dataPoints.map { it.second }.average().toFloat() else 0f,
+            dataPoints = dataPoints,
+            groupedSets = groupedSets
         )
     }
 
@@ -220,19 +241,20 @@ fun ExerciseDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Workout History",
+                        "Set History",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "${exerciseData.dataPoints.size} total",
+                        "${exerciseData.totalSets} total",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            items(exerciseData.dataPoints.reversed()) { (date, weight, reps) ->
+            // Grouped by date: show one Card per date and multiple set rows inside
+            items(exerciseData.groupedSets.reversed()) { (dateKey, sets) ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
@@ -243,7 +265,7 @@ fun ExerciseDetailScreen(
                         Text(
                             java.text.SimpleDateFormat(
                                 "EEEE, MMM dd", java.util.Locale.getDefault()
-                            ).format(java.util.Date(date)),
+                            ).format(java.util.Date(dateKey)),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
@@ -251,14 +273,15 @@ fun ExerciseDetailScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Main workout info
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Left side - workout details
-                            Column(modifier = Modifier.weight(1f)) {
+                        // For each set done that day, show weight/reps and per-set volume
+                        for ((weight, reps) in sets) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -289,25 +312,26 @@ fun ExerciseDetailScreen(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            "$reps reps", style = MaterialTheme.typography.bodyLarge
+                                            "$reps reps",
+                                            style = MaterialTheme.typography.bodyLarge
                                         )
                                     }
                                 }
-                            }
 
-                            // Right side - volume
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    "Volume",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    "${String.format("%.1f", reps * weight)} kg",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.secondary
-                                )
+                                // Right side - per-set volume
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        "Volume",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        "${String.format("%.1f", reps * weight)} kg",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
                             }
                         }
                     }
@@ -389,5 +413,6 @@ private data class ExerciseStats(
     val bestWeight: Float,
     val bestReps: Int,
     val averageWeight: Float,
-    val dataPoints: List<Triple<Long, Float, Int>>
+    val dataPoints: List<Triple<Long, Float, Int>>,
+    val groupedSets: List<Pair<Long, List<Pair<Float, Int>>>>
 )

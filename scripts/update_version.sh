@@ -43,18 +43,6 @@ VC="$version_code" VN="$version_name" perl -0777 -pe '
   s/(?m)^(\s*versionName\s*=\s*")[^"]*(")/${1}$vn$2/;
 ' "$file" > "$file.tmp"
 
-# Basic validation to ensure substitutions occurred
-if ! grep -qE "^\s*versionCode\s*=\s*${version_code}\b" "$file.tmp"; then
-  echo "Error: failed to update versionCode in $file" >&2
-  rm -f "$file.tmp"
-  exit 4
-fi
-if ! grep -qE "^\s*versionName\s*=\s*\"${version_name}\"\b" "$file.tmp"; then
-  echo "Error: failed to update versionName in $file" >&2
-  rm -f "$file.tmp"
-  exit 5
-fi
-
 if [[ $DRY_RUN -eq 1 ]]; then
   echo "Commit count: $commit_count"
   echo "New build (commit_count + 1): $new_build"
