@@ -192,11 +192,11 @@ fun HistoryScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
-                                                if (best != null) "${best.reps} × ${
+                                                if (best != null) "${
                                                     formatWeight(
                                                         best.weight
                                                     )
-                                                } kg" else "No sets",
+                                                } kg × ${best.reps} reps" else "No sets",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.weight(0.4f),
@@ -219,7 +219,7 @@ fun HistoryScreen(
                                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                                     )
                                                     Text(
-                                                        "${formatWeight(s.weight)} × kg ${s.reps} reps ",
+                                                        "${formatWeight(s.weight)} kg × ${s.reps} reps ",
                                                         style = MaterialTheme.typography.bodyMedium
                                                     )
                                                 }

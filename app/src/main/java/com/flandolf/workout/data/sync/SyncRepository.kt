@@ -785,7 +785,7 @@ class SyncRepository(
             val collection = firestore.collection(COLLECTION_WORKOUTS)
                 .whereEqualTo("userId", userId)
             val query = if (lastDownload > 0L) {
-                collection.whereGreaterThan("clientUpdatedAt", lastDownload)
+                collection.whereGreaterThanOrEqualTo("clientUpdatedAt", lastDownload)
                     .orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
             } else {
                 collection.orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
@@ -876,38 +876,38 @@ class SyncRepository(
                         )
                         if (localHash == fsWorkout.contentHash) {
                             skippedHash++
+                            // Skip processing but still update timestamp to avoid re-checking
+                            if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
                             continue
                         }
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to compute local hash for potential skip", e)
+                        Log.w(TAG, "Failed to compute local workout hash for potential skip", e)
                     }
                 }
 
                 val localWorkout = if (localExisting != null) {
-                    val updatedWorkout = localExisting.copy(
+                    val updated = localExisting.copy(
                         date = fsWorkout.date,
                         durationSeconds = fsWorkout.durationSeconds,
                         firestoreId = document.id,
                         updatedAt = remoteUpdatedAt
                     )
-                    dao.updateWorkout(updatedWorkout)
-                    if (fsWorkout.localId != updatedWorkout.id) {
+                    dao.updateWorkout(updated)
+                    if (fsWorkout.localId != updated.id) {
                         try {
                             firestore.collection(COLLECTION_WORKOUTS)
                                 .document(document.id)
-                                .update("localId", updatedWorkout.id)
+                                .update("localId", updated.id)
                                 .await()
                         } catch (e: Exception) {
                             Log.w(TAG, "Failed to backfill localId for workout ${document.id}", e)
                         }
                     }
-                    updatedWorkout
+                    updated
                 } else {
                     val newWorkout = Workout(
                         date = fsWorkout.date,
                         durationSeconds = fsWorkout.durationSeconds,
-                        startTime = fsWorkout.date,
-                        updatedAt = remoteUpdatedAt,
                         firestoreId = document.id
                     )
                     val insertedId = dao.insertWorkout(newWorkout)
@@ -932,11 +932,12 @@ class SyncRepository(
                     dao.deleteSetsForWorkout(localWorkout.id)
                     dao.deleteExercisesForWorkout(localWorkout.id)
                     if (fsWorkout.exercises.isNotEmpty()) {
-                        for (ex in fsWorkout.exercises) {
+                        fsWorkout.exercises.forEachIndexed { index, ex ->
                             val exId = dao.insertExercise(
                                 ExerciseEntity(
                                     workoutId = localWorkout.id,
-                                    name = ex.name
+                                    name = ex.name,
+                                    position = index
                                 )
                             )
                             for (s in ex.sets) {
@@ -958,17 +959,14 @@ class SyncRepository(
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to rebuild exercises for workout ${localWorkout.id}", e)
                 }
-
                 processed++
                 if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
             }
+            // Save timestamp + 1 to avoid re-processing the same timestamp on next sync
             if (newestTimestamp > lastDownload) {
-                setLastRemoteDownloadTime(newestTimestamp)
+                setLastRemoteDownloadTime(newestTimestamp + 1)
             }
-            Log.d(
-                TAG,
-                "Workout download from Firestore completed: processed=$processed skipped=$skippedHash newestTs=$newestTimestamp"
-            )
+            Log.d(TAG, "Workout download completed: processed=$processed skipped=$skippedHash")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to download workouts from Firestore", e)
             throw e
@@ -990,7 +988,7 @@ class SyncRepository(
             val collection = firestore.collection(COLLECTION_TEMPLATES)
                 .whereEqualTo("userId", userId)
             val query = if (lastDownload > 0L) {
-                collection.whereGreaterThan("clientUpdatedAt", lastDownload)
+                collection.whereGreaterThanOrEqualTo("clientUpdatedAt", lastDownload)
                     .orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
             } else {
                 collection.orderBy("clientUpdatedAt", Query.Direction.ASCENDING)
@@ -1072,6 +1070,8 @@ class SyncRepository(
                         )
                         if (localHash == fsTemplate.contentHash) {
                             skippedHash++
+                            // Skip processing but still update timestamp to avoid re-checking
+                            if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
                             continue
                         }
                     } catch (e: Exception) {
@@ -1158,8 +1158,9 @@ class SyncRepository(
                 processed++
                 if (remoteUpdatedAt > newestTimestamp) newestTimestamp = remoteUpdatedAt
             }
+            // Save timestamp + 1 to avoid re-processing the same timestamp on next sync
             if (newestTimestamp > lastDownload) {
-                setLastTemplateRemoteDownloadTime(newestTimestamp)
+                setLastTemplateRemoteDownloadTime(newestTimestamp + 1)
             }
             Log.d(TAG, "Template download completed: processed=$processed skipped=$skippedHash")
         } catch (e: Exception) {

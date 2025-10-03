@@ -34,6 +34,9 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
     private var countsJob: Job? = null
     private var lastCountsRefreshAt = 0L
     private val countsThrottleMs = 5_000L
+    // If a refresh is requested while one is already running, mark it pending
+    @Volatile
+    private var pendingCountsRefresh: Boolean = false
 
     init {
         // Combine auth and sync states
@@ -293,7 +296,11 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
             if (countsJob?.isActive == true) return
             if (now - lastCountsRefreshAt < countsThrottleMs) return
         } else {
-            countsJob?.cancel()
+            // If a refresh is already running, mark that we want one after it finishes
+            if (countsJob?.isActive == true) {
+                pendingCountsRefresh = true
+                return
+            }
         }
 
         countsJob = viewModelScope.launch {
@@ -317,6 +324,14 @@ class SyncViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.value = _uiState.value.copy(
                     errorMessage = "Failed to fetch counts: ${e.message}"
                 )
+            } finally {
+                // Clear the active job reference
+                countsJob = null
+                // If a refresh was requested while we were running, run it now (force)
+                if (pendingCountsRefresh) {
+                    pendingCountsRefresh = false
+                    scheduleCountsRefresh(force = true)
+                }
             }
         }
     }

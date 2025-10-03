@@ -100,6 +100,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import nl.dionsegijn.konfetti.core.Party
+import nl.dionsegijn.konfetti.core.Position
+import nl.dionsegijn.konfetti.core.emitter.Emitter
+import nl.dionsegijn.konfetti.compose.KonfettiView
+import java.util.concurrent.TimeUnit
 
 @SuppressLint("DefaultLocale")
 @Composable
@@ -141,6 +146,32 @@ fun WorkoutScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val showCircularProgress = remember { mutableStateOf(false) }
 
+    // Konfetti state - use a simple counter to trigger the effect
+    var konfettiTrigger by remember { mutableStateOf(0) }
+
+    // Create party when konfettiTrigger changes
+    val konfettiParty = remember(konfettiTrigger) {
+        if (konfettiTrigger > 0) {
+            listOf(
+                Party(
+                    speed = 30f,
+                    maxSpeed = 50f,
+                    damping = 0.9f,
+                    spread = 360,
+                    colors = listOf(0xFFfce18a.toInt(), 0xFFff726d.toInt(), 0xFFf4306d.toInt(), 0xFFb48def.toInt()),
+                    position = Position.Relative(0.5, 0.3),
+                    emitter = Emitter(duration = 100, TimeUnit.MILLISECONDS).max(100)
+                )
+            )
+        } else {
+            emptyList()
+        }
+    }
+
+    // Debug: Log whenever konfettiParties changes
+    LaunchedEffect(konfettiTrigger) {
+        Log.d("WorkoutScreen", "Konfetti parties size changed: ${konfettiTrigger}")
+    }
 
     // Observe sync status for toast notifications
     val syncStatus by vm.syncStatus.collectAsStateWithLifecycle()
@@ -177,364 +208,399 @@ fun WorkoutScreen(
 
     val currentWorkoutId by vm.currentWorkoutId.collectAsStateWithLifecycle()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (isTimerRunning) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }, navigationIcon = {
-                    if (showCircularProgress.value) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier
-                                .padding(start = 16.dp)
-                                .size(24.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = String.format("%02d:%02d", elapsedSeconds / 60, elapsedSeconds % 60),
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isTimerRunning) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                },
-
-                actions = {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val addVisible = addExerciseVisible
-                        val rot by animateFloatAsState(if (addVisible) 45f else 0f)
-                        FilledTonalButton(
-                            onClick = {
-                                if (vm.currentWorkoutId.value == null) {
-                                    vm.startWorkout()
-                                }
-                                addExerciseVisible = !addExerciseVisible
-                                if (!addExerciseVisible) {
-                                    newExerciseName = ""
-                                }
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = if (addVisible) "Hide" else "Add Exercise",
-                                modifier = Modifier.rotate(rot)
+                    }, navigationIcon = {
+                        if (showCircularProgress.value) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier
+                                    .padding(start = 16.dp)
+                                    .size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        Button(
-                            onClick = {
-                                if (isTimerRunning) {
-                                    onPauseTick()
-                                } else {
+                    },
+
+                    actions = {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val addVisible = addExerciseVisible
+                            val rot by animateFloatAsState(if (addVisible) 45f else 0f)
+                            FilledTonalButton(
+                                onClick = {
                                     if (vm.currentWorkoutId.value == null) {
                                         vm.startWorkout()
-                                    } else {
-                                        onStartTick()
                                     }
-                                }
-                            },
-                            modifier = Modifier.height(40.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        // End workout button: check for incomplete sets before allowing
-                        val hasIncompleteSets by remember(currentExercises) {
-                            derivedStateOf {
-                                currentExercises.any { ex ->
-                                    ex.sets.isEmpty() || ex.sets.any { s -> s.reps <= 0 }
-                                }
-                            }
-                        }
-
-                        Button(
-                            onClick = {
-                                if (hasIncompleteSets) {
-                                    showDiscardDialog = true
-                                } else {
-                                    onEndWorkout()
-                                }
-                            },
-                            modifier = Modifier.height(40.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "End Workout",
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                })
-        },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 0.dp)
-        ) {
-
-            AnimatedVisibility(visible = addExerciseVisible) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val commonExercises = remember { CommonExercises().exercises }
-
-                        // Combine common + dynamic suggestions and keep stable across recompositions.
-                        val combinedSuggestions = remember(exerciseNameSuggestions) {
-                            (commonExercises + exerciseNameSuggestions).distinct()
-                        }
-
-                        // Precompute lowercase versions once to avoid lowercasing every item while typing.
-                        val combinedLowercase = remember(combinedSuggestions) {
-                            combinedSuggestions.map { it to it.lowercase() }
-                        }
-
-                        // A state list that will be updated by a debounced snapshotFlow collector.
-                        val filteredSuggestionsState = remember { mutableStateListOf<String>() }
-
-                        // Debounce input changes and update filteredSuggestionsState on pause. This avoids
-                        // doing filtering work on every keystroke and prevents UI jank.
-                        LaunchedEffect(addExerciseVisible, combinedLowercase) {
-                            if (!addExerciseVisible) {
-                                filteredSuggestionsState.clear()
-                                return@LaunchedEffect
-                            }
-                            snapshotFlow { newExerciseName.trim() }
-                                .debounce(150)
-                                .collectLatest { query ->
-                                    filteredSuggestionsState.clear()
-                                    if (query.length < minLettersForSuggestions) return@collectLatest
-                                    val term = query.lowercase()
-                                    var added = 0
-                                    for ((orig, low) in combinedLowercase) {
-                                        if (low.contains(term)) {
-                                            filteredSuggestionsState.add(orig)
-                                            added++
-                                            if (added >= 6) break
-                                        }
+                                    addExerciseVisible = !addExerciseVisible
+                                    if (!addExerciseVisible) {
+                                        newExerciseName = ""
                                     }
-                                }
-                        }
-
-                        // Expose an immutable view for the UI to consume
-                        val filteredSuggestions: List<String> = filteredSuggestionsState
-
-                        var showSuggestions by remember { mutableStateOf(false) }
-
-                        Box(modifier = Modifier.weight(1f)) {
-                            OutlinedTextField(
-                                value = newExerciseName,
-                                onValueChange = {
-                                    newExerciseName = it
-                                    showSuggestions = it.trim().length >= minLettersForSuggestions
-                                },
-                                label = { Text("Exercise name") },
-                                placeholder = { Text("e.g. Bench Press") },
-                                singleLine = true,
-                                shape = MaterialTheme.shapes.medium,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            DropdownMenu(
-                                expanded = showSuggestions && filteredSuggestions.isNotEmpty(),
-                                onDismissRequest = { showSuggestions = false },
-                                modifier = Modifier.fillMaxWidth(),
-                                properties = PopupProperties(focusable = false)
-                            ) {
-                                // Use the cached, limited filtered list produced by the debounced collector
-                                filteredSuggestions.forEach { suggestion ->
-                                    DropdownMenuItem(text = { Text(suggestion) }, onClick = {
-                                        newExerciseName = suggestion
-                                        showSuggestions = false
-                                        if (suggestion.isNotBlank()) {
-                                            onAddExercise(suggestion.trim())
-                                            newExerciseName = ""
-                                            addExerciseVisible = false
-                                        }
-                                    })
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Button(
-                            onClick = {
-                                if (newExerciseName.isNotBlank()) {
-                                    onAddExercise(newExerciseName.trim())
-                                    newExerciseName = ""
-                                    addExerciseVisible = false
-                                } else {
                                     focusManager.clearFocus()
                                     keyboardController?.hide()
+
+                                }
+                            ) {
+                                Icon(
+                                    Icons.Default.Add,
+                                    contentDescription = if (addVisible) "Hide" else "Add Exercise",
+                                    modifier = Modifier.rotate(rot)
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    if (isTimerRunning) {
+                                        onPauseTick()
+                                    } else {
+                                        if (vm.currentWorkoutId.value == null) {
+                                            vm.startWorkout()
+                                        } else {
+                                            onStartTick()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.height(40.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isTimerRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isTimerRunning) "Pause Timer" else "Start Timer",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            // End workout button: check for incomplete sets before allowing
+                            val hasIncompleteSets by remember(currentExercises) {
+                                derivedStateOf {
+                                    currentExercises.any { ex ->
+                                        ex.sets.isEmpty() || ex.sets.any { s -> s.reps <= 0 }
+                                    }
+                                }
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (hasIncompleteSets) {
+                                        showDiscardDialog = true
+                                    } else {
+                                        onEndWorkout()
+                                    }
+                                },
+                                modifier = Modifier.height(40.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "End Workout",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                    })
+            },
+        ) { innerPadding ->
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp, vertical = 0.dp)) {
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                ) {
+
+                    AnimatedVisibility(visible = addExerciseVisible) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val commonExercises = remember { CommonExercises().exercises }
+
+                                // Combine common + dynamic suggestions and keep stable across recompositions.
+                                val combinedSuggestions = remember(exerciseNameSuggestions) {
+                                    (commonExercises + exerciseNameSuggestions).distinct()
                                 }
 
-                            }, modifier = Modifier.size(48.dp), // keeps it square
-                            contentPadding = PaddingValues(0.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add exercise",
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-            }
-            if (currentWorkoutId == null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LazyColumn(
-                    contentPadding = PaddingValues(bottom = 88.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    if (templates.isNotEmpty()) {
-                        item {
-                            Text(
-                                "Templates",
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                            )
-                        }
-                    }
-                    itemsIndexed(templates, key = { _, tpl -> tpl.template.id }) { _, tpl ->
-                        OutlinedCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(140.dp)
-                                .clickable {
-                                    onStartFromTemplate(tpl.template.id)
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(16.dp)
-                                    .fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = tpl.template.name.ifBlank { "Untitled template" },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                // Precompute lowercase versions once to avoid lowercasing every item while typing.
+                                val combinedLowercase = remember(combinedSuggestions) {
+                                    combinedSuggestions.map { it to it.lowercase() }
+                                }
 
-                                HorizontalDivider()
+                                // A state list that will be updated by a debounced snapshotFlow collector.
+                                val filteredSuggestionsState = remember { mutableStateListOf<String>() }
 
-                                // Show exercises as a vertical list with ellipsis. Limit to 3 items and show a +N more indicator.
-                                val exerciseCount = tpl.exercises.size
-                                val maxShown = 3
-                                val toShow = tpl.exercises.take(maxShown)
+                                // Debounce input changes and update filteredSuggestionsState on pause. This avoids
+                                // doing filtering work on every keystroke and prevents UI jank.
+                                LaunchedEffect(addExerciseVisible, combinedLowercase) {
+                                    if (!addExerciseVisible) {
+                                        filteredSuggestionsState.clear()
+                                        return@LaunchedEffect
+                                    }
+                                    snapshotFlow { newExerciseName.trim() }
+                                        .debounce(150)
+                                        .collectLatest { query ->
+                                            filteredSuggestionsState.clear()
+                                            if (query.length < minLettersForSuggestions) return@collectLatest
+                                            val term = query.lowercase()
+                                            var added = 0
+                                            for ((orig, low) in combinedLowercase) {
+                                                if (low.contains(term)) {
+                                                    filteredSuggestionsState.add(orig)
+                                                    added++
+                                                    if (added >= 6) break
+                                                }
+                                            }
+                                        }
+                                }
 
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                // Expose an immutable view for the UI to consume
+                                val filteredSuggestions: List<String> = filteredSuggestionsState
+
+                                var showSuggestions by remember { mutableStateOf(false) }
+
+                                Box(modifier = Modifier.weight(1f)) {
+                                    OutlinedTextField(
+                                        value = newExerciseName,
+                                        onValueChange = {
+                                            newExerciseName = it
+                                            showSuggestions = it.trim().length >= minLettersForSuggestions
+                                        },
+                                        label = { Text("Exercise name") },
+                                        placeholder = { Text("e.g. Bench Press") },
+                                        singleLine = true,
+                                        shape = MaterialTheme.shapes.medium,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+
+                                    DropdownMenu(
+                                        expanded = showSuggestions && filteredSuggestions.isNotEmpty(),
+                                        onDismissRequest = { showSuggestions = false },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        properties = PopupProperties(focusable = false)
+                                    ) {
+                                        // Use the cached, limited filtered list produced by the debounced collector
+                                        filteredSuggestions.forEach { suggestion ->
+                                            DropdownMenuItem(text = { Text(suggestion) }, onClick = {
+                                                newExerciseName = suggestion
+                                                showSuggestions = false
+                                                if (suggestion.isNotBlank()) {
+                                                    onAddExercise(suggestion.trim())
+                                                    newExerciseName = ""
+                                                    addExerciseVisible = false
+                                                }
+                                            })
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Button(
+                                    onClick = {
+                                        if (newExerciseName.isNotBlank()) {
+                                            onAddExercise(newExerciseName.trim())
+                                            newExerciseName = ""
+                                            addExerciseVisible = false
+                                        } else {
+                                            focusManager.clearFocus()
+                                            keyboardController?.hide()
+                                        }
+
+                                    }, modifier = Modifier.size(48.dp), // keeps it square
+                                    contentPadding = PaddingValues(0.dp)
                                 ) {
-                                    toShow.forEach { item ->
-                                        Text(
-                                            text = item.exercise.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-
-                                    if (exerciseCount > maxShown) {
-                                        Text(
-                                            text = "+${exerciseCount - maxShown} more",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Add exercise",
+                                        modifier = Modifier.size(24.dp)
+                                    )
                                 }
                             }
                         }
                     }
-                }
-                return@Column
-
-            }
-
-            if (currentExercises.isNotEmpty()) {
-                val listState = rememberLazyListState()
-                Spacer(modifier = Modifier.height(8.dp))
-                // Always render exercises sorted by position, then id
-                val sortedExercises by remember(currentExercises) {
-                    derivedStateOf {
-                        currentExercises.sortedWith(
-                            compareBy(
-                                { it.exercise.position },
-                                { it.exercise.id })
-                        )
-                    }
-                }
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(bottom = 16.dp),
-                    contentPadding = PaddingValues(bottom = 88.dp)
-                ) {
-                    itemsIndexed(sortedExercises, key = { _, ex -> ex.exercise.id }) { idx, ex ->
-                        val exVisible = exerciseVisibleMap[ex.exercise.id] ?: true
-                        AnimatedVisibility(
-                            visible = exVisible,
-                            enter = fadeIn(tween(220)),
-                            exit = fadeOut(tween(220)) + shrinkVertically(tween(220)),
-                            modifier = Modifier.animateItem(spring(stiffness = Spring.StiffnessMediumLow))
+                    if (currentWorkoutId == null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 88.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize()
                         ) {
-                            ExerciseItem(
-                                idx = idx,
-                                ex = ex,
-                                listState = listState,
-                                vm = vm,
-                                addSetVisibleMap = addSetVisibleMap,
-                                editSetMap = editSetMap,
-                                setVisibleMap = setVisibleMap,
-                                onAddSet = onAddSet,
-                                onUpdateSet = onUpdateSet,
-                                onDeleteSet = onDeleteSet,
-                                onDeleteExercise = onDeleteExercise,
-                                coroutineScope = coroutineScope,
-                                sortedExercises = sortedExercises,
-                                exerciseVisibleMap = exerciseVisibleMap,
-                                previousBestSets = previousBestSets,
-                                keyboardController = keyboardController,
-                                focusManager = focusManager
-                            )
+                            if (templates.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        "Templates",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                    )
+                                }
+                            }
+                            itemsIndexed(templates, key = { _, tpl -> tpl.template.id }) { _, tpl ->
+                                OutlinedCard(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(140.dp)
+                                        .clickable {
+                                            onStartFromTemplate(tpl.template.id)
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .padding(16.dp)
+                                            .fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = tpl.template.name.ifBlank { "Untitled template" },
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+
+                                        HorizontalDivider()
+
+                                        // Show exercises as a vertical list with ellipsis. Limit to 3 items and show a +N more indicator.
+                                        val exerciseCount = tpl.exercises.size
+                                        val maxShown = 3
+                                        val toShow = tpl.exercises.take(maxShown)
+
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            toShow.forEach { item ->
+                                                Text(
+                                                    text = item.exercise.name,
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+
+                                            if (exerciseCount > maxShown) {
+                                                Text(
+                                                    text = "+${exerciseCount - maxShown} more",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        return@Column
+
+                    }
+
+                    if (currentExercises.isNotEmpty()) {
+                        val listState = rememberLazyListState()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // Always render exercises sorted by position, then id
+                        val sortedExercises by remember(currentExercises) {
+                            derivedStateOf {
+                                currentExercises.sortedWith(
+                                    compareBy(
+                                        { it.exercise.position },
+                                        { it.exercise.id }
+                                    )
+                                )
+                            }
+                        }
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(bottom = 16.dp),
+                            contentPadding = PaddingValues(bottom = 88.dp)
+                        ) {
+                            itemsIndexed(sortedExercises, key = { _, ex -> ex.exercise.id }) { idx, ex ->
+                                val exVisible = exerciseVisibleMap[ex.exercise.id] ?: true
+                                AnimatedVisibility(
+                                    visible = exVisible,
+                                    enter = fadeIn(tween(220)),
+                                    exit = fadeOut(tween(220)) + shrinkVertically(tween(220)),
+                                    modifier = Modifier.animateItem(spring(stiffness = Spring.StiffnessMediumLow))
+                                ) {
+                                    ExerciseItem(
+                                        idx = idx,
+                                        ex = ex,
+                                        listState = listState,
+                                        vm = vm,
+                                        addSetVisibleMap = addSetVisibleMap,
+                                        editSetMap = editSetMap,
+                                        setVisibleMap = setVisibleMap,
+                                        onAddSet = onAddSet,
+                                        onUpdateSet = onUpdateSet,
+                                        onDeleteSet = onDeleteSet,
+                                        onDeleteExercise = onDeleteExercise,
+                                        coroutineScope = coroutineScope,
+                                        sortedExercises = sortedExercises,
+                                        exerciseVisibleMap = exerciseVisibleMap,
+                                        previousBestSets = previousBestSets,
+                                        keyboardController = keyboardController,
+                                        focusManager = focusManager,
+                                        onCelebrate = {
+                                            // add a short party and remove it after a short delay
+                                            Log.d("WorkoutScreen", "🎊 onCelebrate callback triggered!")
+                                            coroutineScope.launch {
+                                                Log.d("WorkoutScreen", "Creating confetti party...")
+                                                val party = Party(
+                                                    speed = 30f,
+                                                    maxSpeed = 50f,
+                                                    damping = 0.9f,
+                                                    spread = 360,
+                                                    colors = listOf(0xFFfce18a.toInt(), 0xFFff726d.toInt(), 0xFFf4306d.toInt(), 0xFFb48def.toInt()),
+                                                    position = Position.Relative(0.5, 0.3),
+                                                    emitter = Emitter(duration = 100, TimeUnit.MILLISECONDS).max(100)
+                                                )
+                                                konfettiTrigger += 1 // trigger recomposition
+                                                Log.d("WorkoutScreen", "Confetti party added! Party count: ${konfettiTrigger}")
+                                                // Keep the party around briefly so KonfettiView can pick it up
+                                                delay(2500)
+                                                konfettiTrigger -= 1 // remove party
+                                                Log.d("WorkoutScreen", "Confetti party removed. Party count: ${konfettiTrigger}")
+                                            }
+                                        }
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
                     }
                 }
             }
         }
+
+        // Konfetti overlay (drawn on top of everything, outside Scaffold)
+        KonfettiView(
+            modifier = Modifier.fillMaxSize(),
+            parties = konfettiParty
+        )
     }
 
     // Discard confirmation dialog
@@ -582,7 +648,8 @@ fun ExerciseItem(
     exerciseVisibleMap: SnapshotStateMap<Long, Boolean>,
     previousBestSets: Map<String, SetEntity>,
     keyboardController: SoftwareKeyboardController?,
-    focusManager: FocusManager
+    focusManager: FocusManager,
+    onCelebrate: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -808,10 +875,26 @@ fun ExerciseItem(
                                     weightText.toFloatOrNull() ?: 0f
                                 if (reps > 0) {
                                     onAddSet(ex.exercise.id, reps, weight)
+                                    // celebrate if this set beats the previous best for this exercise
+                                    val prev = previousBestSets[ex.exercise.name]
+                                    Log.d("WorkoutScreen", "Checking celebration for ${ex.exercise.name}: new=$weight×$reps, prev=${prev?.weight}×${prev?.reps}")
+                                    if (prev != null) {
+                                        val newVolume = weight * reps
+                                        val prevVolume = prev.weight * prev.reps
+                                        val beats = newVolume > prevVolume
+                                        Log.d("WorkoutScreen", "New volume: $newVolume, Prev volume: $prevVolume, Beats: $beats")
+                                        if (beats) {
+                                            Log.d("WorkoutScreen", "🎉 CELEBRATING!")
+                                            onCelebrate()
+                                        }
+                                    } else {
+                                        Log.d("WorkoutScreen", "No previous best found for ${ex.exercise.name}")
+                                    }
                                     repsText = ""
                                     weightText = ""
                                     addSetVisibleMap[ex.exercise.id] = false
                                 }
+
                             },
                             contentPadding = PaddingValues(
                                 horizontal = 12.dp,
