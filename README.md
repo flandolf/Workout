@@ -1,208 +1,215 @@
 # Workout Tracker
 
-A modern Android fitness application built with Jetpack Compose for tracking workouts, exercises, and fitness progress.
+A sleek Android fitness app built with Jetpack Comp## 📂 Project Structurese to help you track workouts, monitor progress, and achieve your fitness goals.Built with## 📦 Permissions
 
-## 📱 Features
+- `READ_EXTERNAL_STORAGE`: Import data
+- `WRITE_EXTERNAL_STORAGE`: Export data
+- `INTERNET`: Cloud sync
+- `ACCESS_NETWORK_STATE`: Network monitoringerial 3, dynamic colors, and accessibility in mind.
 
-- **Workout Tracking**: Start and track workout sessions with built-in timer
-- **Exercise Management**: Add exercises with sets, reps, and weights
-- **Progress Visualization**: View progress graphs and statistics for each exercise
-- **Workout History**: Browse past workouts with detailed information
-- **Exercise Statistics**: Track total reps, sets, volume, and personal records
-- **Material Design 3**: Modern, intuitive user interface
-- **Offline Support**: Local data storage with Room database
+## ☁️ Cloud Sync
 
-## 🛠️ Tech Stack
+- **Firebase Firestore**: Cross-device data synchronization
+- **Authentication**: Firebase Auth for user accounts
+- **Conflict Resolution**: UUID-based to prevent conflicts
+- **Offline Support**: Local-first with background sync
+- **Network Monitoring**: Automatic sync when online
+
+## 📦 Permissions# ✨ Features
+
+- **Real-Time Workout Tracking**: Start sessions with an integrated timer and log exercises on the go.
+- **Comprehensive Exercise Management**: Add custom exercises with sets, reps, weights, and notes.
+- **Progress Analytics**: Visualize your fitness journey with detailed graphs and statistics.
+- **Workout History**: Review past sessions with full details and performance insights.
+- **Personal Records**: Track PRs, total volume, and exercise-specific stats.
+- **Workout Templates**: Create and reuse custom workout templates for quick starts.
+- **Cloud Sync**: Sync workouts and templates across devices with Firebase Firestore.
+- **Theme Support**: Switch between light, dark, and system themes.
+- **Import/Export**: CSV import/export for workouts and templates, compatible with Strong app.
+- **Edit Past Workouts**: Modify completed workouts for accuracy.
+- **Modern UI**: Material Design 3 interface that's intuitive and visually appealing.
+- **Offline-First**: Store data locally with Room database—no internet required.
+
+## 🛠 Tech Stack
 
 - **Language**: Kotlin
-- **UI Framework**: Jetpack Compose with Material 3
-- **Architecture**: MVVM with ViewModels
-- **Database**: Room with SQLite
-- **Navigation**: Navigation Compose
-- **Dependency Injection**: Manual dependency injection
-- **Build System**: Gradle with Kotlin DSL
+- **UI**: Jetpack Compose with Material 3
+- **Architecture**: MVVM (Model-View-ViewModel)
+- **Database**: Room (SQLite)
+- **Navigation**: Jetpack Navigation Compose
+- **Sync**: Firebase Firestore
+- **Dependency Injection**: Manual DI
+- **Build Tool**: Gradle (Kotlin DSL)
 
-### Dependencies
+### Key Dependencies
 
-- **AndroidX Core KTX**: Core Android extensions
-- **Compose BOM**: Latest Compose components
-- **Material 3**: Modern Material Design components
-- **Navigation Compose**: Screen navigation
-- **Room**: Local database persistence
-- **Lifecycle**: Lifecycle-aware components
+- AndroidX Core KTX
+- Compose BOM
+- Material 3 Components
+- Navigation Compose
+- Room Persistence Library
+- Lifecycle Components
+- Firebase Auth & Firestore
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
+### Requirements
 
-- **Android Studio**: Latest stable version (recommended: Arctic Fox or later)
-- **Minimum SDK**: API 34 (Android 14)
-- **Target SDK**: API 36 (Android 16)
-- **Kotlin**: 2.0.21
-- **Java**: JDK 11
+- Android Studio (latest stable)
+- Minimum SDK: API 34 (Android 14)
+- Target SDK: API 36 (Android 16)
+- Kotlin 2.0.21+
+- JDK 11+
 
-### Installation
+### Setup
 
-1. **Clone the repository**
+1. **Clone the repo**:
    ```bash
    git clone https://github.com/flandolf/Workout.git
    cd Workout
    ```
 
-2. **Open in Android Studio**
+2. **Open in Android Studio**:
    - Launch Android Studio
-   - Select "Open an existing Android Studio project"
-   - Navigate to the cloned directory and select it
+   - Select "Open" and choose the project directory
 
-3. **Sync Project**
-   - Android Studio will automatically sync the project with Gradle
-   - Wait for all dependencies to download
+3. **Sync and Build**:
+   - Gradle will sync automatically
+   - Build the project
 
-4. **Run the App**
-   - Connect an Android device or start an emulator
-   - Click the "Run" button (green play icon) in Android Studio
-   - Select your target device/emulator
+4. **Run on Device/Emulator**:
+   - Connect a device or start an emulator
+   - Hit "Run" (▶️)
 
-## 📁 Project Structure
+## � Project Structure
 
 ```
 app/src/main/java/com/flandolf/workout/
-├── data/                    # Data layer
-│   ├── AppDatabase.kt      # Room database configuration
-│   ├── Entities.kt         # Database entities and relationships
-│   ├── WorkoutDao.kt       # Data access objects
-│   ├── WorkoutRepository.kt # Repository pattern implementation
-│   └── CommonExercises.kt  # Predefined exercise data
-├── ui/                     # UI layer
+├── data/                    # Data Layer
+│   ├── AppDatabase.kt      # Room DB setup
+│   ├── Entities.kt         # DB models (workouts, templates)
+│   ├── FormatWeight.kt     # Weight formatting utilities
+│   ├── Volume.kt           # Volume calculation helpers
+│   ├── WorkoutDao.kt       # Data access for workouts
+│   ├── WorkoutRepository.kt # Workout data repository
+│   ├── TemplateDao.kt      # Data access for templates
+│   ├── TemplateRepository.kt # Template data repository
+│   └── sync/               # Cloud sync layer
+│       ├── AuthRepository.kt    # Firebase Auth handling
+│       ├── FirestoreModels.kt   # Firestore data models
+│       ├── NetworkMonitor.kt    # Network connectivity
+│       └── SyncRepository.kt    # Sync logic
+├── ui/                     # UI Layer
+│   ├── components/         # Reusable UI components
+│   │   ├── BarChart.kt         # Progress bar chart
+│   │   ├── BottomNavigationBar.kt # Main navigation
+│   │   ├── EmptyStateCard.kt   # Empty state displays
+│   │   └── ProgressGraph.kt    # Progress visualization
 │   ├── screens/           # Compose screens
-│   │   ├── WorkoutScreen.kt
-│   │   ├── HistoryScreen.kt
-│   │   ├── ExerciseDetailScreen.kt
-│   │   └── ProgressScreen.kt
+│   │   ├── EditTemplateScreen.kt   # Template editor
+│   │   ├── EditWorkoutScreen.kt    # Workout editor
+│   │   ├── ExerciseDetailScreen.kt # Exercise stats
+│   │   ├── GraphDetailScreen.kt    # Detailed graphs
+│   │   ├── HistoryScreen.kt        # Workout history
+│   │   ├── ProgressScreen.kt       # Overall progress
+│   │   ├── SettingsScreen.kt       # App settings
+│   │   ├── SyncSettingsScreen.kt   # Sync configuration
+│   │   ├── TemplateScreen.kt       # Template management
+│   │   └── WorkoutScreen.kt        # Active workout
 │   ├── theme/             # App theming
+│   │   ├── Color.kt       # Color definitions
+│   │   ├── Theme.kt       # Theme setup
+│   │   ├── ThemeMode.kt   # Theme mode enum
+│   │   └── Type.kt        # Typography
 │   └── viewmodel/         # ViewModels
-│       ├── WorkoutViewModel.kt
-│       └── HistoryViewModel.kt
-└── MainActivity.kt        # Main activity with navigation
+│       ├── EditWorkoutViewModel.kt # Edit workout logic
+│       ├── HistoryViewModel.kt     # History data
+│       ├── SyncViewModel.kt        # Sync state management
+│       ├── TemplateViewModel.kt    # Template operations
+│       ├── ThemeViewModel.kt       # Theme management
+│       └── WorkoutViewModel.kt     # Active workout logic
+└── MainActivity.kt        # App entry point with navigation
 ```
 
-## 🏗️ Architecture
+## 🏗 Architecture
 
-The app follows the **MVVM (Model-View-ViewModel)** architectural pattern:
+Follows MVVM pattern for clean separation:
 
-- **Model**: Data entities and repository classes
-- **View**: Compose UI components and screens
-- **ViewModel**: Business logic and state management
+- **Model**: Entities and repositories (local + sync)
+- **View**: Compose UI screens
+- **ViewModel**: State management and logic
 
-### Data Flow
+Data flows: UI → ViewModel → Repository → DAO/Database, with sync to Firestore.
 
-1. **UI** triggers actions in **ViewModel**
-2. **ViewModel** interacts with **Repository**
-3. **Repository** handles data operations with **Room DAO**
-4. **LiveData/Flow** updates propagate back to **UI**
+## 🔧 Build & Run
 
-## 🔧 Build Configuration
-
-### Build Types
-
-- **Debug**: Development build with debugging enabled
-- **Release**: Production build with code optimization and obfuscation
-
-### Build Commands
+### Commands
 
 ```bash
-# Clean build
+# Clean
 ./gradlew clean
 
-# Build debug APK
+# Debug APK
 ./gradlew assembleDebug
 
-# Build release APK
+# Release APK
 ./gradlew assembleRelease
 
-# Run tests
+# Tests
 ./gradlew test
 
-# Run instrumentation tests
+# Instrumented tests
 ./gradlew connectedAndroidTest
 ```
 
-## 📊 Database Schema
+APKs are in `app/build/outputs/apk/`.
 
-The app uses Room with the following entities:
+## 📊 Database
 
-- **Workout**: Stores workout sessions with date and duration
-- **ExerciseEntity**: Links exercises to workouts
-- **SetEntity**: Stores individual sets with reps and weight
-- **Relationships**: Workout → Exercises → Sets (one-to-many)
+Room-based schema:
 
-## 🎨 UI Components
+- **Workout**: Session data (date, duration, timestamps)
+- **ExerciseEntity**: Exercise-workout links with position
+- **SetEntity**: Set details (reps, weight)
+- **Template**: Reusable workout templates
+- **TemplateExerciseEntity**: Template exercise links
+- **TemplateSetEntity**: Template set details
+- Relations: Workout/Template → Exercises → Sets
 
-### Key Screens
+## 🎨 Screens
 
-1. **Workout Screen**: Active workout tracking with timer
-2. **History Screen**: List of past workouts
-3. **Exercise Detail Screen**: Detailed statistics and progress for specific exercises
-4. **Progress Screen**: Overall fitness progress visualization
+1. **Workout**: Active tracking with timer and templates
+2. **History**: Past sessions with edit options
+3. **Progress**: Overall analytics with exercise details
+4. **Templates**: Manage and create workout templates
+5. **Settings**: App config, sync, import/export, themes
 
-### Design System
+Built with Material 3, dynamic colors, and accessibility in mind.
 
-- **Material 3**: Latest Material Design guidelines
-- **Dynamic Colors**: Adapts to system theme
-- **Responsive Layout**: Optimized for various screen sizes
-- **Accessibility**: Screen reader support and touch targets
+## � Permissions
 
-## 📦 APK Generation
-
-### Debug APK
-```bash
-./gradlew assembleDebug
-```
-Location: `app/build/outputs/apk/debug/app-debug.apk`
-
-### Release APK
-```bash
-./gradlew assembleRelease
-```
-Location: `app/build/outputs/apk/release/app-release.apk`
-
-## 🔐 Permissions
-
-The app requires the following permissions:
-
-- **READ_EXTERNAL_STORAGE**: For importing/exporting workout data
-- **WRITE_EXTERNAL_STORAGE**: For exporting workout data
+- `READ_EXTERNAL_STORAGE`: Import data
+- `WRITE_EXTERNAL_STORAGE`: Export data
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Fork the repo
+2. Create a branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -m 'Add feature'`
+4. Push: `git push origin feature/your-feature`
+5. Open a PR
 
-### Code Style
-
-- Follow Kotlin coding conventions
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Write tests for new features
+Follow Kotlin style, add tests, and document complex code.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE).
 
-## 🙏 Acknowledgments
+## 🙏 Credits
 
-- Built with ❤️ using Jetpack Compose
-- Material Design 3 for beautiful UI
-- Room for reliable data persistence
-- Kotlin for modern Android development
+Powered by Jetpack Compose, Material Design 3, Room, Firebase, and Kotlin. Thanks to the Android community!
 
-## 📞 Support
+## 🆘 Help
 
-If you have any questions or issues:
-
-1. Check the [Issues](https://github.com/flandolf/Workout/issues) page
-2. Create a new issue with detailed description
-3. Include device information and steps to reproduce
+- Check [Issues](https://github.com/flandolf/Workout/issues)
+- Report bugs with device info and steps
