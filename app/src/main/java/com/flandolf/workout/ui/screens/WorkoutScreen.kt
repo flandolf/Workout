@@ -100,11 +100,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
-import nl.dionsegijn.konfetti.core.Party
-import nl.dionsegijn.konfetti.core.Position
-import nl.dionsegijn.konfetti.core.emitter.Emitter
-import nl.dionsegijn.konfetti.compose.KonfettiView
-import java.util.concurrent.TimeUnit
 
 @SuppressLint("DefaultLocale")
 @Composable
@@ -118,26 +113,26 @@ fun WorkoutScreen(
     onAddExercise: (String) -> Unit,
     exerciseNameSuggestions: List<String> = emptyList(),
     minLettersForSuggestions: Int = 4,
-    onAddSet: (exerciseId: Long, reps: Int, weight: Float) -> Unit,
-    onUpdateSet: (exerciseId: Long, setIndex: Int, reps: Int, weight: Float) -> Unit = { _, _, _, _ -> },
-    onDeleteSet: (exerciseId: Long, setIndex: Int) -> Unit = { _, _ -> },
-    onDeleteExercise: (exerciseId: Long) -> Unit,
+    onAddSet: (exerciseId: String, reps: Int, weight: Float) -> Unit,
+    onUpdateSet: (exerciseId: String, setIndex: Int, reps: Int, weight: Float) -> Unit = { _, _, _, _ -> },
+    onDeleteSet: (exerciseId: String, setIndex: Int) -> Unit = { _, _ -> },
+    onDeleteExercise: (exerciseId: String) -> Unit,
     isTimerRunning: Boolean,
     vm: WorkoutViewModel,
     previousBestSets: Map<String, SetEntity> = emptyMap(),
     onShowSnackbar: suspend (String) -> Unit, // new parameter to use root snackbar host
     // New callback: when a template is tapped in the grid
     // New callback: start a workout from template
-    onStartFromTemplate: (Long) -> Unit = {},
+    onStartFromTemplate: (String) -> Unit = {},
     // New: reactive templates flow from TemplateViewModel
     templatesFlow: Flow<List<TemplateWithExercises>> = kotlinx.coroutines.flow.flowOf()
 ) {
     // Toggle add set input for each exercise
-    val addSetVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
-    val editSetMap = remember { mutableStateMapOf<Pair<Long, Int>, Boolean>() }
+    val addSetVisibleMap = remember { mutableStateMapOf<String, Boolean>() }
+    val editSetMap = remember { mutableStateMapOf<Pair<String, Int>, Boolean>() }
     // Visibility maps to animate deletions
-    val exerciseVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
-    val setVisibleMap = remember { mutableStateMapOf<Pair<Long, Int>, Boolean>() }
+    val exerciseVisibleMap = remember { mutableStateMapOf<String, Boolean>() }
+    val setVisibleMap = remember { mutableStateMapOf<Pair<String, Int>, Boolean>() }
     val coroutineScope = rememberCoroutineScope()
     var addExerciseVisible by remember { mutableStateOf(false) }
     var newExerciseName by remember { mutableStateOf("") }
@@ -145,33 +140,6 @@ fun WorkoutScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val showCircularProgress = remember { mutableStateOf(false) }
-
-    // Konfetti state - use a simple counter to trigger the effect
-    var konfettiTrigger by remember { mutableStateOf(0) }
-
-    // Create party when konfettiTrigger changes
-    val konfettiParty = remember(konfettiTrigger) {
-        if (konfettiTrigger > 0) {
-            listOf(
-                Party(
-                    speed = 30f,
-                    maxSpeed = 50f,
-                    damping = 0.9f,
-                    spread = 360,
-                    colors = listOf(0xFFfce18a.toInt(), 0xFFff726d.toInt(), 0xFFf4306d.toInt(), 0xFFb48def.toInt()),
-                    position = Position.Relative(0.5, 0.3),
-                    emitter = Emitter(duration = 100, TimeUnit.MILLISECONDS).max(100)
-                )
-            )
-        } else {
-            emptyList()
-        }
-    }
-
-    // Debug: Log whenever konfettiParties changes
-    LaunchedEffect(konfettiTrigger) {
-        Log.d("WorkoutScreen", "Konfetti parties size changed: ${konfettiTrigger}")
-    }
 
     // Observe sync status for toast notifications
     val syncStatus by vm.syncStatus.collectAsStateWithLifecycle()
@@ -564,28 +532,6 @@ fun WorkoutScreen(
                                         previousBestSets = previousBestSets,
                                         keyboardController = keyboardController,
                                         focusManager = focusManager,
-                                        onCelebrate = {
-                                            // add a short party and remove it after a short delay
-                                            Log.d("WorkoutScreen", "🎊 onCelebrate callback triggered!")
-                                            coroutineScope.launch {
-                                                Log.d("WorkoutScreen", "Creating confetti party...")
-                                                val party = Party(
-                                                    speed = 30f,
-                                                    maxSpeed = 50f,
-                                                    damping = 0.9f,
-                                                    spread = 360,
-                                                    colors = listOf(0xFFfce18a.toInt(), 0xFFff726d.toInt(), 0xFFf4306d.toInt(), 0xFFb48def.toInt()),
-                                                    position = Position.Relative(0.5, 0.3),
-                                                    emitter = Emitter(duration = 100, TimeUnit.MILLISECONDS).max(100)
-                                                )
-                                                konfettiTrigger += 1 // trigger recomposition
-                                                Log.d("WorkoutScreen", "Confetti party added! Party count: ${konfettiTrigger}")
-                                                // Keep the party around briefly so KonfettiView can pick it up
-                                                delay(2500)
-                                                konfettiTrigger -= 1 // remove party
-                                                Log.d("WorkoutScreen", "Confetti party removed. Party count: ${konfettiTrigger}")
-                                            }
-                                        }
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -595,12 +541,6 @@ fun WorkoutScreen(
                 }
             }
         }
-
-        // Konfetti overlay (drawn on top of everything, outside Scaffold)
-        KonfettiView(
-            modifier = Modifier.fillMaxSize(),
-            parties = konfettiParty
-        )
     }
 
     // Discard confirmation dialog
@@ -636,20 +576,19 @@ fun ExerciseItem(
     ex: ExerciseWithSets,
     listState: LazyListState,
     vm: WorkoutViewModel,
-    addSetVisibleMap: SnapshotStateMap<Long, Boolean>,
-    editSetMap: SnapshotStateMap<Pair<Long, Int>, Boolean>,
-    setVisibleMap: SnapshotStateMap<Pair<Long, Int>, Boolean>,
-    onAddSet: (Long, Int, Float) -> Unit,
-    onUpdateSet: (Long, Int, Int, Float) -> Unit,
-    onDeleteSet: (Long, Int) -> Unit,
-    onDeleteExercise: (Long) -> Unit,
+    addSetVisibleMap: SnapshotStateMap<String, Boolean>,
+    editSetMap: SnapshotStateMap<Pair<String, Int>, Boolean>,
+    setVisibleMap: SnapshotStateMap<Pair<String, Int>, Boolean>,
+    onAddSet: (String, Int, Float) -> Unit,
+    onUpdateSet: (String, Int, Int, Float) -> Unit,
+    onDeleteSet: (String, Int) -> Unit,
+    onDeleteExercise: (String) -> Unit,
     coroutineScope: CoroutineScope,
     sortedExercises: List<ExerciseWithSets>,
-    exerciseVisibleMap: SnapshotStateMap<Long, Boolean>,
+    exerciseVisibleMap: SnapshotStateMap<String, Boolean>,
     previousBestSets: Map<String, SetEntity>,
     keyboardController: SoftwareKeyboardController?,
     focusManager: FocusManager,
-    onCelebrate: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -875,21 +814,6 @@ fun ExerciseItem(
                                     weightText.toFloatOrNull() ?: 0f
                                 if (reps > 0) {
                                     onAddSet(ex.exercise.id, reps, weight)
-                                    // celebrate if this set beats the previous best for this exercise
-                                    val prev = previousBestSets[ex.exercise.name]
-                                    Log.d("WorkoutScreen", "Checking celebration for ${ex.exercise.name}: new=$weight×$reps, prev=${prev?.weight}×${prev?.reps}")
-                                    if (prev != null) {
-                                        val newVolume = weight * reps
-                                        val prevVolume = prev.weight * prev.reps
-                                        val beats = newVolume > prevVolume
-                                        Log.d("WorkoutScreen", "New volume: $newVolume, Prev volume: $prevVolume, Beats: $beats")
-                                        if (beats) {
-                                            Log.d("WorkoutScreen", "🎉 CELEBRATING!")
-                                            onCelebrate()
-                                        }
-                                    } else {
-                                        Log.d("WorkoutScreen", "No previous best found for ${ex.exercise.name}")
-                                    }
                                     repsText = ""
                                     weightText = ""
                                     addSetVisibleMap[ex.exercise.id] = false
@@ -918,8 +842,9 @@ fun ExerciseItem(
                         val editing =
                             editSetMap[ex.exercise.id to i] == true
                         // visibility state per set (defaults to true)
+                        val setKey: Pair<String, Int> = ex.exercise.id to i
                         val setVisible =
-                            setVisibleMap[ex.exercise.id to s.id] ?: true
+                            setVisibleMap[setKey] ?: true
 
                         AnimatedVisibility(
                             visible = setVisible,
@@ -969,7 +894,7 @@ fun ExerciseItem(
                                         IconButton(
                                             onClick = {
                                                 // animate then delete
-                                                setVisibleMap[ex.exercise.id to s.id] =
+                                                setVisibleMap[ex.exercise.id to i] =
                                                     false
                                                 val capturedIndex = i
                                                 coroutineScope.launch {
@@ -978,7 +903,7 @@ fun ExerciseItem(
                                                         ex.exercise.id,
                                                         capturedIndex
                                                     )
-                                                    setVisibleMap.remove(ex.exercise.id to s.id)
+                                                    setVisibleMap.remove(ex.exercise.id to capturedIndex)
                                                 }
                                             },
                                             modifier = Modifier.size(28.dp)

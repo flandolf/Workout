@@ -15,8 +15,8 @@ android {
         applicationId = "com.flandolf.workout"
         minSdk = 34
         targetSdk = 36
-        versionName = "0.71"
-        versionCode = 71
+        versionName = "0.72"
+        versionCode = 72
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -49,7 +49,6 @@ android {
 }
 
 dependencies {
-    implementation(libs.konfetti.compose)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.room.runtime)

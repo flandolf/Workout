@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface WorkoutDao {
     @Insert
-    suspend fun insertWorkout(workout: Workout): Long
+    suspend fun insertWorkout(workout: Workout)
 
     @Update
     suspend fun updateWorkout(workout: Workout)
@@ -21,44 +21,31 @@ interface WorkoutDao {
 
 
     @Insert
-    suspend fun insertExercise(exercise: ExerciseEntity): Long
+    suspend fun insertExercise(exercise: ExerciseEntity)
 
     @Update
     suspend fun updateExercise(exercise: ExerciseEntity)
 
     @Query("SELECT * FROM workout_exercises WHERE id = :exerciseId LIMIT 1")
-    suspend fun getExerciseById(exerciseId: Long): ExerciseEntity?
+    suspend fun getExerciseById(exerciseId: String): ExerciseEntity?
 
     @Delete
     suspend fun deleteExercise(exercise: ExerciseEntity)
 
     @Insert
-    suspend fun insertSet(set: SetEntity): Long
+    suspend fun insertSet(set: SetEntity)
 
     @Delete
     suspend fun deleteSet(set: SetEntity)
 
     @Query("SELECT * FROM workout_sets WHERE id = :setId LIMIT 1")
-    suspend fun getSetById(setId: Int): SetEntity?
-
-    // Lookups to support upsert during download
-    @Query("SELECT * FROM workout_exercises WHERE firestoreId = :firestoreId LIMIT 1")
-    suspend fun getExerciseByFirestoreId(firestoreId: String): ExerciseEntity?
-
-    @Query("SELECT * FROM workout_exercises WHERE id = :localId AND workoutId = :localWorkoutId LIMIT 1")
-    suspend fun getExerciseByLocalId(localId: Long, localWorkoutId: Long): ExerciseEntity?
-
-    @Query("SELECT * FROM workout_sets WHERE firestoreId = :firestoreId LIMIT 1")
-    suspend fun getSetByFirestoreId(firestoreId: String): SetEntity?
-
-    @Query("SELECT * FROM workout_sets WHERE id = :localId AND exerciseId = :localExerciseId LIMIT 1")
-    suspend fun getSetByLocalId(localId: Long, localExerciseId: Long): SetEntity?
+    suspend fun getSetById(setId: String): SetEntity?
 
     @Update
     suspend fun updateSet(set: SetEntity)
 
     @Query("UPDATE workouts SET updatedAt = :updatedAt WHERE id = :workoutId")
-    suspend fun updateWorkoutUpdatedAt(workoutId: Long, updatedAt: Long)
+    suspend fun updateWorkoutUpdatedAt(workoutId: String, updatedAt: Long)
 
     @Transaction
     @Query("SELECT * FROM workouts ORDER BY date DESC")
@@ -70,7 +57,7 @@ interface WorkoutDao {
 
     @Transaction
     @Query("SELECT * FROM workouts WHERE id = :id")
-    suspend fun getWorkoutWithExercises(id: Long): WorkoutWithExercises?
+    suspend fun getWorkoutWithExercises(id: String): WorkoutWithExercises?
 
     @Query("SELECT * FROM workouts WHERE date = :date LIMIT 1")
     suspend fun getWorkoutByDate(date: Long): Workout?
@@ -78,13 +65,6 @@ interface WorkoutDao {
     @Transaction
     @Query("SELECT * FROM workouts ORDER BY date DESC LIMIT 1")
     suspend fun getLatestWorkoutWithExercises(): WorkoutWithExercises?
-
-    @Query("SELECT * FROM workouts WHERE firestoreId = :firestoreId LIMIT 1")
-    suspend fun getWorkoutByFirestoreId(firestoreId: String): Workout?
-
-    @Transaction
-    @Query("SELECT * FROM workouts WHERE firestoreId = :firestoreId LIMIT 1")
-    suspend fun getWorkoutWithExercisesByFirestoreId(firestoreId: String): WorkoutWithExercises?
 
     @Query("SELECT DISTINCT name FROM workout_exercises ORDER BY name")
     suspend fun getDistinctExerciseNames(): List<String>
@@ -100,27 +80,26 @@ interface WorkoutDao {
         LIMIT 1
     """
     )
-    suspend fun getBestSetFromLastWorkout(exerciseName: String, currentWorkoutId: Long): SetEntity?
+    suspend fun getBestSetFromLastWorkout(exerciseName: String, currentWorkoutId: String): SetEntity?
 
     // New helpers for sync-down rebuild from nested FS doc
     @Query("DELETE FROM workout_sets WHERE exerciseId IN (SELECT id FROM workout_exercises WHERE workoutId = :workoutId)")
-    suspend fun deleteSetsForWorkout(workoutId: Long)
+    suspend fun deleteSetsForWorkout(workoutId: String)
 
     @Query("DELETE FROM workout_exercises WHERE workoutId = :workoutId")
-    suspend fun deleteExercisesForWorkout(workoutId: Long)
+    suspend fun deleteExercisesForWorkout(workoutId: String)
 
     @Query("SELECT COALESCE(MAX(position), -1) FROM workout_exercises WHERE workoutId = :workoutId")
-    suspend fun getMaxPositionForWorkout(workoutId: Long): Int
+    suspend fun getMaxPositionForWorkout(workoutId: String): Int
 
     @Query(
         """
-        SELECT exerciseName, setId, exerciseId, reps, weight, firestoreId FROM (
+        SELECT exerciseName, setId, exerciseId, reps, weight FROM (
          SELECT e.name AS exerciseName,
              s.id AS setId,
              s.exerciseId AS exerciseId,
              s.reps AS reps,
              s.weight AS weight,
-             s.firestoreId AS firestoreId,
              ROW_NUMBER() OVER (PARTITION BY e.name ORDER BY w.date DESC, (s.weight * s.reps) DESC) AS rn
          FROM workout_sets s
          INNER JOIN workout_exercises e ON s.exerciseId = e.id
@@ -132,7 +111,7 @@ interface WorkoutDao {
     )
     suspend fun getBestSetsForExercises(
         exerciseNames: List<String>,
-        currentWorkoutId: Long
+        currentWorkoutId: String
     ): List<ExerciseBestSet>
 
     // New helper to count local workouts
@@ -143,9 +122,8 @@ interface WorkoutDao {
 
 data class ExerciseBestSet(
     val exerciseName: String,
-    val setId: Int,
-    val exerciseId: Long,
+    val setId: String,
+    val exerciseId: String,
     val reps: Int,
-    val weight: Float,
-    val firestoreId: String?
+    val weight: Float
 )

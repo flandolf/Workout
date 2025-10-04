@@ -21,18 +21,11 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
     private val _template = MutableStateFlow<TemplateWithExercises?>(null)
     val template: StateFlow<TemplateWithExercises?> = _template
 
-    private var templateId: Long? = null
-    fun loadTemplate(id: Long) {
+    private var templateId: String? = null
+    fun loadTemplate(id: String) {
         viewModelScope.launch {
-            if (id <= 0L) {
-                // Create a new template when the requested id is 0 (new template)
-                val newId = repo.insertTemplate(Template(name = ""))
-                templateId = newId
-                _template.value = repo.getTemplate(newId)
-            } else {
-                templateId = id
-                _template.value = repo.getTemplate(id)
-            }
+            templateId = id
+            _template.value = repo.getTemplate(id)
         }
     }
 
@@ -76,7 +69,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
     }
 
     // Allow deleting a template from the templates list
-    fun deleteTemplate(id: Long) {
+    fun deleteTemplate(id: String) {
         viewModelScope.launch {
             repo.deleteTemplateById(id)
         }
@@ -96,7 +89,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun deleteExercise(exerciseId: Long) {
+    fun deleteExercise(exerciseId: String) {
         val id = templateId ?: return
         viewModelScope.launch {
             repo.deleteExerciseById(exerciseId)
@@ -104,7 +97,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun addSet(exerciseId: Long, reps: Int, weight: Float) {
+    fun addSet(exerciseId: String, reps: Int, weight: Float) {
         val id = templateId ?: return
         viewModelScope.launch {
             repo.addSet(exerciseId, reps, weight)
@@ -112,7 +105,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun updateSet(exerciseId: Long, setIndex: Int, reps: Int, weight: Float) {
+    fun updateSet(exerciseId: String, setIndex: Int, reps: Int, weight: Float) {
         val id = templateId ?: return
         viewModelScope.launch {
             val currentTemplate = _template.value ?: repo.getTemplate(id) ?: return@launch
@@ -125,7 +118,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun deleteSet(exerciseId: Long, setIndex: Int) {
+    fun deleteSet(exerciseId: String, setIndex: Int) {
         val id = templateId ?: return
         viewModelScope.launch {
             val currentTemplate = _template.value ?: repo.getTemplate(id) ?: return@launch
@@ -138,7 +131,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun moveExerciseUp(exerciseId: Long) {
+    fun moveExerciseUp(exerciseId: String) {
         val id = templateId ?: return
         viewModelScope.launch {
             val currentTemplate = _template.value ?: repo.getTemplate(id) ?: return@launch
@@ -153,7 +146,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun moveExerciseDown(exerciseId: Long) {
+    fun moveExerciseDown(exerciseId: String) {
         val id = templateId ?: return
         viewModelScope.launch {
             val currentTemplate = _template.value ?: repo.getTemplate(id) ?: return@launch
@@ -169,7 +162,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
     }
 
     // --- New helper to create a template along with ordered exercises (used when converting a workout) ---
-    suspend fun createTemplateFromWorkout(name: String, exerciseNamesInOrder: List<String>): Long =
+    suspend fun createTemplateFromWorkout(name: String, exerciseNamesInOrder: List<String>): String =
         withContext(Dispatchers.IO) {
             val id = repo.insertTemplate(Template(name = name))
             exerciseNamesInOrder.forEachIndexed { index, exName ->
@@ -182,7 +175,7 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
             id
         }
 
-    suspend fun getCurrentTemplateId(): Long? = templateId
+    suspend fun getCurrentTemplateId(): String? = templateId
 
     fun finalizeAndSyncTemplate(latestName: String? = null) {
         viewModelScope.launch {
@@ -203,15 +196,8 @@ class TemplateViewModel(application: Application) : AndroidViewModel(application
                 _template.value = null
                 return@launch
             }
-            // Sync if authenticated
-            try {
-                repo.syncRepository.initialize()
-                if (repo.syncRepository.isUserAuthenticated()) {
-                    repo.syncRepository.syncTemplateById(id)
-                }
-            } catch (_: Exception) {
-                // Ignore sync errors here; UI can display via sync screen later
-            }
+            // Templates are now synced as part of the general sync process
+            // No individual template sync needed since we use UUID-based IDs
         }
     }
 }

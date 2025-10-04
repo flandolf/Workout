@@ -37,12 +37,12 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun restoreWorkoutState() {
-        val savedWorkoutId = prefs.getLong(KEY_CURRENT_WORKOUT_ID, -1L)
+        val savedWorkoutId = prefs.getString(KEY_CURRENT_WORKOUT_ID, null)
         val savedElapsedSeconds = prefs.getLong(KEY_ELAPSED_SECONDS, 0L)
         val savedIsTimerRunning = prefs.getBoolean(KEY_IS_TIMER_RUNNING, false)
         val lastSaveTime = prefs.getLong(KEY_LAST_SAVE_TIME, 0L)
 
-        if (savedWorkoutId != -1L) {
+        if (!savedWorkoutId.isNullOrBlank()) {
             _currentWorkoutId.value = savedWorkoutId
 
             // Calculate elapsed time since last save if timer was running
@@ -76,8 +76,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private val _currentWorkoutId = MutableStateFlow<Long?>(null)
-    val currentWorkoutId: StateFlow<Long?> = _currentWorkoutId
+    private val _currentWorkoutId = MutableStateFlow<String?>(null)
+    val currentWorkoutId: StateFlow<String?> = _currentWorkoutId
 
     private val _elapsedSeconds = MutableStateFlow(0L)
     val elapsedSeconds: StateFlow<Long> = _elapsedSeconds
@@ -240,7 +240,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun addSet(exerciseId: Long, reps: Int, weight: Float) {
+    fun addSet(exerciseId: String, reps: Int, weight: Float) {
         viewModelScope.launch {
             repo.addSet(exerciseId, reps, weight)
             val id = _currentWorkoutId.value
@@ -275,7 +275,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun deleteExercise(exerciseId: Long) {
+    fun deleteExercise(exerciseId: String) {
         viewModelScope.launch {
             val id = _currentWorkoutId.value
             val workout = id?.let { repo.getWorkout(it) }
@@ -287,7 +287,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateSet(exerciseId: Long, setIndex: Int, reps: Int, weight: Float) {
+    fun updateSet(exerciseId: String, setIndex: Int, reps: Int, weight: Float) {
         viewModelScope.launch {
             val id = _currentWorkoutId.value
             val workout = id?.let { repo.getWorkout(it) }
@@ -301,7 +301,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun deleteSet(exerciseId: Long, setIndex: Int) {
+    fun deleteSet(exerciseId: String, setIndex: Int) {
         viewModelScope.launch {
             val id = _currentWorkoutId.value
             val workout = id?.let { repo.getWorkout(it) }
@@ -314,7 +314,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun moveExerciseUp(exerciseId: Long) {
+    fun moveExerciseUp(exerciseId: String) {
         viewModelScope.launch {
             val workout = _currentWorkout.value ?: return@launch
             val sorted = workout.exercises.sortedWith(
@@ -352,7 +352,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun moveExerciseDown(exerciseId: Long) {
+    fun moveExerciseDown(exerciseId: String) {
         viewModelScope.launch {
             val workout = _currentWorkout.value ?: return@launch
             val sorted = workout.exercises.sortedWith(
@@ -397,10 +397,10 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
 
     private fun saveWorkoutState() {
         val workoutId = _currentWorkoutId.value
-        if (workoutId != null) {
+        if (!workoutId.isNullOrBlank()) {
             val elapsed = snapshotElapsedSeconds()
             prefs.edit {
-                putLong(KEY_CURRENT_WORKOUT_ID, workoutId)
+                putString(KEY_CURRENT_WORKOUT_ID, workoutId)
                 putLong(KEY_ELAPSED_SECONDS, elapsed)
                 putBoolean(KEY_IS_TIMER_RUNNING, _isTimerRunning.value)
                 putLong(KEY_LAST_SAVE_TIME, System.currentTimeMillis())
@@ -410,7 +410,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun startWorkoutFromTemplate(templateId: Long) {
+    fun startWorkoutFromTemplate(templateId: String) {
         // create workout from template and start timer
         viewModelScope.launch {
             val id = repo.startWorkoutFromTemplate(templateId)

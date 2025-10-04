@@ -16,8 +16,8 @@ class WorkoutRepository(private val context: Context) {
     private val dao by lazy { db.workoutDao() }
     val syncRepository by lazy { SyncRepository(context) }
 
-    private suspend fun touchWorkout(workoutId: Long?) {
-        if (workoutId == null) return
+    private suspend fun touchWorkout(workoutId: String?) {
+        if (workoutId.isNullOrBlank()) return
         try {
             dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
         } catch (e: Exception) {
@@ -29,16 +29,17 @@ class WorkoutRepository(private val context: Context) {
         }
     }
 
-    suspend fun startWorkout(): Long {
+    suspend fun startWorkout(): String {
         val currentTime = System.currentTimeMillis()
-        val id = dao.insertWorkout(Workout(startTime = currentTime, updatedAt = currentTime))
-        android.util.Log.d("WorkoutRepository", "Started workout local id=$id")
+        val workout = Workout(startTime = currentTime, updatedAt = currentTime)
+        dao.insertWorkout(workout)
+        android.util.Log.d("WorkoutRepository", "Started workout local id=${workout.id}")
 
         // Removed automatic sync at workout start to avoid constant syncing.
-        return id
+        return workout.id
     }
 
-    suspend fun endWorkout(id: Long, durationSeconds: Long) {
+    suspend fun endWorkout(id: String, durationSeconds: Long) {
         val existingWith = dao.getWorkoutWithExercises(id)
         val existing = existingWith?.workout
         android.util.Log.d(
@@ -62,18 +63,17 @@ class WorkoutRepository(private val context: Context) {
         }
     }
 
-    suspend fun addExercise(workoutId: Long, name: String): Long {
+    suspend fun addExercise(workoutId: String, name: String): String {
         val maxPos = dao.getMaxPositionForWorkout(workoutId)
         val nextPos = maxPos + 1
-        val exerciseId = dao.insertExercise(
-            ExerciseEntity(
-                workoutId = workoutId,
-                name = name,
-                position = nextPos
-            )
+        val exercise = ExerciseEntity(
+            workoutId = workoutId,
+            name = name,
+            position = nextPos
         )
+        dao.insertExercise(exercise)
         touchWorkout(workoutId)
-        return exerciseId
+        return exercise.id
     }
 
     suspend fun updateExercise(exercise: ExerciseEntity) {
@@ -81,11 +81,12 @@ class WorkoutRepository(private val context: Context) {
         touchWorkout(exercise.workoutId)
     }
 
-    suspend fun addSet(exerciseId: Long, reps: Int, weight: Float): Long {
+    suspend fun addSet(exerciseId: String, reps: Int, weight: Float): String {
         val exercise = dao.getExerciseById(exerciseId)
-        val setId = dao.insertSet(SetEntity(exerciseId = exerciseId, reps = reps, weight = weight))
+        val set = SetEntity(exerciseId = exerciseId, reps = reps, weight = weight)
+        dao.insertSet(set)
         touchWorkout(exercise?.workoutId)
-        return setId
+        return set.id
     }
 
     suspend fun deleteSet(set: SetEntity) {
@@ -99,17 +100,17 @@ class WorkoutRepository(private val context: Context) {
     fun observeAllWorkouts(): Flow<List<WorkoutWithExercises>> =
         dao.observeAllWorkoutsWithExercises()
 
-    suspend fun getWorkout(id: Long): WorkoutWithExercises? = dao.getWorkoutWithExercises(id)
+    suspend fun getWorkout(id: String): WorkoutWithExercises? = dao.getWorkoutWithExercises(id)
 
     suspend fun getDistinctExerciseNames(): List<String> = dao.getDistinctExerciseNames()
 
     suspend fun getBestSetFromLastWorkout(
-        exerciseName: String, currentWorkoutId: Long
+        exerciseName: String, currentWorkoutId: String
     ): SetEntity? = dao.getBestSetFromLastWorkout(exerciseName, currentWorkoutId)
 
     suspend fun getBestSetsFromLastWorkouts(
         exerciseNames: List<String>,
-        currentWorkoutId: Long
+        currentWorkoutId: String
     ): Map<String, SetEntity> {
         if (exerciseNames.isEmpty()) return emptyMap()
         val results = dao.getBestSetsForExercises(exerciseNames, currentWorkoutId)
@@ -118,8 +119,7 @@ class WorkoutRepository(private val context: Context) {
                 id = result.setId,
                 exerciseId = result.exerciseId,
                 reps = result.reps,
-                weight = result.weight,
-                firestoreId = result.firestoreId
+                weight = result.weight
             )
         }
     }
@@ -396,41 +396,30 @@ class WorkoutRepository(private val context: Context) {
                         startTime = date,
                         updatedAt = now
                     )
-                    val workoutId = dao.insertWorkout(workout)
+                    dao.insertWorkout(workout)
                     // Log inserted workout details for verification (human-readable + epoch)
                     android.util.Log.d(
                         "WorkoutRepository",
-                        "Inserted workout id=$workoutId date=${Date(date)} (epoch=$date)"
+                        "Imported workout on ${Date(date)} (${date}) with ${exercises.size} exercises"
                     )
 
-                    // Add exercises and sets
-                    for ((exerciseName, sets) in exercises) {
-                        if (sets.isEmpty()) continue
-
-                        val exercise = ExerciseEntity(workoutId = workoutId, name = exerciseName)
-                        val exerciseId = dao.insertExercise(exercise)
-
+                    // Insert exercises and sets
+                    for ((name, sets) in exercises) {
+                        val exercise = ExerciseEntity(
+                            workoutId = workout.id,
+                            name = name,
+                            position = dao.getMaxPositionForWorkout(workout.id) + 1
+                        )
+                        dao.insertExercise(exercise)
                         for ((reps, weight) in sets) {
-                            val set =
-                                SetEntity(exerciseId = exerciseId, reps = reps, weight = weight)
-                            dao.insertSet(set)
+                            dao.insertSet(SetEntity(exerciseId = exercise.id, reps = reps, weight = weight))
                         }
                     }
 
-                    dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
-
                     importedWorkouts++
-
                 } catch (e: Exception) {
-                    android.util.Log.w("WorkoutRepository", "Failed to import workout", e)
+                    android.util.Log.e("WorkoutRepository", "Failed to import a workout", e)
                 }
-            }
-
-            // After importing, trigger a one-off full sync (upload/download) to ensure cloud matches imports.
-            try {
-                syncRepository.performFullSync()
-            } catch (e: Exception) {
-                android.util.Log.w("WorkoutRepository", "One-off sync after import failed", e)
             }
 
             importedWorkouts
@@ -533,21 +522,26 @@ class WorkoutRepository(private val context: Context) {
                         startTime = date,
                         updatedAt = now
                     )
-                    val workoutId = dao.insertWorkout(workout)
+                    dao.insertWorkout(workout)
 
+                    var position = 0
                     for ((exerciseName, sets) in exercises) {
                         if (sets.isEmpty()) continue
-                        val exercise = ExerciseEntity(workoutId = workoutId, name = exerciseName)
-                        val exerciseId = dao.insertExercise(exercise)
+                        val exercise = ExerciseEntity(
+                            workoutId = workout.id,
+                            name = exerciseName,
+                            position = position++
+                        )
+                        dao.insertExercise(exercise)
 
                         for ((reps, weight) in sets) {
                             val set =
-                                SetEntity(exerciseId = exerciseId, reps = reps, weight = weight)
+                                SetEntity(exerciseId = exercise.id, reps = reps, weight = weight)
                             dao.insertSet(set)
                         }
                     }
 
-                    dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
+                    dao.updateWorkoutUpdatedAt(workout.id, System.currentTimeMillis())
 
                     importedWorkouts++
                 } catch (e: Exception) {
@@ -681,21 +675,21 @@ class WorkoutRepository(private val context: Context) {
         return System.currentTimeMillis()
     }
 
-    suspend fun startWorkoutFromTemplate(templateId: Long): Long = withContext(Dispatchers.IO) {
+    suspend fun startWorkoutFromTemplate(templateId: String): String = withContext(Dispatchers.IO) {
         db.withTransaction {
             val templateDao = db.templateDao()
             val tpl = templateDao.getTemplateWithExercises(templateId)
             val currentTime = System.currentTimeMillis()
-            val workoutId =
-                dao.insertWorkout(Workout(startTime = currentTime, updatedAt = currentTime))
+            val workout = Workout(startTime = currentTime, updatedAt = currentTime)
+            dao.insertWorkout(workout)
             if (tpl != null) {
                 for (exWithSets in tpl.exercises) {
-                    val ex = ExerciseEntity(workoutId = workoutId, name = exWithSets.exercise.name)
-                    val exId = dao.insertExercise(ex)
+                    val ex = ExerciseEntity(workoutId = workout.id, name = exWithSets.exercise.name)
+                    dao.insertExercise(ex)
                     for (s in exWithSets.sets) {
                         dao.insertSet(
                             SetEntity(
-                                exerciseId = exId,
+                                exerciseId = ex.id,
                                 reps = s.reps,
                                 weight = s.weight
                             )
@@ -703,8 +697,8 @@ class WorkoutRepository(private val context: Context) {
                     }
                 }
             }
-            dao.updateWorkoutUpdatedAt(workoutId, System.currentTimeMillis())
-            workoutId
+            dao.updateWorkoutUpdatedAt(workout.id, System.currentTimeMillis())
+            workout.id
         }
     }
 }

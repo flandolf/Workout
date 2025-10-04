@@ -15,9 +15,9 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
     private val _workout = MutableStateFlow<WorkoutWithExercises?>(null)
     val workout: StateFlow<WorkoutWithExercises?> = _workout
 
-    private var workoutId: Long? = null
+    private var workoutId: String? = null
 
-    fun loadWorkout(id: Long) {
+    fun loadWorkout(id: String) {
         workoutId = id
         viewModelScope.launch {
             _workout.value = repo.getWorkout(id)
@@ -32,7 +32,7 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun deleteExercise(exerciseId: Long) {
+    fun deleteExercise(exerciseId: String) {
         viewModelScope.launch {
             val ex = _workout.value?.exercises?.find { it.exercise.id == exerciseId }?.exercise
             if (ex != null) {
@@ -42,14 +42,14 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun addSet(exerciseId: Long, reps: Int, weight: Float) {
+    fun addSet(exerciseId: String, reps: Int, weight: Float) {
         viewModelScope.launch {
             repo.addSet(exerciseId, reps, weight)
             workoutId?.let { _workout.value = repo.getWorkout(it) }
         }
     }
 
-    fun updateSet(exerciseId: Long, setIndex: Int, reps: Int, weight: Float) {
+    fun updateSet(exerciseId: String, setIndex: Int, reps: Int, weight: Float) {
         viewModelScope.launch {
             val ex = _workout.value?.exercises?.find { it.exercise.id == exerciseId }
             val set = ex?.sets?.getOrNull(setIndex)
@@ -61,7 +61,7 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun deleteSet(exerciseId: Long, setIndex: Int) {
+    fun deleteSet(exerciseId: String, setIndex: Int) {
         viewModelScope.launch {
             val ex = _workout.value?.exercises?.find { it.exercise.id == exerciseId }
             val set = ex?.sets?.getOrNull(setIndex)
@@ -78,7 +78,7 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun moveExerciseUp(exerciseId: Long) {
+    fun moveExerciseUp(exerciseId: String) {
         viewModelScope.launch {
             val w = _workout.value ?: return@launch
             val sorted =
@@ -112,7 +112,7 @@ class EditWorkoutViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun moveExerciseDown(exerciseId: Long) {
+    fun moveExerciseDown(exerciseId: String) {
         viewModelScope.launch {
             val w = _workout.value ?: return@launch
             val sorted =

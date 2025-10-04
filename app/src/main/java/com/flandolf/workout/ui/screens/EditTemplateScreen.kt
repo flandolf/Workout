@@ -87,10 +87,10 @@ fun AddTemplateScreen(
     template: List<TemplateExerciseWithSets>,
     onBack: () -> Unit,
     onAddExercise: (String) -> Unit,
-    onDeleteExercise: (Long) -> Unit,
-    onAddSet: (Long, Int, Float) -> Unit,
-    onUpdateSet: (Long, Int, Int, Float) -> Unit,
-    onDeleteSet: (Long, Int) -> Unit,
+    onDeleteExercise: (String) -> Unit,
+    onAddSet: (String, Int, Float) -> Unit,
+    onUpdateSet: (String, Int, Int, Float) -> Unit,
+    onDeleteSet: (String, Int) -> Unit,
     vm: TemplateViewModel,
     editVm: EditWorkoutViewModel
 ) {
@@ -107,11 +107,11 @@ fun AddTemplateScreen(
         templateName = currentTemplate?.template?.name ?: ""
     }
 
-    val addSetVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
-    val editSetMap = remember { mutableStateMapOf<Pair<Long, Int>, Boolean>() }
+    val addSetVisibleMap = remember { mutableStateMapOf<String, Boolean>() }
+    val editSetMap = remember { mutableStateMapOf<Pair<String, Int>, Boolean>() }
     // Visibility maps for animations
-    val exerciseVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
-    val setVisibleMap = remember { mutableStateMapOf<Pair<Long, Int>, Boolean>() }
+    val exerciseVisibleMap = remember { mutableStateMapOf<String, Boolean>() }
+    val setVisibleMap = remember { mutableStateMapOf<Pair<String, Int>, Boolean>() }
     val coroutineScope = rememberCoroutineScope()
 
     // Handle system back: finalize and sync template (upload if non-empty) then navigate
@@ -458,7 +458,7 @@ fun AddTemplateScreen(
                                 Column(Modifier.fillMaxWidth()) {
                                     ex.sets.forEachIndexed { i, s ->
                                         val editing = editSetMap[ex.exercise.id to i] == true
-                                        val setKey = ex.exercise.id to s.id
+                                        val setKey: Pair<String, Int> = ex.exercise.id to i
                                         val setVisible = setVisibleMap[setKey] ?: true
                                         if (!editing) {
                                             AnimatedVisibility(
@@ -511,7 +511,7 @@ fun AddTemplateScreen(
                                                                     ex.exercise.id,
                                                                     capturedIndex
                                                                 )
-                                                                setVisibleMap.remove(ex.exercise.id to s.id)
+                                                                setVisibleMap.remove(ex.exercise.id to capturedIndex)
                                                             }
                                                         }) {
                                                             Icon(

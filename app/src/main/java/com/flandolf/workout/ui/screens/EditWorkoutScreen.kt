@@ -81,10 +81,10 @@ fun EditWorkoutScreen(
     workout: List<ExerciseWithSets>,
     onBack: () -> Unit,
     onAddExercise: (String) -> Unit,
-    onDeleteExercise: (Long) -> Unit,
-    onAddSet: (exerciseId: Long, reps: Int, weight: Float) -> Unit,
-    onUpdateSet: (exerciseId: Long, setIndex: Int, reps: Int, weight: Float) -> Unit,
-    onDeleteSet: (exerciseId: Long, setIndex: Int) -> Unit,
+    onDeleteExercise: (String) -> Unit,
+    onAddSet: (String, Int, Float) -> Unit,
+    onUpdateSet: (String, Int, Int, Float) -> Unit,
+    onDeleteSet: (exerciseId: String, setIndex: Int) -> Unit,
     vm: EditWorkoutViewModel,
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -92,11 +92,11 @@ fun EditWorkoutScreen(
     var addExerciseVisible by remember { mutableStateOf(false) }
     var newExerciseName by remember { mutableStateOf("") }
 
-    val addSetVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
-    val editSetMap = remember { mutableStateMapOf<Pair<Long, Int>, Boolean>() }
+    val addSetVisibleMap = remember { mutableStateMapOf<String, Boolean>() }
+    val editSetMap = remember { mutableStateMapOf<Pair<String, Int>, Boolean>() }
     // Visibility maps for animations
-    val exerciseVisibleMap = remember { mutableStateMapOf<Long, Boolean>() }
-    val setVisibleMap = remember { mutableStateMapOf<Pair<Long, Int>, Boolean>() }
+    val exerciseVisibleMap = remember { mutableStateMapOf<String, Boolean>() }
+    val setVisibleMap = remember { mutableStateMapOf<Pair<String, Int>, Boolean>() }
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(topBar = {
@@ -403,7 +403,7 @@ fun EditWorkoutScreen(
                                 Column(Modifier.fillMaxWidth()) {
                                     ex.sets.forEachIndexed { i, s ->
                                         val editing = editSetMap[ex.exercise.id to i] == true
-                                        val setKey = ex.exercise.id to s.id
+                                        val setKey: Pair<String, Int> = ex.exercise.id to i
                                         val setVisible = setVisibleMap[setKey] ?: true
                                         if (!editing) {
                                             AnimatedVisibility(
@@ -456,7 +456,7 @@ fun EditWorkoutScreen(
                                                                     ex.exercise.id,
                                                                     capturedIndex
                                                                 )
-                                                                setVisibleMap.remove(ex.exercise.id to s.id)
+                                                                setVisibleMap.remove(ex.exercise.id to capturedIndex)
                                                             }
                                                         }) {
                                                             Icon(

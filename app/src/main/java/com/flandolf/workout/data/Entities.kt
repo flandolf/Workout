@@ -6,17 +6,20 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
+import java.util.UUID
 
-@Entity(tableName = "workouts", indices = [Index(value = ["firestoreId"], unique = true)])
+@Entity(
+    tableName = "workouts",
+    indices = [Index(value = ["id"], unique = true)]
+)
 data class Workout(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val date: Long = System.currentTimeMillis(),
     val startTime: Long = System.currentTimeMillis(),
     val durationSeconds: Long = 0,
     val updatedAt: Long = System.currentTimeMillis(),
-    // Firestore document ID mapping for sync
-    val firestoreId: String? = null
 )
+
 
 @Entity(
     tableName = "workout_exercises",
@@ -28,16 +31,13 @@ data class Workout(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("workoutId"), Index(value = ["firestoreId"], unique = true)]
+    indices = [Index("workoutId")]
 )
 data class ExerciseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val workoutId: Long,
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val workoutId: String,
     val name: String,
-    // Ordering within a workout or template (lower comes first)
     val position: Int = 0,
-    // Firestore document ID mapping for sync
-    val firestoreId: String? = null
 )
 
 @Entity(
@@ -50,26 +50,23 @@ data class ExerciseEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("exerciseId"), Index(value = ["firestoreId"], unique = true)]
+    indices = [Index("exerciseId")]
 )
 data class SetEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val exerciseId: Long,
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val exerciseId: String,
     val reps: Int,
-    val weight: Float,
-    // Firestore document ID mapping for sync
-    val firestoreId: String? = null
+    val weight: Float
 )
 
 @Entity(
     tableName = "templates",
-    indices = [Index(value = ["id"], unique = true), Index(value = ["firestoreId"], unique = true)]
+    indices = [Index(value = ["id"], unique = true)]
 )
 data class Template(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
     val updatedAt: Long = System.currentTimeMillis(),
-    val firestoreId: String? = null
 )
 
 @Entity(
@@ -82,14 +79,13 @@ data class Template(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("templateId"), Index(value = ["firestoreId"], unique = true)]
+    indices = [Index("templateId")],
 )
 data class TemplateExerciseEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val templateId: Long,
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val templateId: String,
     val name: String,
-    val position: Int = 0,
-    val firestoreId: String? = null
+    val position: Int = 0
 )
 
 @Entity(
@@ -102,14 +98,13 @@ data class TemplateExerciseEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("exerciseId"), Index(value = ["firestoreId"], unique = true)]
+    indices = [Index("exerciseId", unique = true)]
 )
 data class TemplateSetEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val exerciseId: Long,
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val exerciseId: String,
     val reps: Int,
-    val weight: Float,
-    val firestoreId: String? = null
+    val weight: Float
 )
 
 data class TemplateWithExercises(

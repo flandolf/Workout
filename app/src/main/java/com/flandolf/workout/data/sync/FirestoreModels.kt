@@ -34,7 +34,7 @@ data class FSExercise(
 data class FirestoreWorkout(
     @DocumentId
     val id: String = "",
-    val localId: Long = 0L,
+    val localId: String = "",
     val userId: String = "",
     val date: Long = System.currentTimeMillis(),
     val durationSeconds: Long = 0L,
@@ -52,7 +52,7 @@ data class FirestoreWorkout(
     // Explicit no-arg constructor for Firestore deserialization
     constructor() : this(
         id = "",
-        localId = 0L,
+        localId = "",
         userId = "",
         date = 0L,
         durationSeconds = 0L,
@@ -73,7 +73,7 @@ data class FirestoreWorkout(
 data class FirestoreTemplate(
     @DocumentId
     val id: String = "",
-    val localId: Long = 0L,
+    val localId: String = "",
     val userId: String = "",
     val name: String = "",
     val exercises: List<FSExercise> = emptyList(),
@@ -88,7 +88,7 @@ data class FirestoreTemplate(
 ) {
     constructor() : this(
         id = "",
-        localId = 0L,
+        localId = "",
         userId = "",
         name = "",
         exercises = emptyList(),

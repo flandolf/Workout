@@ -268,9 +268,10 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("edit_workout/{workoutId}") { backStackEntry ->
                             val workoutIdStr = backStackEntry.arguments?.getString("workoutId")
-                            val workoutId = workoutIdStr?.toLongOrNull() ?: -1L
-                            LaunchedEffect(workoutId) {
-                                if (workoutId > 0) editVm.loadWorkout(workoutId)
+                            if (!workoutIdStr.isNullOrBlank()) {
+                                LaunchedEffect(workoutIdStr) {
+                                    editVm.loadWorkout(workoutIdStr)
+                                }
                             }
                             val workoutState by editVm.workout.collectAsStateWithLifecycle()
                             EditWorkoutScreen(
@@ -307,9 +308,8 @@ class MainActivity : ComponentActivity() {
                         ) { backStackEntry ->
                             val templateIdStr =
                                 backStackEntry.arguments?.getString("templateId")
-                            val templateId = templateIdStr?.toLongOrNull() ?: -1L
-                            LaunchedEffect(templateId) {
-                                if (templateId >= 0) templateVm.loadTemplate(templateId)
+                            LaunchedEffect(templateIdStr) {
+                                templateVm.loadTemplate(templateIdStr?:"" )
                             }
                             val templateState by templateVm.template.collectAsStateWithLifecycle()
                             AddTemplateScreen(

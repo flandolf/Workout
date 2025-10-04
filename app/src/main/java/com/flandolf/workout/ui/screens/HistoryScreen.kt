@@ -62,7 +62,7 @@ import java.util.Locale
 @Composable
 fun HistoryScreen(
     workouts: List<WorkoutWithExercises>, viewModel: HistoryViewModel? = null,
-    onEditWorkout: (Long) -> Unit = {},
+    onEditWorkout: (String) -> Unit = {},
     onConvertToTemplate: (WorkoutWithExercises) -> Unit = {}
 ) {
     val df = remember { SimpleDateFormat("dd/MM/yy", Locale.getDefault()) }
@@ -302,19 +302,21 @@ fun HistoryScreen(
                                         ) {
                                             Icon(
                                                 Icons.Default.Edit,
-                                                contentDescription = "Edit workout",
+                                                contentDescription = "Edit",
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
+
                                         IconButton(
                                             onClick = {
                                                 workoutToDelete = w
                                                 showDeleteDialog = true
-                                            }, modifier = Modifier.size(36.dp)
+                                            },
+                                            modifier = Modifier.size(36.dp)
                                         ) {
                                             Icon(
                                                 Icons.Default.Delete,
-                                                contentDescription = "Delete workout",
+                                                contentDescription = "Delete",
                                                 tint = MaterialTheme.colorScheme.error
                                             )
                                         }
@@ -325,40 +327,30 @@ fun HistoryScreen(
                     }
                 }
             }
-        }
-    }
 
-    // Delete confirmation dialog
-    if (showDeleteDialog && workoutToDelete != null) {
-        AlertDialog(onDismissRequest = {
-            showDeleteDialog = false
-            workoutToDelete = null
-        }, title = { Text("Delete Workout") }, text = {
-            Text("Are you sure you want to delete this workout? This action cannot be undone.")
-        }, confirmButton = {
-            Button(
-                onClick = {
-                    workoutToDelete?.let { workout ->
-                        viewModel?.deleteWorkout(workout.workout)
-                    }
-                    showDeleteDialog = false
-                    workoutToDelete = null
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+            if (showDeleteDialog && workoutToDelete != null) {
+                val target = workoutToDelete!!
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel?.deleteWorkout(target.workout)
+                                showDeleteDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        ) { Text("Delete") }
+                    },
+                    dismissButton = {
+                        Button(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                    },
+                    title = { Text("Delete workout?") },
+                    text = { Text("This will delete the selected workout.") }
                 )
-            ) {
-                Text("Delete")
             }
-        }, dismissButton = {
-            Button(onClick = {
-                showDeleteDialog = false
-                workoutToDelete = null
-            }
-            ) {
-                Text("Cancel")
-            }
-        })
+        }
     }
 }
