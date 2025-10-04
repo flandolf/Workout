@@ -1,11 +1,6 @@
 # Workout Tracker
 
-A sleek Android fitness app built with Jetpack Comp## 📂 Project Structurese to help you track workouts, monitor progress, and achieve your fitness goals.Built with## 📦 Permissions
-
-- `READ_EXTERNAL_STORAGE`: Import data
-- `WRITE_EXTERNAL_STORAGE`: Export data
-- `INTERNET`: Cloud sync
-- `ACCESS_NETWORK_STATE`: Network monitoringerial 3, dynamic colors, and accessibility in mind.
+A sleek Android fitness app built with Jetpack Compose to help you track workouts, monitor progress, and achieve your fitness goals.
 
 ## ☁️ Cloud Sync
 
@@ -15,7 +10,14 @@ A sleek Android fitness app built with Jetpack Comp## 📂 Project Structurese t
 - **Offline Support**: Local-first with background sync
 - **Network Monitoring**: Automatic sync when online
 
-## 📦 Permissions# ✨ Features
+## 📦 Permissions
+
+- `READ_EXTERNAL_STORAGE`: Import data
+- `WRITE_EXTERNAL_STORAGE`: Export data
+- `INTERNET`: Cloud sync
+- `ACCESS_NETWORK_STATE`: Network monitoringerial 3, dynamic colors, and accessibility in mind.
+
+# ✨ Features
 
 - **Real-Time Workout Tracking**: Start sessions with an integrated timer and log exercises on the go.
 - **Comprehensive Exercise Management**: Add custom exercises with sets, reps, weights, and notes.
@@ -198,8 +200,6 @@ Built with Material 3, dynamic colors, and accessibility in mind.
 3. Commit changes: `git commit -m 'Add feature'`
 4. Push: `git push origin feature/your-feature`
 5. Open a PR
-
-Follow Kotlin style, add tests, and document complex code.
 
 ## 📄 License
 
