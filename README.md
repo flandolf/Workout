@@ -15,7 +15,7 @@ A sleek Android fitness app built with Jetpack Compose to help you track workout
 - `READ_EXTERNAL_STORAGE`: Import data
 - `WRITE_EXTERNAL_STORAGE`: Export data
 - `INTERNET`: Cloud sync
-- `ACCESS_NETWORK_STATE`: Network monitoringerial 3, dynamic colors, and accessibility in mind.
+- `ACCESS_NETWORK_STATE`: Access network state for connectivity check
 
 # ✨ Features
 
