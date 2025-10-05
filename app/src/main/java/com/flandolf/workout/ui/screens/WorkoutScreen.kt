@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,11 +34,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,9 +57,12 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -129,7 +134,6 @@ fun WorkoutScreen(
 ) {
     // Toggle add set input for each exercise
     val addSetVisibleMap = remember { mutableStateMapOf<String, Boolean>() }
-    val editSetMap = remember { mutableStateMapOf<Pair<String, Int>, Boolean>() }
     // Visibility maps to animate deletions
     val exerciseVisibleMap = remember { mutableStateMapOf<String, Boolean>() }
     val setVisibleMap = remember { mutableStateMapOf<Pair<String, Int>, Boolean>() }
@@ -520,7 +524,6 @@ fun WorkoutScreen(
                                         listState = listState,
                                         vm = vm,
                                         addSetVisibleMap = addSetVisibleMap,
-                                        editSetMap = editSetMap,
                                         setVisibleMap = setVisibleMap,
                                         onAddSet = onAddSet,
                                         onUpdateSet = onUpdateSet,
@@ -577,7 +580,6 @@ fun ExerciseItem(
     listState: LazyListState,
     vm: WorkoutViewModel,
     addSetVisibleMap: SnapshotStateMap<String, Boolean>,
-    editSetMap: SnapshotStateMap<Pair<String, Int>, Boolean>,
     setVisibleMap: SnapshotStateMap<Pair<String, Int>, Boolean>,
     onAddSet: (String, Int, Float) -> Unit,
     onUpdateSet: (String, Int, Int, Float) -> Unit,
@@ -617,17 +619,12 @@ fun ExerciseItem(
                         }
                     }
                     FilledTonalButton(
-                        onClick = {
-                            addSetVisibleMap[ex.exercise.id] = !isVisible
-                        },
-                        contentPadding = PaddingValues(
-                            horizontal = 12.dp,
-                            vertical = 6.dp
-                        )
+                        onClick = { onAddSet(ex.exercise.id, 0, 0f) },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = if (isVisible) "Cancel" else "Add set",
+                            contentDescription = "Add set",
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -652,16 +649,17 @@ fun ExerciseItem(
                         )
                     }
                     Spacer(Modifier.width(8.dp))
-                    IconButton(onClick = {
-                        // animate then delete
-                        val key = ex.exercise.id
-                        exerciseVisibleMap[key] = false
-                        coroutineScope.launch {
-                            delay(260)
-                            onDeleteExercise(key)
-                            exerciseVisibleMap.remove(key)
-                        }
-                    }, modifier = Modifier.size(24.dp)) {
+                    IconButton(
+                        onClick = {
+                            exerciseVisibleMap[ex.exercise.id] = false
+                            coroutineScope.launch {
+                                delay(260)
+                                onDeleteExercise(ex.exercise.id)
+                                exerciseVisibleMap.remove(ex.exercise.id)
+                            }
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Delete Exercise",
@@ -703,13 +701,12 @@ fun ExerciseItem(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
             if (ex.sets.isNotEmpty()) {
                 HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(
-                        alpha = 0.6f
-                    )
-                )
+                    modifier = Modifier.padding(
+                        vertical = 8.dp
+                    ),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
             }
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Add-set inputs placed above the existing sets list for improved UX
@@ -740,98 +737,85 @@ fun ExerciseItem(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 8.dp)
+                            .padding(top = 8.dp, bottom = 4.dp)
                             .animateContentSize(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        OutlinedTextField(
+                        androidx.compose.material3.TextField(
                             value = weightText,
                             onValueChange = { weightText = it },
-                            label = {
-                                Text(
-                                    "Weight (kg)",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            },
                             placeholder = {
                                 Text(
-                                    "60.0",
-                                    style = MaterialTheme.typography.bodySmall
+                                    "kg",
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
                             },
                             singleLine = true,
                             modifier = Modifier
                                 .weight(1f)
-                                .heightIn(min = 56.dp)
-                                .padding(vertical = 4.dp)
+                                .height(50.dp)
                                 .focusRequester(focusRequester),
                             shape = MaterialTheme.shapes.small,
-                            textStyle = MaterialTheme.typography.bodySmall,
+                            textStyle = MaterialTheme.typography.bodyMedium,
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Decimal,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus(); keyboardController?.hide() }),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        OutlinedTextField(
-                            value = repsText,
-                            onValueChange = { repsText = it },
-                            label = {
-                                Text(
-                                    "Reps",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            },
-                            placeholder = {
-                                Text(
-                                    "10",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            },
-                            singleLine = true,
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 56.dp)
-                                .padding(vertical = 4.dp),
-                            shape = MaterialTheme.shapes.small,
-                            textStyle = MaterialTheme.typography.bodySmall,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
                                 imeAction = ImeAction.Next
                             ),
                             keyboardActions = KeyboardActions(onNext = {
-                                focusManager.moveFocus(
-                                    FocusDirection.Next
-                                )
-                            }),
+                                focusManager.moveFocus(FocusDirection.Next)
+                            })
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        FilledTonalButton(
-                            onClick = {
+                        androidx.compose.material3.TextField(
+                            value = repsText,
+                            onValueChange = { repsText = it },
+                            placeholder = {
+                                Text(
+                                    "reps",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp),
+                            shape = MaterialTheme.shapes.small,
+                            textStyle = MaterialTheme.typography.bodyMedium,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(onDone = {
                                 val reps = repsText.toIntOrNull() ?: 0
-                                val weight =
-                                    weightText.toFloatOrNull() ?: 0f
-                                if (reps > 0) {
+                                val weight = weightText.toFloatOrNull() ?: 0f
+                                if (reps > 0 || weight > 0f) {
                                     onAddSet(ex.exercise.id, reps, weight)
                                     repsText = ""
                                     weightText = ""
                                     addSetVisibleMap[ex.exercise.id] = false
                                 }
-
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            })
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        FilledTonalButton(
+                            onClick = {
+                                val reps = repsText.toIntOrNull() ?: 0
+                                val weight = weightText.toFloatOrNull() ?: 0f
+                                onAddSet(ex.exercise.id, reps, weight)
+                                repsText = ""
+                                weightText = ""
+                                addSetVisibleMap[ex.exercise.id] = false
                             },
-                            contentPadding = PaddingValues(
-                                horizontal = 12.dp,
-                                vertical = 10.dp
-                            )
+                            modifier = Modifier.height(48.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                         ) {
                             Icon(
                                 Icons.Default.Add,
                                 contentDescription = "Add set",
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(Modifier.width(6.dp))
-                            Text("Add set")
                         }
                     }
                 }
@@ -839,27 +823,63 @@ fun ExerciseItem(
 
                 if (ex.sets.isNotEmpty()) {
                     ex.sets.forEachIndexed { i, s ->
-                        val editing =
-                            editSetMap[ex.exercise.id to i] == true
-                        // visibility state per set (defaults to true)
                         val setKey: Pair<String, Int> = ex.exercise.id to i
-                        val setVisible =
-                            setVisibleMap[setKey] ?: true
+                        val setVisible = setVisibleMap[setKey] ?: true
 
                         AnimatedVisibility(
                             visible = setVisible,
                             enter = fadeIn(tween(220)),
-                            exit = fadeOut(tween(220)) + shrinkVertically(
-                                tween(220)
-                            )
+                            exit = fadeOut(tween(220)) + shrinkVertically(tween(220))
                         ) {
-                            if (!editing) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                            {
+                                setVisibleMap[ex.exercise.id to i] = false
+                                val capturedIndex = i
+                                coroutineScope.launch {
+                                    delay(260)
+                                    onDeleteSet(ex.exercise.id, capturedIndex)
+                                    setVisibleMap.remove(ex.exercise.id to capturedIndex)
+                                }
+                            }
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                initialValue = SwipeToDismissBoxValue.Settled,
+                                positionalThreshold = SwipeToDismissBoxDefaults.positionalThreshold
+                            )
+
+                            SwipeToDismissBox(
+                                state = dismissState,
+                                backgroundContent = {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(MaterialTheme.colorScheme.errorContainer)
+                                            .padding(horizontal = 20.dp),
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                    }
+                                },
+                                enableDismissFromStartToEnd = false,
+                                onDismiss = {
+                                    setVisibleMap[ex.exercise.id to i] = false
+                                    val capturedIndex = i
+                                    coroutineScope.launch {
+                                        delay(260)
+                                        onDeleteSet(ex.exercise.id, capturedIndex)
+                                        setVisibleMap.remove(ex.exercise.id to capturedIndex)
+                                    }
+                                },
+                                content = {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(MaterialTheme.colorScheme.surface),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Surface(
                                             shape = MaterialTheme.shapes.small,
                                             tonalElevation = 1.dp,
@@ -869,159 +889,124 @@ fun ExerciseItem(
                                             Text(
                                                 text = "Set ${i + 1}",
                                                 modifier = Modifier.padding(
-                                                    horizontal = 10.dp,
-                                                    vertical = 6.dp
+                                                    horizontal = 8.dp,
+                                                    vertical = 4.dp
                                                 ),
-                                                style = MaterialTheme.typography.bodyMedium,
+                                                style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Medium
                                             )
                                         }
 
-                                        Text(
-                                            "${formatWeight(s.weight)} kg × ${s.reps} reps",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.primary,
+                                        var weightText by remember(s.weight) { mutableStateOf(s.weight.toString()) }
+                                        var repsText by remember(s.reps) { mutableStateOf(s.reps.toString()) }
+                                        var isCompleted by remember(s.reps) { mutableStateOf(s.reps > 0) }
+
+                                        androidx.compose.material3.TextField(
+                                            value = weightText,
+                                            onValueChange = {
+                                                weightText = it
+                                                val weight = it.toFloatOrNull() ?: 0f
+                                                val reps = repsText.toIntOrNull() ?: 0
+                                                onUpdateSet(ex.exercise.id, i, reps, weight)
+                                            },
+                                            placeholder = {
+                                                Text(
+                                                    "kg",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .weight(0.9f)
+                                                .height(56.dp),
+                                            singleLine = true,
+                                            shape = MaterialTheme.shapes.small,
+                                            textStyle = MaterialTheme.typography.bodyMedium,
+                                            keyboardOptions = KeyboardOptions(
+                                                keyboardType = KeyboardType.Decimal,
+                                                imeAction = ImeAction.Next
+                                            ),
+                                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                                                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                                            )
                                         )
 
-                                    }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        TextButton(onClick = {
-                                            editSetMap[ex.exercise.id to i] =
-                                                true
-                                        }) {
-                                            Text("Edit")
-                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+
+                                        androidx.compose.material3.TextField(
+                                            value = repsText,
+                                            onValueChange = {
+                                                repsText = it
+                                                val reps = it.toIntOrNull() ?: 0
+                                                val weight = weightText.toFloatOrNull() ?: 0f
+                                                onUpdateSet(ex.exercise.id, i, reps, weight)
+                                            },
+                                            placeholder = {
+                                                Text(
+                                                    "reps",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            },
+                                            modifier = Modifier
+                                                .weight(0.7f)
+                                                .height(56.dp),
+                                            singleLine = true,
+                                            shape = MaterialTheme.shapes.small,
+                                            textStyle = MaterialTheme.typography.bodyMedium,
+                                            keyboardOptions = KeyboardOptions(
+                                                keyboardType = KeyboardType.Number,
+                                                imeAction = ImeAction.Done
+                                            ),
+                                            colors = androidx.compose.material3.TextFieldDefaults.colors(
+                                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                                                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                                            )
+                                        )
+
+                                        Spacer(modifier = Modifier.width(6.dp))
+
                                         IconButton(
                                             onClick = {
-                                                // animate then delete
-                                                setVisibleMap[ex.exercise.id to i] =
-                                                    false
-                                                val capturedIndex = i
-                                                coroutineScope.launch {
-                                                    delay(260)
-                                                    onDeleteSet(
+                                                isCompleted = !isCompleted
+                                                if (isCompleted && (repsText.toIntOrNull()
+                                                        ?: 0) == 0
+                                                ) {
+                                                    repsText = "1"
+                                                    onUpdateSet(
                                                         ex.exercise.id,
-                                                        capturedIndex
+                                                        i,
+                                                        1,
+                                                        weightText.toFloatOrNull() ?: 0f
                                                     )
-                                                    setVisibleMap.remove(ex.exercise.id to capturedIndex)
                                                 }
                                             },
-                                            modifier = Modifier.size(28.dp)
+                                            modifier = Modifier.size(40.dp)
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = "Delete set",
-                                                tint = MaterialTheme.colorScheme.error
+                                                imageVector = if (isCompleted) Icons.Default.Check else Icons.Default.RadioButtonUnchecked,
+                                                contentDescription = if (isCompleted) "Set completed" else "Mark set as completed",
+                                                tint = if (isCompleted)
+                                                    MaterialTheme.colorScheme.primary
+                                                else
+                                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.size(20.dp)
                                             )
                                         }
                                     }
                                 }
-                                if (i < ex.sets.lastIndex) {
-                                    Spacer(Modifier.height(8.dp))
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(
-                                            alpha = 0.2f
-                                        )
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                }
-                            } else {
-                                // Reinitialize edit fields each time editing opens by using
-                                // the editing boolean as the remember key. This ensures the
-                                // fields are prefilled with the current set values.
-                                var editReps by remember(editing) {
-                                    mutableStateOf(
-                                        s.reps.toString()
-                                    )
-                                }
-                                var editWeight by remember(editing) {
-                                    mutableStateOf(
-                                        s.weight.toString()
-                                    )
-                                }
-
-                                val editFocusRequester =
-                                    remember { FocusRequester() }
-
-                                // When editing opens, request focus on the weight field and show keyboard
-                                LaunchedEffect(Unit) {
-                                    // small delay to ensure the field is composed
-                                    delay(50)
-                                    try {
-                                        editFocusRequester.requestFocus()
-                                    } catch (_: Exception) {
-                                    }
-                                    keyboardController?.show()
-                                }
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    OutlinedTextField(
-                                        value = editWeight,
-                                        onValueChange = { editWeight = it },
-                                        label = { Text("Weight (kg)") },
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .heightIn(min = 56.dp)
-                                            .padding(vertical = 4.dp)
-                                            .focusRequester(
-                                                editFocusRequester
-                                            ),
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Decimal,
-                                            imeAction = ImeAction.Done
-                                        ),
-                                    )
-
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    OutlinedTextField(
-                                        value = editReps,
-                                        onValueChange = { editReps = it },
-                                        label = { Text("Reps") },
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .heightIn(min = 56.dp)
-                                            .padding(vertical = 4.dp),
-                                        singleLine = true,
-                                        keyboardOptions = KeyboardOptions(
-                                            keyboardType = KeyboardType.Number,
-                                            imeAction = ImeAction.Next
-                                        ),
-                                    )
-
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    TextButton(onClick = {
-                                        val reps =
-                                            editReps.toIntOrNull() ?: 0
-                                        val weight =
-                                            editWeight.toFloatOrNull() ?: 0f
-                                        if (reps > 0) {
-                                            onUpdateSet(
-                                                ex.exercise.id,
-                                                i,
-                                                reps,
-                                                weight
-                                            )
-                                            editSetMap.remove(ex.exercise.id to i)
-                                        }
-                                    }) {
-                                        Text("Save")
-                                    }
-                                    TextButton(onClick = {
-                                        editSetMap.remove(
-                                            ex.exercise.id to i
-                                        )
-                                    }) {
-                                        Text("Cancel")
-                                    }
-                                }
-                            }
+                            )
+                        }
+                        if (i < ex.sets.lastIndex) {
+                            Spacer(Modifier.height(6.dp))
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                            )
+                            Spacer(Modifier.height(6.dp))
                         }
                     }
                 }
